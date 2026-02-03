@@ -1,0 +1,85 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Custom range slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 1);
+  cursor: pointer;
+  border-radius: 4px;
+  border: none;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 1);
+  cursor: pointer;
+  border-radius: 4px;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+/* Custom color picker styling */
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* WebKit (Chrome, Safari, Edge) - Color swatch */
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+/* Firefox - Color swatch */
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+/* Custom scrollbar styling - overlay style */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}

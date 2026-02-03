@@ -1,0 +1,7 @@
+.DS_Store
+
+node_modules
+
+# Ignore AI directory except current-feature
+AI/*
+!AI/current-feature/
