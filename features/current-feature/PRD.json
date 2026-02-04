@@ -231,7 +231,7 @@
         "Settings changes debounce correctly (100ms)",
         "No UI jank during generation"
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "notes": [

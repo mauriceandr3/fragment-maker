@@ -43,6 +43,15 @@ interface GeneratorParams {
 const TOOLTIP_DELAY = 200;
 const TOUCH_LONG_PRESS_DELAY = 500;
 
+// Skeleton placeholder for loading state
+const GridSkeleton = memo(function GridSkeleton() {
+  return (
+    <div className="aspect-square bg-black/40 rounded-lg overflow-hidden border border-white/20 animate-pulse">
+      <div className="w-full h-full bg-white/5" />
+    </div>
+  );
+});
+
 // Memoized grid item component to prevent unnecessary re-renders
 interface GridItemProps {
   svg: string;
@@ -166,6 +175,7 @@ export function AssetGenerator() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
   const [varyingParam, setVaryingParam] = useState<SeedableParam>('frequency');
+  const [hasGeneratedGrid, setHasGeneratedGrid] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Debounced state for grid generation (prevents regenerating on every slider tick)
@@ -254,6 +264,26 @@ export function AssetGenerator() {
 
   // Use deferred value for the rendered SVGs to prevent UI blocking
   const deferredGridSvgs = useDeferredValue(gridSvgs);
+
+  // Track if grid is currently generating (stale) for skeleton display
+  const isGridStale = deferredGridSvgs !== gridSvgs;
+
+  // Mark grid as generated after first render (for skeleton display)
+  useEffect(() => {
+    if (viewMode === 'grid' && gridSvgs.length > 0 && !hasGeneratedGrid) {
+      // Use requestAnimationFrame to ensure skeletons render first
+      requestAnimationFrame(() => {
+        setHasGeneratedGrid(true);
+      });
+    }
+  }, [viewMode, gridSvgs, hasGeneratedGrid]);
+
+  // Reset hasGeneratedGrid when switching away from grid view
+  useEffect(() => {
+    if (viewMode === 'single') {
+      setHasGeneratedGrid(false);
+    }
+  }, [viewMode]);
 
   // Find which grid item best matches the current base config value
   const highlightedGridIndex = useMemo(() => {
@@ -679,22 +709,34 @@ export function AssetGenerator() {
 
               {/* Grid of 20 SVG previews - uses deferred values for smooth UI */}
               {/* Responsive: 4 cols on narrow (<1200px), 5 cols on wide. Min item size: 120px */}
-              <div className="grid gap-3 w-full max-w-[1060px] mx-auto grid-cols-[repeat(4,minmax(120px,1fr))] xl:grid-cols-[repeat(5,minmax(120px,1fr))]">
-                {deferredGridSvgs.map((svg, index) => {
-                  const config = gridVariations[index];
-                  const paramValue = config[varyingParam as keyof typeof config];
+              {/* Show skeleton placeholders initially, reduced opacity when stale */}
+              <div
+                className={`grid gap-3 w-full max-w-[1060px] mx-auto grid-cols-[repeat(4,minmax(120px,1fr))] xl:grid-cols-[repeat(5,minmax(120px,1fr))] transition-opacity duration-150 ${
+                  isGridStale ? 'opacity-70' : 'opacity-100'
+                }`}
+              >
+                {!hasGeneratedGrid ? (
+                  // Show skeleton placeholders immediately when switching to Grid view
+                  Array.from({ length: 20 }, (_, index) => (
+                    <GridSkeleton key={index} />
+                  ))
+                ) : (
+                  deferredGridSvgs.map((svg, index) => {
+                    const config = gridVariations[index];
+                    const paramValue = config[varyingParam as keyof typeof config];
 
-                  return (
-                    <GridItem
-                      key={index}
-                      svg={svg}
-                      index={index}
-                      isHighlighted={index === highlightedGridIndex}
-                      varyingParam={varyingParam}
-                      paramValue={paramValue as number | string}
-                    />
-                  );
-                })}
+                    return (
+                      <GridItem
+                        key={index}
+                        svg={svg}
+                        index={index}
+                        isHighlighted={index === highlightedGridIndex}
+                        varyingParam={varyingParam}
+                        paramValue={paramValue as number | string}
+                      />
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

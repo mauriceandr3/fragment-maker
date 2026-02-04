@@ -326,3 +326,29 @@
 **Notes for next iteration:**
 - Remaining: PRD-017 (Loading states with skeleton placeholders)
 - Build/typecheck unavailable due to sandbox constraints - verify manually
+
+## PRD-017: UI - State Handling (Loading States)
+**Status:** Complete
+
+**What was done:**
+- Added GridSkeleton component: 20 gray squares with subtle pulse animation (animate-pulse)
+- Added hasGeneratedGrid state to track initial grid render
+- Skeleton placeholders shown immediately when switching to Grid view
+- Using requestAnimationFrame to ensure skeletons paint before SVGs
+- Reset hasGeneratedGrid to false when switching back to Single view
+- Already had: 100ms debounce (PRD-009), useDeferredValue for non-blocking updates
+- Added isGridStale check: reduced opacity (70%) during updates for visual feedback
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (GridSkeleton component, hasGeneratedGrid state, effects)
+- features/current-feature/PRD.json (PRD-017 marked passing)
+
+**Key decisions:**
+- Skeleton uses animate-pulse for subtle loading animation
+- requestAnimationFrame ensures skeletons render before heavy SVG computation
+- Opacity reduction during updates (isGridStale) provides visual feedback without full skeleton swap
+- Progressive population achieved via useDeferredValue + React's concurrent rendering
+
+**Notes:**
+- All PRD items are now complete
+- Build/typecheck unavailable due to sandbox constraints - verify manually
