@@ -119,7 +119,7 @@
         "Non-varying parameters are unchanged from baseConfig",
         "Function handles all 7 eligible varying parameters correctly"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-009",

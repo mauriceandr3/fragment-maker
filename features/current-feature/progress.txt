@@ -26,3 +26,27 @@
 **Notes for next iteration:**
 - PRD-008 (Grid Generation Utility) can build on this module
 - AssetGenerator could be refactored further to use generateFragmentSvgDirect internally
+
+## PRD-008: Architecture - Grid Generation Utility
+**Status:** Complete
+
+**What was done:**
+- Added generateGridVariations() to src/lib/generateFragmentSvg.ts
+- Function signature: generateGridVariations(baseConfig, varyingParam, count) => config[]
+- Index 0 = min value, index (count-1) = max value
+- Integer params snapped to valid integers, continuous params interpolated
+- Non-varying params preserved from baseConfig
+
+**Files changed:**
+- src/lib/generateFragmentSvg.ts (added generateGridVariations function)
+- features/current-feature/PRD.json (marked passing)
+
+**Key decisions:**
+- Placed in same module as generateFragmentSvg for cohesion
+- Default count = 20 per PRD spec
+- Uses PARAM_RANGES constants for min/max/step
+- For params with fewer valid values than count, values repeat evenly
+
+**Notes for next iteration:**
+- PRD-001/PRD-002 (UI tasks) can now use this utility for grid view
+- PRD-006 (Export JSON) is standalone, good next pick for architectural completeness

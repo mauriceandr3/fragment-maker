@@ -470,6 +470,81 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig):
 }
 
 /**
+ * Generates an array of configurations with one parameter varying across its range.
+ * Useful for grid view previews and batch generation.
+ *
+ * For parameters with limited discrete values (e.g., integers with a small range),
+ * values are repeated as needed to fill the requested count rather than interpolating
+ * invalid values.
+ *
+ * @param baseConfig - The base configuration (non-varying parameters)
+ * @param varyingParam - Which parameter to vary across the configurations
+ * @param count - Number of configurations to generate (default: 20)
+ * @returns Array of configurations with the varying parameter adjusted
+ *
+ * @example
+ * ```typescript
+ * const variations = generateGridVariations(baseConfig, 'frequency', 20);
+ * // variations[0].frequency = 0.01 (min)
+ * // variations[19].frequency = 0.5 (max)
+ * ```
+ */
+export function generateGridVariations(
+  baseConfig: Omit<FragmentConfig, 'seedParam'>,
+  varyingParam: SeedableParam,
+  count: number = 20
+): Omit<FragmentConfig, 'seedParam'>[] {
+  const range = PARAM_RANGES[varyingParam];
+  const { min, max, step } = range;
+
+  // Calculate all valid discrete values for this parameter
+  const validValues: number[] = [];
+  for (let value = min; value <= max + step / 2; value += step) {
+    // Round to avoid floating point errors
+    const roundedValue = step >= 1 ? Math.round(value) : Math.round(value / step) * step;
+    if (roundedValue <= max) {
+      validValues.push(roundedValue);
+    }
+  }
+
+  // Generate the configurations
+  const configs: Omit<FragmentConfig, 'seedParam'>[] = [];
+
+  for (let i = 0; i < count; i++) {
+    let paramValue: number;
+
+    if (validValues.length >= count) {
+      // Enough unique values: distribute evenly across the range
+      // Index 0 gets min, index (count-1) gets max
+      const t = count === 1 ? 0 : i / (count - 1);
+      const rawValue = min + t * (max - min);
+
+      // Snap to nearest valid step
+      if (step >= 1) {
+        paramValue = Math.round(rawValue);
+      } else {
+        paramValue = Math.round(rawValue / step) * step;
+      }
+
+      // Clamp to valid range
+      paramValue = Math.max(min, Math.min(max, paramValue));
+    } else {
+      // Not enough unique values: repeat values to fill count slots
+      // Distribute available values as evenly as possible
+      const slotIndex = Math.floor((i / count) * validValues.length);
+      paramValue = validValues[Math.min(slotIndex, validValues.length - 1)];
+    }
+
+    configs.push({
+      ...baseConfig,
+      [varyingParam]: paramValue,
+    });
+  }
+
+  return configs;
+}
+
+/**
  * Generates a Fragment pattern SVG with explicit parameter values (no seed string).
  * This is useful when you want full control over all parameters.
  *
