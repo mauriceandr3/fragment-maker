@@ -181,7 +181,7 @@
         "Highlight is visible but not distracting",
         "Works correctly for all 7 variable parameters"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-014",

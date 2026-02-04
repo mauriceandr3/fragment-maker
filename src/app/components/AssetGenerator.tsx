@@ -98,6 +98,27 @@ export function AssetGenerator() {
     return gridVariations.map((config) => generateFragmentSvgDirect(config));
   }, [gridVariations]);
 
+  // Find which grid item best matches the current base config value
+  const highlightedGridIndex = useMemo(() => {
+    // Get the current base value for the varying parameter
+    const currentValue = params[varyingParam as keyof GeneratorParams] as number;
+
+    // Find the grid item with the closest value
+    let closestIndex = 0;
+    let closestDiff = Infinity;
+
+    for (let i = 0; i < gridVariations.length; i++) {
+      const gridValue = gridVariations[i][varyingParam as keyof typeof gridVariations[0]] as number;
+      const diff = Math.abs(gridValue - currentValue);
+      if (diff < closestDiff) {
+        closestDiff = diff;
+        closestIndex = i;
+      }
+    }
+
+    return closestIndex;
+  }, [params, varyingParam, gridVariations]);
+
   // Derive display colors based on invert flag
   const displayForeground = invertColors ? backgroundColor : foregroundColor;
   const displayBackground = invertColors ? foregroundColor : backgroundColor;
@@ -526,7 +547,11 @@ export function AssetGenerator() {
                   return (
                     <div
                       key={index}
-                      className="relative aspect-square bg-black/40 border border-white/20 rounded-lg overflow-hidden cursor-default hover:border-white/40 transition-all duration-150 hover:scale-[1.02]"
+                      className={`relative aspect-square bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
+                        index === highlightedGridIndex
+                          ? 'ring-2 ring-white/60 border-2 border-white/50'
+                          : 'border border-white/20 hover:border-white/40'
+                      }`}
                       onMouseEnter={() => setHoveredGridIndex(index)}
                       onMouseLeave={() => setHoveredGridIndex(null)}
                     >

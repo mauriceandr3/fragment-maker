@@ -202,3 +202,26 @@
 **Notes for next iteration:**
 - Remaining tasks: PRD-009 (Performance), PRD-010 (Consistent Behavior), PRD-013 (Highlight), PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
 - Build unavailable - verify manually
+
+## PRD-013: Grid View Enhancement - Highlight Current Value
+**Status:** Complete
+
+**What was done:**
+- Added highlightedGridIndex memoized value to find grid item matching base config
+- Compares current params[varyingParam] to gridVariations values, finds closest match
+- Applied highlight styling: ring-2 ring-white/60 border-2 border-white/50
+- Non-highlighted items use border border-white/20 with hover:border-white/40
+- Highlight updates reactively when params or varyingParam changes
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (highlightedGridIndex memo, grid item className)
+- features/current-feature/PRD.json (PRD-013 marked passing)
+
+**Key decisions:**
+- Used Math.abs(gridValue - currentValue) to find closest match
+- Combined ring + border per PRD spec for visible but non-distracting highlight
+- Memoized computation to avoid recalculating on every render
+
+**Notes for next iteration:**
+- Remaining: PRD-009 (Performance), PRD-010 (Consistent Behavior), PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
+- Build/typecheck unavailable due to sandbox constraints - verify manually
