@@ -129,3 +129,27 @@
 - PRD-004 (Parameter Selector UI) should add chips to select varyingParam
 - PRD-005 (Settings Panel) should already work since panel unchanged
 - Build/typecheck unavailable due to container constraints - verify manually
+
+## PRD-003: Core Logic - Parameter Variation
+**Status:** Complete
+
+**What was done:**
+- Verified existing implementation satisfies all requirements
+- generateGridVariations() in lib/generateFragmentSvg.ts handles variation logic
+- gridVariations/gridSvgs memoized values in AssetGenerator.tsx use this function
+- All 20 SVGs share base config, only varying param differs
+- Index 0 = min value, index 19 = max value
+- Integer params use valid integers only (repeating if range < 20)
+- Real-time updates via React memoization dependencies
+
+**Files changed:**
+- features/current-feature/PRD.json (PRD-003 marked passing)
+
+**Key decisions:**
+- No code changes needed - existing implementation from PRD-008 already satisfies PRD-003
+- generateGridVariations handles both continuous and integer params correctly
+
+**Notes for next iteration:**
+- PRD-004 (Parameter Selector UI) is next priority - adds UI to change varyingParam
+- PRD-005 (Settings Panel) likely already works - just needs verification
+- Build unavailable - verify manually

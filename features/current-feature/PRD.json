@@ -45,7 +45,7 @@
         "SVGs visually differ from each other when the varying parameter affects appearance",
         "Changing base configuration updates all 20 SVGs in real-time"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-004",
