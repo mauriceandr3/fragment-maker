@@ -104,7 +104,7 @@
         "Existing AssetGenerator.tsx imports and uses this module",
         "Module includes TypeScript types for configuration object"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-008",

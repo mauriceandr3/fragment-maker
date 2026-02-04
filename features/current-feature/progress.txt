@@ -1,0 +1,28 @@
+# Progress Log
+
+## PRD-007: Architecture - Modular SVG Generation
+**Status:** Complete
+
+**What was done:**
+- Created src/lib/generateFragmentSvg.ts with all SVG generation logic
+- Implemented djb2Hash and normalizeHash for deterministic seed string hashing
+- Exported types: FillType, CanvasSize, SeedableParam, FragmentConfig
+- Exported constants: CANVAS_SIZES, PARAM_RANGES
+- Exported functions: generateFragmentSvg(), generateFragmentSvgDirect(), djb2Hash(), normalizeHash()
+- Pure functions with no React dependencies
+- Updated AssetGenerator.tsx to import types and constants from module
+
+**Files changed:**
+- src/lib/generateFragmentSvg.ts (new)
+- src/app/components/AssetGenerator.tsx (import update)
+- features/current-feature/PRD.json (marked passing)
+
+**Key decisions:**
+- Module exports both generateFragmentSvg (with seed string) and generateFragmentSvgDirect (explicit params)
+- seedParam defaults to 'frequency' to match PRD-004 default
+- djb2 hash normalized to [0,1] range then mapped to parameter's min/max range
+- Integer params rounded to valid step values
+
+**Notes for next iteration:**
+- PRD-008 (Grid Generation Utility) can build on this module
+- AssetGenerator could be refactored further to use generateFragmentSvgDirect internally

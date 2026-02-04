@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw } from "lucide-react";
-
-type CanvasSize = '1K' | '2K' | '4K';
-
-const CANVAS_SIZES = {
-  '1K': { width: 1056, height: 1056 },
-  '2K': { width: 2112, height: 2112 },
-  '4K': { width: 4224, height: 4224 },
-};
+import {
+  type CanvasSize,
+  type FillType,
+  CANVAS_SIZES,
+} from "../../lib/generateFragmentSvg";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
 
@@ -20,8 +17,6 @@ const COLOR_PRESETS = [
   { name: "Reason Green", background: "#000000", foreground: "#6CFF80" },
   { name: "Genesis Blue", background: "#000000", foreground: "#000DFB" },
 ];
-
-type FillType = 'linear' | 'radial' | 'angular' | 'diamond' | 'square';
 
 interface GeneratorParams {
   threshold: number;
