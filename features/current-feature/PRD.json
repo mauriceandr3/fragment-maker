@@ -15,7 +15,7 @@
         "Clicking Single view returns to the original canvas display",
         "Toggle state persists during parameter changes"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-002",
@@ -156,7 +156,7 @@
         "Hover state: hover:text-white hover:bg-black/40",
         "Keyboard navigable with arrow keys"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-012",

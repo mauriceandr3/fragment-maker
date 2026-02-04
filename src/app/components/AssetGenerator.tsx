@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw, FileJson } from "lucide-react";
+import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid } from "lucide-react";
 import {
   type CanvasSize,
   type FillType,
@@ -56,6 +56,7 @@ export function AssetGenerator() {
   const [grid, setGrid] = useState<boolean[][]>([]);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Memoize grid dimensions
@@ -415,13 +416,46 @@ export function AssetGenerator() {
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">
       <div className="flex-1 relative overflow-hidden">
+        {/* View Mode Toggle - Centered above canvas */}
+        <div className="absolute top-4 left-8 z-10 flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('single')}
+            className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
+              viewMode === 'single'
+                ? 'bg-white/20 border-2 border-white/40 text-white'
+                : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
+            }`}
+          >
+            <Square className="w-4 h-4" />
+            <span className="text-sm">Single</span>
+          </button>
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
+              viewMode === 'grid'
+                ? 'bg-white/20 border-2 border-white/40 text-white'
+                : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span className="text-sm">Grid</span>
+          </button>
+        </div>
+
         {/* Canvas Area */}
-        <div className="absolute inset-x-0 top-8 bottom-0 bg-black flex items-center justify-start overflow-auto pl-8">
-          <canvas
-            ref={canvasRef}
-            className="border border-white/10 shadow-2xl"
-            style={{ imageRendering: 'pixelated' }}
-          />
+        <div className="absolute inset-x-0 top-16 bottom-0 bg-black flex items-center justify-start overflow-auto pl-8">
+          {viewMode === 'single' && (
+            <canvas
+              ref={canvasRef}
+              className="border border-white/10 shadow-2xl"
+              style={{ imageRendering: 'pixelated' }}
+            />
+          )}
+          {viewMode === 'grid' && (
+            <div className="w-full h-full flex items-center justify-center text-white/40">
+              Grid view coming soon...
+            </div>
+          )}
         </div>
         
         {/* Floating Controls Panel */}

@@ -76,3 +76,27 @@
 - Build system unavailable due to container constraints - verify manually
 - PRD-001/002/011 (View Toggle + Grid) form next logical unit of work
 - PRD-003/004 (Parameter Variation + Selector) depend on grid view UI
+
+## PRD-001 + PRD-011: Single/Grid View Toggle
+**Status:** Complete
+
+**What was done:**
+- Added viewMode state ('single' | 'grid') defaulting to 'single'
+- Created segmented pill toggle above canvas matching 1K/2K/4K pattern
+- Used Square and LayoutGrid icons from lucide-react
+- Single view shows existing canvas, Grid view placeholder ready
+- Styling: selected bg-white/20 border-2 border-white/40, unselected bg-black/30 hover:bg-black/40
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (state, icons, toggle UI, conditional rendering)
+- features/current-feature/PRD.json (PRD-001, PRD-011 marked passing)
+
+**Key decisions:**
+- Toggle positioned top-left (left-8 top-4) above canvas area
+- Canvas area shifted down (top-16) to make room for toggle
+- Grid view renders placeholder - actual grid impl in PRD-002
+
+**Notes for next iteration:**
+- PRD-002 (Grid Layout) is natural next step - implement the actual grid
+- PRD-003/004 (Parameter Variation + Selector) provide grid content
+- Build unavailable - verify manually that toggle works and styling matches
