@@ -194,7 +194,7 @@
         "Touch interaction works on mobile (long-press)",
         "Cursor is cursor-default (view-only)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-015",

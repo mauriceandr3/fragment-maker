@@ -39,28 +39,30 @@ interface GeneratorParams {
   invertFill: boolean;
 }
 
+// Tooltip delay in ms (PRD-014)
+const TOOLTIP_DELAY = 200;
+const TOUCH_LONG_PRESS_DELAY = 500;
+
 // Memoized grid item component to prevent unnecessary re-renders
 interface GridItemProps {
   svg: string;
   index: number;
   isHighlighted: boolean;
-  isHovered: boolean;
   varyingParam: SeedableParam;
   paramValue: number | string;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
 }
 
 const GridItem = memo(function GridItem({
   svg,
   index,
   isHighlighted,
-  isHovered,
   varyingParam,
   paramValue,
-  onMouseEnter,
-  onMouseLeave,
 }: GridItemProps) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const formattedValue = typeof paramValue === 'number'
     ? (Number.isInteger(paramValue) ? paramValue : paramValue.toFixed(2))
     : paramValue;
@@ -71,6 +73,45 @@ const GridItem = memo(function GridItem({
     varyingParam === 'directionDensity' ? 'Dir. Density' :
     varyingParam.charAt(0).toUpperCase() + varyingParam.slice(1);
 
+  const handleMouseEnter = useCallback(() => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowTooltip(true);
+    }, TOOLTIP_DELAY);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setShowTooltip(false);
+  }, []);
+
+  const handleTouchStart = useCallback(() => {
+    touchTimeoutRef.current = setTimeout(() => {
+      setShowTooltip(true);
+    }, TOUCH_LONG_PRESS_DELAY);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+    // Delay hiding tooltip on touch to allow user to see it
+    setTimeout(() => {
+      setShowTooltip(false);
+    }, 1000);
+  }, []);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+    };
+  }, []);
+
   return (
     <div
       className={`relative aspect-square bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
@@ -78,8 +119,11 @@ const GridItem = memo(function GridItem({
           ? 'ring-2 ring-white/60 border-2 border-white/50'
           : 'border border-white/20 hover:border-white/40'
       }`}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {/* SVG Container - letterboxed */}
       <div
@@ -87,8 +131,8 @@ const GridItem = memo(function GridItem({
         dangerouslySetInnerHTML={{ __html: svg }}
       />
 
-      {/* Tooltip on hover */}
-      {isHovered && (
+      {/* Tooltip with delay (200ms hover, 500ms touch long-press) */}
+      {showTooltip && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 whitespace-nowrap z-10">
           {paramLabel}: {formattedValue}
         </div>
@@ -122,7 +166,6 @@ export function AssetGenerator() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
   const [varyingParam, setVaryingParam] = useState<SeedableParam>('frequency');
-  const [hoveredGridIndex, setHoveredGridIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Debounced state for grid generation (prevents regenerating on every slider tick)
@@ -651,11 +694,8 @@ export function AssetGenerator() {
                       svg={svg}
                       index={index}
                       isHighlighted={index === highlightedGridIndex}
-                      isHovered={hoveredGridIndex === index}
                       varyingParam={varyingParam}
                       paramValue={paramValue as number | string}
-                      onMouseEnter={() => setHoveredGridIndex(index)}
-                      onMouseLeave={() => setHoveredGridIndex(null)}
                     />
                   );
                 })}

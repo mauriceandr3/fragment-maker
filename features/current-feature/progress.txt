@@ -275,3 +275,30 @@
 **Notes for next iteration:**
 - Remaining: PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
 - Build unavailable due to sandbox memory constraints - verify manually
+
+## PRD-014: UI - Interaction Specification (Tooltips)
+**Status:** Complete
+
+**What was done:**
+- Added 200ms delay before showing tooltip on hover (TOOLTIP_DELAY constant)
+- Added 500ms long-press for touch devices (TOUCH_LONG_PRESS_DELAY constant)
+- Moved tooltip state inside GridItem component (self-contained)
+- Added onTouchStart, onTouchEnd, onTouchCancel handlers
+- Tooltip stays visible 1 second after touch release for readability
+- Cleanup timeouts on component unmount via useEffect
+- Removed hoveredGridIndex state from parent (no longer needed)
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (GridItem refactored, removed hoveredGridIndex)
+- features/current-feature/PRD.json (PRD-014 marked passing)
+
+**Key decisions:**
+- Made GridItem fully self-contained for tooltip logic (better encapsulation)
+- Used useRef for timeout IDs to avoid stale closure issues
+- Touch tooltip stays visible 1s after release so user can read it
+- Existing hover feedback (scale-[1.02], border-white/40) already met PRD spec
+
+**Notes for next iteration:**
+- Remaining: PRD-016 (Responsive), PRD-017 (Loading states)
+- Build unavailable due to sandbox memory constraints - verify manually
+- Tooltip positioning is bottom-center; viewport clipping not explicitly handled but tooltip is small
