@@ -3,7 +3,7 @@
 node_modules
 
 # Ignore AI directory except current-feature
-
+AI
 
 .claude
 
