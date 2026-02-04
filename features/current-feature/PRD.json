@@ -144,7 +144,7 @@
         "Call generateFragmentSvg with same settings - rendered output should be visually identical",
         "djb2 hash produces consistent results across all generation methods"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-011",

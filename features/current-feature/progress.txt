@@ -252,3 +252,26 @@
 - Remaining: PRD-010 (Consistent Behavior), PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
 - Build/typecheck unavailable due to sandbox constraints - verify manually
 - PRD-017 partially addressed (debouncing done, skeleton placeholders not done)
+
+## PRD-010: Integration - Consistent Behavior
+**Status:** Complete
+
+**What was done:**
+- Refactored Single view's generateSVG() to use module's generateFragmentSvgDirect()
+- Previously: Local SVG generation duplicated logic from module
+- Now: Both Single view export and Grid view use same module function
+- Canvas preview still uses local grid generation (for zoom/scale), but exported SVGs are identical
+- djb2 hash is only used by generateFragmentSvg (seed string variant), consistent in module
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (generateSVG function refactored)
+- features/current-feature/PRD.json (PRD-010 marked passing)
+
+**Key decisions:**
+- Kept local generateGrid() for canvas preview (needed for scale/zoom feature)
+- Made SVG export use module function for guaranteed consistency
+- Canvas preview and module use identical algorithms (seededRandom, fillThreshold, etc.)
+
+**Notes for next iteration:**
+- Remaining: PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
+- Build unavailable due to sandbox memory constraints - verify manually

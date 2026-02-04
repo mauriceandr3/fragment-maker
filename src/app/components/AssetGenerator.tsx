@@ -407,36 +407,26 @@ export function AssetGenerator() {
     setGrid(newGrid);
   }, [gridDimensions, params, seededRandom, calculateFillThreshold, applyDirectionalNeighbors]);
 
-  // Generate SVG string
+  // Generate SVG string using the module function for consistency
   const generateSVG = useCallback((): string => {
-    const { cols, rows } = gridDimensions;
-    
-    if (!grid || grid.length === 0 || !grid[0]) {
-      console.warn('Cannot generate SVG: grid is empty');
-      return '';
-    }
-    
-    // Always export at full canvas dimensions, regardless of zoom level
-    const canvasDimensions = CANVAS_SIZES[canvasSize];
-    const width = canvasDimensions.width;
-    const height = canvasDimensions.height;
-    
-    // Calculate exact cell size to fill the canvas perfectly
-    const scaledCellWidth = width / cols;
-    const scaledCellHeight = height / rows;
-    
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
-    
-    for (let y = 0; y < Math.min(rows, grid.length); y++) {
-      for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
-        const color = grid[y][x] ? displayForeground : displayBackground;
-        svg += `<rect x="${x * scaledCellWidth}" y="${y * scaledCellHeight}" width="${scaledCellWidth}" height="${scaledCellHeight}" fill="${color}"/>`;
-      }
-    }
-    
-    svg += '</svg>';
-    return svg;
-  }, [grid, gridDimensions, canvasSize, displayForeground, displayBackground]);
+    const config = {
+      threshold: params.threshold,
+      gamma: params.gamma,
+      frequency: params.frequency,
+      contrast: params.contrast,
+      seed: params.seed,
+      directionalNeighbors: params.directionalNeighbors,
+      directionDensity: params.directionDensity,
+      fillAmount: params.fillAmount,
+      fillType: params.fillType,
+      invertFill: params.invertFill,
+      foregroundColor: displayForeground,
+      backgroundColor: displayBackground,
+      cellSize,
+      canvasSize,
+    };
+    return generateFragmentSvgDirect(config);
+  }, [params, displayForeground, displayBackground, cellSize, canvasSize]);
 
   // Draw grid to canvas
   useEffect(() => {
