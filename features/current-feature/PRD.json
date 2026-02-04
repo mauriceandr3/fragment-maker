@@ -31,7 +31,7 @@
         "Single canvas is hidden when Grid view is active",
         "Grid view area occupies the same space as the single canvas"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-003",

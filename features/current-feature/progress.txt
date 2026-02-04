@@ -100,3 +100,32 @@
 - PRD-002 (Grid Layout) is natural next step - implement the actual grid
 - PRD-003/004 (Parameter Variation + Selector) provide grid content
 - Build unavailable - verify manually that toggle works and styling matches
+
+## PRD-002: Grid View Layout
+**Status:** Complete
+
+**What was done:**
+- Added varyingParam state (SeedableParam, default 'frequency')
+- Added hoveredGridIndex state for tooltip
+- Created gridVariations memoized array using generateGridVariations()
+- Created gridSvgs memoized array using generateFragmentSvgDirect()
+- Implemented 5-column CSS grid with minmax(120px, 200px) cells
+- Each cell: aspect-square, letterboxed SVG, hover border + scale effect
+- Tooltip appears on hover showing param name + value
+- Grid scrollable via overflow-auto on container
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (imports, state, memoized values, grid JSX)
+- features/current-feature/PRD.json (PRD-002 marked passing)
+
+**Key decisions:**
+- Used CSS [&>svg] selector to constrain SVG size within container
+- Tooltip shows friendly names (e.g., "Density" instead of "threshold")
+- Default varying param is 'frequency' per PRD-004 spec
+- varyingParam state exists but no UI to change it yet (PRD-004)
+
+**Notes for next iteration:**
+- PRD-003 (Parameter Variation logic) is already satisfied by generateGridVariations
+- PRD-004 (Parameter Selector UI) should add chips to select varyingParam
+- PRD-005 (Settings Panel) should already work since panel unchanged
+- Build/typecheck unavailable due to container constraints - verify manually

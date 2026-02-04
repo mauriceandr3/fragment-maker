@@ -5,6 +5,9 @@ import {
   type FillType,
   type SeedableParam,
   CANVAS_SIZES,
+  generateGridVariations,
+  generateFragmentSvgDirect,
+  PARAM_RANGES,
 } from "../../lib/generateFragmentSvg";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
@@ -57,6 +60,8 @@ export function AssetGenerator() {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
+  const [varyingParam, setVaryingParam] = useState<SeedableParam>('frequency');
+  const [hoveredGridIndex, setHoveredGridIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Memoize grid dimensions
@@ -66,6 +71,32 @@ export function AssetGenerator() {
     const rows = Math.floor(canvasDimensions.height / cellSize);
     return { cols, rows };
   }, [canvasSize, cellSize]);
+
+  // Generate grid variations for Grid view (20 configs with varying parameter)
+  const gridVariations = useMemo(() => {
+    const baseConfig = {
+      threshold: params.threshold,
+      gamma: params.gamma,
+      frequency: params.frequency,
+      contrast: params.contrast,
+      seed: params.seed,
+      directionalNeighbors: params.directionalNeighbors,
+      directionDensity: params.directionDensity,
+      fillAmount: params.fillAmount,
+      fillType: params.fillType,
+      invertFill: params.invertFill,
+      foregroundColor: invertColors ? backgroundColor : foregroundColor,
+      backgroundColor: invertColors ? foregroundColor : backgroundColor,
+      cellSize,
+      canvasSize,
+    };
+    return generateGridVariations(baseConfig, varyingParam, 20);
+  }, [params, foregroundColor, backgroundColor, invertColors, cellSize, canvasSize, varyingParam]);
+
+  // Generate SVG strings for each grid variation
+  const gridSvgs = useMemo(() => {
+    return gridVariations.map((config) => generateFragmentSvgDirect(config));
+  }, [gridVariations]);
 
   // Derive display colors based on invert flag
   const displayForeground = invertColors ? backgroundColor : foregroundColor;
@@ -452,8 +483,48 @@ export function AssetGenerator() {
             />
           )}
           {viewMode === 'grid' && (
-            <div className="w-full h-full flex items-center justify-center text-white/40">
-              Grid view coming soon...
+            <div className="w-full h-full overflow-auto p-4">
+              {/* Grid of 20 SVG previews */}
+              <div
+                className="grid gap-3 w-fit mx-auto"
+                style={{
+                  gridTemplateColumns: 'repeat(5, minmax(120px, 200px))',
+                }}
+              >
+                {gridSvgs.map((svg, index) => {
+                  const config = gridVariations[index];
+                  const paramValue = config[varyingParam as keyof typeof config];
+                  const formattedValue = typeof paramValue === 'number'
+                    ? (Number.isInteger(paramValue) ? paramValue : paramValue.toFixed(2))
+                    : paramValue;
+
+                  return (
+                    <div
+                      key={index}
+                      className="relative aspect-square bg-black/40 border border-white/20 rounded-lg overflow-hidden cursor-default hover:border-white/40 transition-all duration-150 hover:scale-[1.02]"
+                      onMouseEnter={() => setHoveredGridIndex(index)}
+                      onMouseLeave={() => setHoveredGridIndex(null)}
+                    >
+                      {/* SVG Container - letterboxed */}
+                      <div
+                        className="absolute inset-0 flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
+                        dangerouslySetInnerHTML={{ __html: svg }}
+                      />
+
+                      {/* Tooltip on hover */}
+                      {hoveredGridIndex === index && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 whitespace-nowrap z-10">
+                          {varyingParam === 'threshold' ? 'Density' :
+                           varyingParam === 'fillAmount' ? 'Fill %' :
+                           varyingParam === 'directionalNeighbors' ? 'Dir. Neighbors' :
+                           varyingParam === 'directionDensity' ? 'Dir. Density' :
+                           varyingParam.charAt(0).toUpperCase() + varyingParam.slice(1)}: {formattedValue}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
