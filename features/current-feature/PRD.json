@@ -1,0 +1,248 @@
+{
+  "projectName": "Fragment Maker - Grid View Feature",
+  "version": "1.0.0",
+  "createdAt": "2026-02-04",
+  "items": [
+    {
+      "id": "PRD-001",
+      "category": "UI - View Toggle",
+      "description": "Add radio button toggle between 'Single view' and 'Grid view' in the main interface. The toggle should match the existing UI style and be positioned prominently above the canvas area.",
+      "stepsToVerify": [
+        "Radio buttons are visible above the canvas area",
+        "Toggle styling matches existing UI components (using shadcn/ui RadioGroup)",
+        "Single view is selected by default",
+        "Clicking Grid view switches the view mode",
+        "Clicking Single view returns to the original canvas display",
+        "Toggle state persists during parameter changes"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-002",
+      "category": "UI - Grid View Layout",
+      "description": "When 'Grid view' is selected, replace the single canvas with a grid layout displaying 20 smaller SVG previews. Each SVG should be rendered at a consistent preview size (e.g., 200x200px) regardless of the configured canvas size. SVG previews should preserve aspect ratio (letterbox if needed). Hovering over a grid item should show a tooltip displaying the exact parameter value used for that variation.",
+      "stepsToVerify": [
+        "Grid displays exactly 20 SVG previews when Grid view is active",
+        "SVGs are arranged in a responsive grid layout (e.g., 4x5 or 5x4)",
+        "Each SVG preview has consistent dimensions",
+        "SVG aspect ratio is preserved (letterboxed, not stretched)",
+        "Hovering a grid item shows tooltip with the varied parameter's exact value",
+        "Grid is scrollable if it exceeds viewport height",
+        "Single canvas is hidden when Grid view is active",
+        "Grid view area occupies the same space as the single canvas"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-003",
+      "category": "Core Logic - Parameter Variation",
+      "description": "Each of the 20 SVGs in the grid should be generated with the same base configuration, but with one parameter varying across a range. The varying parameter's value should be calculated based on the SVG's index (0-19), distributed evenly across the parameter's valid range. For parameters with limited discrete values (e.g., integers 1-5), repeat values as needed to fill 20 slots rather than interpolating invalid values.",
+      "stepsToVerify": [
+        "All 20 SVGs share the same base configuration except the varying parameter",
+        "The varying parameter values are distributed evenly from min to max",
+        "Index 0 uses the minimum value, index 19 uses the maximum value",
+        "Integer parameters only use valid integer values (repeating if range is smaller than 20)",
+        "SVGs visually differ from each other when the varying parameter affects appearance",
+        "Changing base configuration updates all 20 SVGs in real-time"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-004",
+      "category": "UI - Parameter Selector",
+      "description": "Add a row of toggle buttons above the grid to select which parameter varies across the SVGs. Default selection is 'frequency'. Eligible parameters: density, fill amount, gamma, frequency, contrast, directional neighbors, direction density. Excluded: canvas size, colors, cell scale, fill type.",
+      "stepsToVerify": [
+        "Toggle row is visible above the grid in Grid view mode",
+        "Toggle row is hidden in Single view mode",
+        "Exactly 7 parameter options are available (density, fill amount, gamma, frequency, contrast, directional neighbors, direction density)",
+        "Frequency is selected by default",
+        "Only one parameter can be selected at a time",
+        "Selecting a different parameter regenerates all 20 SVGs with the new varying parameter",
+        "Toggle styling matches existing UI components"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-005",
+      "category": "UI - Settings Panel in Grid View",
+      "description": "The settings panel on the right side must remain visible and functional when Grid view is active. Changes to settings should update all 20 SVGs in the grid in real-time.",
+      "stepsToVerify": [
+        "Settings panel is visible in Grid view",
+        "All existing settings controls remain functional",
+        "Changing any setting updates all 20 grid SVGs immediately",
+        "The varying parameter's slider shows the base value (not the varied values)",
+        "Panel collapse/expand functionality works in Grid view"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-006",
+      "category": "Feature - Export Settings JSON",
+      "description": "Add an 'Export settings as JSON' button below the existing action buttons (Randomize, Export SVG, Copy SVG). When clicked, downloads a JSON file containing the current configuration settings that can be used with the website's generateFragmentSvg function.",
+      "stepsToVerify": [
+        "Button is visible below existing action buttons",
+        "Button styling matches existing action buttons",
+        "Clicking the button triggers a file download",
+        "Downloaded file is valid JSON",
+        "JSON contains all relevant parameters: threshold, gamma, frequency, contrast, seed, directionalNeighbors, directionDensity, fillAmount, fillType, invertFill, foregroundColor, backgroundColor, cellSize",
+        "JSON includes metadata: version, exportedAt timestamp",
+        "JSON includes optional seedParam field (defaults to 'frequency')"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-007",
+      "category": "Architecture - Modular SVG Generation",
+      "description": "Extract SVG generation logic into a separate, self-contained module that can be easily copied to the website repository. The module should export a function that accepts a seed string, configuration object, and returns an SVG string. Use the djb2 hash algorithm for converting seed strings to numeric values - this ensures deterministic results that match between this tool and the website.",
+      "stepsToVerify": [
+        "SVG generation logic is in a separate file (e.g., src/lib/generateFragmentSvg.ts)",
+        "Module has no dependencies on React or UI components",
+        "Module exports a pure function: generateFragmentSvg(seedString: string, config: FragmentConfig) => string",
+        "Module includes djb2 hash function implementation",
+        "Function uses djb2 hash of seed string to deterministically set the seeded parameter",
+        "Function produces identical output for identical inputs",
+        "Existing AssetGenerator.tsx imports and uses this module",
+        "Module includes TypeScript types for configuration object"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-008",
+      "category": "Architecture - Grid Generation Utility",
+      "description": "Create a utility function that generates an array of 20 configurations, each with the varying parameter adjusted based on index. This supports both the Grid view feature and potential batch generation use cases. For parameters with limited discrete values, the function should distribute available values across slots (repeating if necessary).",
+      "stepsToVerify": [
+        "Utility function exists and is exported",
+        "Function signature: generateGridVariations(baseConfig, varyingParam, count) => config[]",
+        "Returns array of exactly 'count' configurations",
+        "Each configuration has the varying parameter set to an evenly distributed value",
+        "Integer parameters use only valid integer values",
+        "Non-varying parameters are unchanged from baseConfig",
+        "Function handles all 7 eligible varying parameters correctly"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-009",
+      "category": "Performance - Grid Rendering",
+      "description": "Grid view should render smoothly without noticeable lag. Implement appropriate performance optimizations (e.g., memoization, debouncing rapid setting changes) to ensure responsive interaction.",
+      "stepsToVerify": [
+        "Initial grid render completes without perceptible delay",
+        "Changing the varying parameter updates grid responsively",
+        "Changing a base setting updates grid responsively",
+        "No visible flickering during updates",
+        "Browser remains responsive during grid operations"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-010",
+      "category": "Integration - Consistent Behavior",
+      "description": "Ensure that SVGs generated in Single view, Grid view, and via the modular function are visually identical when given the same parameters. Minor formatting differences in SVG output (whitespace, attribute order) are acceptable as long as rendered appearance is identical.",
+      "stepsToVerify": [
+        "Generate SVG in Single view with specific settings",
+        "View same settings in Grid view - the SVG at the matching variation point should look visually identical",
+        "Call generateFragmentSvg with same settings - rendered output should be visually identical",
+        "djb2 hash produces consistent results across all generation methods"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-011",
+      "category": "UI - Component Specification",
+      "description": "The Single/Grid view toggle must use the segmented pill control pattern already established in the UI (matching Canvas Size 1K|2K|4K and Zoom 25%|50%|100% controls), not radio buttons. Selected state: bg-white/20 border-2 border-white/40 text-white. Unselected state: bg-black/30 border border-white/20 text-white/60. Placement: Centered above the canvas area.",
+      "stepsToVerify": [
+        "Toggle uses segmented pill pattern, not radio buttons",
+        "Visual styling matches existing 1K/2K/4K controls exactly",
+        "Hover state: hover:text-white hover:bg-black/40",
+        "Keyboard navigable with arrow keys"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-012",
+      "category": "UI - Component Specification",
+      "description": "The parameter variation selector above the grid should use wrapping chips/pills that flow onto multiple lines if needed (flex flex-wrap gap-2). All 7 options must be visible without scrolling. Selected state matches other toggles: bg-white/20 border-2 border-white/40. Default selection: 'Frequency'. Chip labels: 'Density', 'Fill %', 'Gamma', 'Frequency', 'Contrast', 'Dir. Neighbors', 'Dir. Density'.",
+      "stepsToVerify": [
+        "All 7 parameter chips visible without horizontal scroll",
+        "Chips wrap to 2 rows if viewport is narrow",
+        "Selected chip is visually distinct",
+        "Only one chip selected at a time",
+        "12px gap between chips"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-013",
+      "category": "UI - Grid View Enhancement",
+      "description": "One grid item should be visually highlighted to indicate 'this matches your current base config value.' Styling: ring-2 ring-white/60 or border-2 border-white/50. If current value falls between two grid items, highlight the nearest match.",
+      "stepsToVerify": [
+        "One grid item is visually distinct from others",
+        "Highlighted item updates when base config changes",
+        "Highlight is visible but not distracting",
+        "Works correctly for all 7 variable parameters"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-014",
+      "category": "UI - Interaction Specification",
+      "description": "Grid items need hover feedback and tooltips showing the exact parameter value. Hover state: subtle border emphasis (border-white/40), optional scale-[1.02] with transition-transform duration-150. Tooltip styling: bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg px-3 py-1.5. Shows 'Frequency: 0.23' format. 200ms delay before showing. Touch devices: long-press (500ms) triggers tooltip.",
+      "stepsToVerify": [
+        "Hover triggers visual feedback",
+        "Tooltip appears with correct value after 200ms delay",
+        "Tooltip positioned without viewport clipping",
+        "Touch interaction works on mobile (long-press)",
+        "Cursor is cursor-default (view-only)"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-015",
+      "category": "UI - Component Specification",
+      "description": "The 'Export Settings as JSON' button should match the 'Reset to Default Settings' button pattern - full width with icon + text. Styling: w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2. Icon: FileJson or Braces (w-4 h-4). Placement: Below the Reset button with 12px gap.",
+      "stepsToVerify": [
+        "Button matches Reset button styling exactly",
+        "Full width within the panel",
+        "Icon + text visible",
+        "Download triggers correctly"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-016",
+      "category": "UI - Responsive Design",
+      "description": "Define exact breakpoints and minimum sizes for the grid. Default: 5 columns × 4 rows (20 items). Narrow viewport (<1200px with panel open): 4 columns × 5 rows. Minimum item size: 120px × 120px. Gap: 12px. Grid items are always square containers. Non-square SVGs are centered within the square, letterboxed with background color. Never stretch or crop.",
+      "stepsToVerify": [
+        "Grid renders 20 items in 5×4 layout on wide screens",
+        "Grid collapses to 4×5 on narrow screens",
+        "Items never shrink below 120px",
+        "Non-square canvases letterbox correctly",
+        "Grid scrolls vertically if needed"
+      ],
+      "passes": false
+    },
+    {
+      "id": "PRD-017",
+      "category": "UI - State Handling",
+      "description": "Specify loading states while 20 SVGs are generating. Show skeleton placeholders immediately (20 gray squares with subtle pulse animation). Render SVGs progressively as they complete. Use useDeferredValue or similar to prevent blocking UI. Debounce settings changes by 100ms before regenerating grid.",
+      "stepsToVerify": [
+        "Skeleton appears immediately when switching to Grid view",
+        "SVGs populate progressively",
+        "Settings changes debounce correctly (100ms)",
+        "No UI jank during generation"
+      ],
+      "passes": false
+    }
+  ],
+  "notes": [
+    "The modular generateFragmentSvg function is the key deliverable for website integration",
+    "Grid view serves as a preview tool to verify how SVGs will look with different seed values",
+    "JSON export format should match the expected input format for the website function",
+    "Excluded parameters (canvas size, colors, cell scale, fill type) from variation because they affect structural appearance rather than pattern variation",
+    "djb2 hash algorithm chosen for its simplicity and portability - easy to implement identically on website",
+    "Grid is view-only (no click-to-apply interaction), but tooltips show exact parameter values on hover",
+    "Design direction: Precision & Density - dark mode, subtle borders, technical tool aesthetic",
+    "Use Lucide icons: LayoutGrid for Grid view, Square for Single view, FileJson or Braces for Export JSON",
+    "Keep all UI elements monochrome (white/gray on dark) consistent with existing design"
+  ]
+}
