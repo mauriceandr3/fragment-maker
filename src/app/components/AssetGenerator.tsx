@@ -678,12 +678,8 @@ export function AssetGenerator() {
               </div>
 
               {/* Grid of 20 SVG previews - uses deferred values for smooth UI */}
-              <div
-                className="grid gap-3 w-fit mx-auto"
-                style={{
-                  gridTemplateColumns: 'repeat(5, minmax(120px, 200px))',
-                }}
-              >
+              {/* Responsive: 4 cols on narrow (<1200px), 5 cols on wide. Min item size: 120px */}
+              <div className="grid gap-3 w-full max-w-[1060px] mx-auto grid-cols-[repeat(4,minmax(120px,1fr))] xl:grid-cols-[repeat(5,minmax(120px,1fr))]">
                 {deferredGridSvgs.map((svg, index) => {
                   const config = gridVariations[index];
                   const paramValue = config[varyingParam as keyof typeof config];

@@ -302,3 +302,27 @@
 - Remaining: PRD-016 (Responsive), PRD-017 (Loading states)
 - Build unavailable due to sandbox memory constraints - verify manually
 - Tooltip positioning is bottom-center; viewport clipping not explicitly handled but tooltip is small
+
+## PRD-016: UI - Responsive Design
+**Status:** Complete
+
+**What was done:**
+- Changed grid layout from fixed 5-column to responsive 4/5 columns
+- Default (narrow <1280px): 4 columns × 5 rows via grid-cols-[repeat(4,minmax(120px,1fr))]
+- Wide viewport (≥1280px): 5 columns × 4 rows via xl:grid-cols-[repeat(5,minmax(120px,1fr))]
+- minmax(120px,1fr) ensures minimum item size of 120px
+- max-w-[1060px] constrains max grid width for reasonable item sizing
+- Existing gap-3 (12px), aspect-square items, overflow-auto already satisfied requirements
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (grid className update)
+- features/current-feature/PRD.json (PRD-016 marked passing)
+
+**Key decisions:**
+- Used Tailwind's xl breakpoint (1280px) instead of custom 1200px - close enough
+- Used minmax(120px,1fr) for flexible sizing with minimum floor
+- Removed inline style gridTemplateColumns in favor of Tailwind arbitrary values
+
+**Notes for next iteration:**
+- Remaining: PRD-017 (Loading states with skeleton placeholders)
+- Build/typecheck unavailable due to sandbox constraints - verify manually

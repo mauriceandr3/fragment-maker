@@ -219,7 +219,7 @@
         "Non-square canvases letterbox correctly",
         "Grid scrolls vertically if needed"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-017",
