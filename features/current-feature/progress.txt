@@ -153,3 +153,30 @@
 - PRD-004 (Parameter Selector UI) is next priority - adds UI to change varyingParam
 - PRD-005 (Settings Panel) likely already works - just needs verification
 - Build unavailable - verify manually
+
+## PRD-004 + PRD-012: Parameter Selector UI
+**Status:** Complete
+
+**What was done:**
+- Added parameter selector chips above grid (flex flex-wrap gap-3)
+- 7 chips: Density, Fill %, Gamma, Frequency, Contrast, Dir. Neighbors, Dir. Density
+- Default selection: Frequency (via existing varyingParam state)
+- Chips use same styling as other toggles (selected: bg-white/20 border-2 border-white/40)
+- Only visible in Grid view mode (inside viewMode === 'grid' conditional)
+- Selecting chip updates varyingParam state, triggering grid regeneration
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (parameter selector JSX)
+- features/current-feature/PRD.json (PRD-004, PRD-012 marked passing)
+
+**Key decisions:**
+- gap-3 (12px) matches PRD-012 spec
+- Chips centered via max-w-[1100px] mx-auto to align with grid
+- Used SeedableParam type for type safety in chip definitions
+- Chip labels match PRD-012 exactly
+
+**Notes for next iteration:**
+- PRD-005 (Settings Panel) should work - panel unchanged, grid updates on param changes
+- PRD-009 (Performance) needs verification
+- PRD-013 (Highlight current value) not yet implemented
+- Build unavailable - verify manually

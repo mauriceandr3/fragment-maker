@@ -60,7 +60,7 @@
         "Selecting a different parameter regenerates all 20 SVGs with the new varying parameter",
         "Toggle styling matches existing UI components"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-005",
@@ -169,7 +169,7 @@
         "Only one chip selected at a time",
         "12px gap between chips"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-013",

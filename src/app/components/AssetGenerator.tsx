@@ -484,6 +484,31 @@ export function AssetGenerator() {
           )}
           {viewMode === 'grid' && (
             <div className="w-full h-full overflow-auto p-4">
+              {/* Parameter Selector Chips */}
+              <div className="flex flex-wrap gap-3 mb-4 max-w-[1100px] mx-auto">
+                {([
+                  { param: 'threshold' as SeedableParam, label: 'Density' },
+                  { param: 'fillAmount' as SeedableParam, label: 'Fill %' },
+                  { param: 'gamma' as SeedableParam, label: 'Gamma' },
+                  { param: 'frequency' as SeedableParam, label: 'Frequency' },
+                  { param: 'contrast' as SeedableParam, label: 'Contrast' },
+                  { param: 'directionalNeighbors' as SeedableParam, label: 'Dir. Neighbors' },
+                  { param: 'directionDensity' as SeedableParam, label: 'Dir. Density' },
+                ]).map(({ param, label }) => (
+                  <button
+                    key={param}
+                    onClick={() => setVaryingParam(param)}
+                    className={`py-2 px-4 rounded-lg font-medium transition-all ${
+                      varyingParam === param
+                        ? 'bg-white/20 border-2 border-white/40 text-white'
+                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               {/* Grid of 20 SVG previews */}
               <div
                 className="grid gap-3 w-fit mx-auto"
