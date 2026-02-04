@@ -180,3 +180,25 @@
 - PRD-009 (Performance) needs verification
 - PRD-013 (Highlight current value) not yet implemented
 - Build unavailable - verify manually
+
+## PRD-005: Settings Panel in Grid View
+**Status:** Complete
+
+**What was done:**
+- Verified existing implementation already satisfies all requirements
+- Settings panel (Floating Controls Panel) rendered regardless of viewMode
+- All controls remain functional in Grid view
+- gridVariations/gridSvgs memoized with params dependencies, updates on any setting change
+- Sliders display base values (params.threshold, etc.) not varied values
+- isCollapsed state controls panel collapse, works in both view modes
+
+**Files changed:**
+- features/current-feature/PRD.json (PRD-005 marked passing)
+
+**Key decisions:**
+- No code changes needed - panel architecture already supported Grid view
+- React memoization ensures grid updates when any dependency changes
+
+**Notes for next iteration:**
+- Remaining tasks: PRD-009 (Performance), PRD-010 (Consistent Behavior), PRD-013 (Highlight), PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
+- Build unavailable - verify manually

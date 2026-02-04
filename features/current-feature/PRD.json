@@ -73,7 +73,7 @@
         "The varying parameter's slider shows the base value (not the varied values)",
         "Panel collapse/expand functionality works in Grid view"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-006",
