@@ -132,7 +132,7 @@
         "No visible flickering during updates",
         "Browser remains responsive during grid operations"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-010",

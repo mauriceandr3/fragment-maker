@@ -225,3 +225,30 @@
 **Notes for next iteration:**
 - Remaining: PRD-009 (Performance), PRD-010 (Consistent Behavior), PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
 - Build/typecheck unavailable due to sandbox constraints - verify manually
+
+## PRD-009: Performance - Grid Rendering
+**Status:** Complete
+
+**What was done:**
+- Added debounced state for grid generation params (100ms delay per PRD-017 spec)
+- Debounced: params, foregroundColor, backgroundColor, cellSize, invertColors, canvasSize
+- Grid variations/SVGs computed from debounced values (prevents regeneration on every slider tick)
+- Added useDeferredValue for gridSvgs to prevent UI blocking during generation
+- Extracted GridItem as memoized component with React.memo to avoid unnecessary re-renders
+- Highlight index uses non-debounced params for instant feedback while dragging sliders
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (imports, debounced state, GridItem component, deferred values)
+- features/current-feature/PRD.json (PRD-009 marked passing)
+
+**Key decisions:**
+- 100ms debounce matches PRD-017 spec
+- Debounce applies to expensive grid generation, not UI state (sliders stay responsive)
+- useDeferredValue allows React to prioritize urgent updates
+- Memoized GridItem prevents re-rendering unchanged grid items
+- highlightedGridIndex uses live params for real-time highlight during slider drag
+
+**Notes for next iteration:**
+- Remaining: PRD-010 (Consistent Behavior), PRD-014 (Tooltips), PRD-016 (Responsive), PRD-017 (Loading states)
+- Build/typecheck unavailable due to sandbox constraints - verify manually
+- PRD-017 partially addressed (debouncing done, skeleton placeholders not done)

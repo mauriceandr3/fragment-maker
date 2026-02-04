@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, memo } from "react";
 import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid } from "lucide-react";
 import {
   type CanvasSize,
@@ -11,6 +11,9 @@ import {
 } from "../../lib/generateFragmentSvg";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
+
+// Debounce delay for settings changes (100ms per PRD-017)
+const DEBOUNCE_DELAY = 100;
 
 const COLOR_PRESETS = [
   { name: "Horizon White", background: "#000000", foreground: "#FCFCFC" },
@@ -35,6 +38,64 @@ interface GeneratorParams {
   fillType: FillType;
   invertFill: boolean;
 }
+
+// Memoized grid item component to prevent unnecessary re-renders
+interface GridItemProps {
+  svg: string;
+  index: number;
+  isHighlighted: boolean;
+  isHovered: boolean;
+  varyingParam: SeedableParam;
+  paramValue: number | string;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
+const GridItem = memo(function GridItem({
+  svg,
+  index,
+  isHighlighted,
+  isHovered,
+  varyingParam,
+  paramValue,
+  onMouseEnter,
+  onMouseLeave,
+}: GridItemProps) {
+  const formattedValue = typeof paramValue === 'number'
+    ? (Number.isInteger(paramValue) ? paramValue : paramValue.toFixed(2))
+    : paramValue;
+
+  const paramLabel = varyingParam === 'threshold' ? 'Density' :
+    varyingParam === 'fillAmount' ? 'Fill %' :
+    varyingParam === 'directionalNeighbors' ? 'Dir. Neighbors' :
+    varyingParam === 'directionDensity' ? 'Dir. Density' :
+    varyingParam.charAt(0).toUpperCase() + varyingParam.slice(1);
+
+  return (
+    <div
+      className={`relative aspect-square bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
+        isHighlighted
+          ? 'ring-2 ring-white/60 border-2 border-white/50'
+          : 'border border-white/20 hover:border-white/40'
+      }`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {/* SVG Container - letterboxed */}
+      <div
+        className="absolute inset-0 flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+
+      {/* Tooltip on hover */}
+      {isHovered && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 whitespace-nowrap z-10">
+          {paramLabel}: {formattedValue}
+        </div>
+      )}
+    </div>
+  );
+});
 
 export function AssetGenerator() {
   const [foregroundColor, setForegroundColor] = useState("#FCFCFC");
@@ -63,6 +124,55 @@ export function AssetGenerator() {
   const [varyingParam, setVaryingParam] = useState<SeedableParam>('frequency');
   const [hoveredGridIndex, setHoveredGridIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Debounced state for grid generation (prevents regenerating on every slider tick)
+  const [debouncedParams, setDebouncedParams] = useState(params);
+  const [debouncedForeground, setDebouncedForeground] = useState(foregroundColor);
+  const [debouncedBackground, setDebouncedBackground] = useState(backgroundColor);
+  const [debouncedCellSize, setDebouncedCellSize] = useState(cellSize);
+  const [debouncedInvertColors, setDebouncedInvertColors] = useState(invertColors);
+  const [debouncedCanvasSize, setDebouncedCanvasSize] = useState(canvasSize);
+
+  // Debounce effect for params
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedParams(params);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [params]);
+
+  // Debounce effect for colors
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedForeground(foregroundColor);
+      setDebouncedBackground(backgroundColor);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [foregroundColor, backgroundColor]);
+
+  // Debounce effect for cell size
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCellSize(cellSize);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [cellSize]);
+
+  // Debounce effect for invert colors
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedInvertColors(invertColors);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [invertColors]);
+
+  // Debounce effect for canvas size
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCanvasSize(canvasSize);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [canvasSize]);
   
   // Memoize grid dimensions
   const gridDimensions = useMemo(() => {
@@ -73,30 +183,34 @@ export function AssetGenerator() {
   }, [canvasSize, cellSize]);
 
   // Generate grid variations for Grid view (20 configs with varying parameter)
+  // Uses debounced values to avoid regenerating on every slider tick
   const gridVariations = useMemo(() => {
     const baseConfig = {
-      threshold: params.threshold,
-      gamma: params.gamma,
-      frequency: params.frequency,
-      contrast: params.contrast,
-      seed: params.seed,
-      directionalNeighbors: params.directionalNeighbors,
-      directionDensity: params.directionDensity,
-      fillAmount: params.fillAmount,
-      fillType: params.fillType,
-      invertFill: params.invertFill,
-      foregroundColor: invertColors ? backgroundColor : foregroundColor,
-      backgroundColor: invertColors ? foregroundColor : backgroundColor,
-      cellSize,
-      canvasSize,
+      threshold: debouncedParams.threshold,
+      gamma: debouncedParams.gamma,
+      frequency: debouncedParams.frequency,
+      contrast: debouncedParams.contrast,
+      seed: debouncedParams.seed,
+      directionalNeighbors: debouncedParams.directionalNeighbors,
+      directionDensity: debouncedParams.directionDensity,
+      fillAmount: debouncedParams.fillAmount,
+      fillType: debouncedParams.fillType,
+      invertFill: debouncedParams.invertFill,
+      foregroundColor: debouncedInvertColors ? debouncedBackground : debouncedForeground,
+      backgroundColor: debouncedInvertColors ? debouncedForeground : debouncedBackground,
+      cellSize: debouncedCellSize,
+      canvasSize: debouncedCanvasSize,
     };
     return generateGridVariations(baseConfig, varyingParam, 20);
-  }, [params, foregroundColor, backgroundColor, invertColors, cellSize, canvasSize, varyingParam]);
+  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasSize, varyingParam]);
 
   // Generate SVG strings for each grid variation
   const gridSvgs = useMemo(() => {
     return gridVariations.map((config) => generateFragmentSvgDirect(config));
   }, [gridVariations]);
+
+  // Use deferred value for the rendered SVGs to prevent UI blocking
+  const deferredGridSvgs = useDeferredValue(gridSvgs);
 
   // Find which grid item best matches the current base config value
   const highlightedGridIndex = useMemo(() => {
@@ -530,48 +644,29 @@ export function AssetGenerator() {
                 ))}
               </div>
 
-              {/* Grid of 20 SVG previews */}
+              {/* Grid of 20 SVG previews - uses deferred values for smooth UI */}
               <div
                 className="grid gap-3 w-fit mx-auto"
                 style={{
                   gridTemplateColumns: 'repeat(5, minmax(120px, 200px))',
                 }}
               >
-                {gridSvgs.map((svg, index) => {
+                {deferredGridSvgs.map((svg, index) => {
                   const config = gridVariations[index];
                   const paramValue = config[varyingParam as keyof typeof config];
-                  const formattedValue = typeof paramValue === 'number'
-                    ? (Number.isInteger(paramValue) ? paramValue : paramValue.toFixed(2))
-                    : paramValue;
 
                   return (
-                    <div
+                    <GridItem
                       key={index}
-                      className={`relative aspect-square bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
-                        index === highlightedGridIndex
-                          ? 'ring-2 ring-white/60 border-2 border-white/50'
-                          : 'border border-white/20 hover:border-white/40'
-                      }`}
+                      svg={svg}
+                      index={index}
+                      isHighlighted={index === highlightedGridIndex}
+                      isHovered={hoveredGridIndex === index}
+                      varyingParam={varyingParam}
+                      paramValue={paramValue as number | string}
                       onMouseEnter={() => setHoveredGridIndex(index)}
                       onMouseLeave={() => setHoveredGridIndex(null)}
-                    >
-                      {/* SVG Container - letterboxed */}
-                      <div
-                        className="absolute inset-0 flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
-                        dangerouslySetInnerHTML={{ __html: svg }}
-                      />
-
-                      {/* Tooltip on hover */}
-                      {hoveredGridIndex === index && (
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 whitespace-nowrap z-10">
-                          {varyingParam === 'threshold' ? 'Density' :
-                           varyingParam === 'fillAmount' ? 'Fill %' :
-                           varyingParam === 'directionalNeighbors' ? 'Dir. Neighbors' :
-                           varyingParam === 'directionDensity' ? 'Dir. Density' :
-                           varyingParam.charAt(0).toUpperCase() + varyingParam.slice(1)}: {formattedValue}
-                        </div>
-                      )}
-                    </div>
+                    />
                   );
                 })}
               </div>
