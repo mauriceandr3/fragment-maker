@@ -88,7 +88,7 @@
         "JSON includes metadata: version, exportedAt timestamp",
         "JSON includes optional seedParam field (defaults to 'frequency')"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-007",
@@ -206,7 +206,7 @@
         "Icon + text visible",
         "Download triggers correctly"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-016",

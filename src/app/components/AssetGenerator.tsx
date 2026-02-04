@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw } from "lucide-react";
+import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw, FileJson } from "lucide-react";
 import {
   type CanvasSize,
   type FillType,
+  type SeedableParam,
   CANVAS_SIZES,
 } from "../../lib/generateFragmentSvg";
 
@@ -376,6 +377,39 @@ export function AssetGenerator() {
         alert('Failed to copy to clipboard. Please use the Download button instead.');
       }
     }
+  };
+
+  const exportSettingsAsJson = () => {
+    const exportData = {
+      version: '1.0.0',
+      exportedAt: new Date().toISOString(),
+      seedParam: 'frequency' as SeedableParam,
+      config: {
+        threshold: params.threshold,
+        gamma: params.gamma,
+        frequency: params.frequency,
+        contrast: params.contrast,
+        seed: params.seed,
+        directionalNeighbors: params.directionalNeighbors,
+        directionDensity: params.directionDensity,
+        fillAmount: params.fillAmount,
+        fillType: params.fillType,
+        invertFill: params.invertFill,
+        foregroundColor,
+        backgroundColor,
+        cellSize,
+        canvasSize,
+      },
+    };
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fragment-settings.json';
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -831,6 +865,15 @@ export function AssetGenerator() {
             >
               <RotateCcw className="w-4 h-4" />
               <span className="text-sm">Reset to Default Settings</span>
+            </button>
+
+            {/* Export Settings as JSON */}
+            <button
+              onClick={exportSettingsAsJson}
+              className="group relative w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl mt-3"
+            >
+              <FileJson className="w-4 h-4" />
+              <span className="text-sm">Export Settings as JSON</span>
             </button>
             </>
             )}

@@ -50,3 +50,29 @@
 **Notes for next iteration:**
 - PRD-001/PRD-002 (UI tasks) can now use this utility for grid view
 - PRD-006 (Export JSON) is standalone, good next pick for architectural completeness
+
+## PRD-006 + PRD-015: Export Settings JSON Feature
+**Status:** Complete
+
+**What was done:**
+- Added FileJson icon import from lucide-react
+- Created exportSettingsAsJson() function in AssetGenerator.tsx
+- JSON structure: {version, exportedAt, seedParam, config: {...all params}}
+- Downloads as fragment-settings.json
+- Button matches Reset button styling (full width, bg-black/30, icon + text)
+- Placed below Reset button with mt-3 (12px gap)
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx (import, function, button)
+- features/current-feature/PRD.json (PRD-006 + PRD-015 marked passing)
+
+**Key decisions:**
+- seedParam defaults to 'frequency' per PRD spec
+- canvasSize included in config for completeness
+- JSON uses config wrapper to match generateFragmentSvg input format
+- FileJson icon chosen (clearer than Braces for JSON export)
+
+**Notes for next iteration:**
+- Build system unavailable due to container constraints - verify manually
+- PRD-001/002/011 (View Toggle + Grid) form next logical unit of work
+- PRD-003/004 (Parameter Variation + Selector) depend on grid view UI
