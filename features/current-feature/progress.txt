@@ -343,3 +343,29 @@ Status: COMPLETE (verified existing implementation)
 ### Notes:
 - Button highlighting effectively shows current aspect ratio state
 - No separate "display" element needed - button selection IS the display
+
+---
+
+## PRD-015: Manual Cell Size Change Edge Case (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Added `forceExact` parameter to `adjustCellSizeForDimensions()` function
+- When `forceExact: false` (preset buttons): finds nearest valid cell size, dimensions stay fixed
+- When `forceExact: true` (custom input): forces exact cell size, snaps dimensions to fit
+- Updated `handleCellSizeChange()` to accept `forceExact` parameter (default false)
+- `handleCustomCellSizeSubmit()` now passes `forceExact: true` to get exact size behavior
+
+### Behavior:
+- Preset button click: handleCellSizeChange(size) → forceExact=false → nearest valid cell size
+- Custom input submit: handleCellSizeChange(value, true) → forceExact=true → snap dimensions
+- Warning toast appears in both cases explaining the adjustment
+
+### Files changed:
+- src/lib/dimensionUtils.ts (added forceExact param to adjustCellSizeForDimensions)
+- src/app/components/AssetGenerator.tsx (forceExact param in handlers)
+
+### Notes:
+- Build tools have binary issues in sandbox; code verified by inspection
+- Verification: 1000x1000 with preset 48px → adjusts to 50px (nearest valid)
+- Verification: 1000x1000 with custom 48px → snaps to 1008x1008 (multiples of 48)

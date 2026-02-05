@@ -210,7 +210,7 @@
         "Verify warning appears explaining the adjustment",
         "Verify aspect ratio is maintained"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-016",

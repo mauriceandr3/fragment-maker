@@ -245,7 +245,9 @@ export function AssetGenerator() {
   }, []);
 
   // Handler for cell size changes (preset or custom)
-  const handleCellSizeChange = useCallback((newCellSize: number) => {
+  // forceExact: true when user enters custom value (snap dimensions to fit exact size)
+  //             false when user clicks preset (find nearest valid size instead)
+  const handleCellSizeChange = useCallback((newCellSize: number, forceExact: boolean = false) => {
     // Clear any existing warning
     setAdjustmentWarning(null);
     if (adjustmentWarningTimeoutRef.current) {
@@ -257,7 +259,7 @@ export function AssetGenerator() {
     const targetSize = validated.value;
 
     // Check if adjustment is needed
-    const result = adjustCellSizeForDimensions(canvasWidth, canvasHeight, targetSize);
+    const result = adjustCellSizeForDimensions(canvasWidth, canvasHeight, targetSize, forceExact);
 
     setCellSize(result.cellSize);
     if (result.adjustmentType === 'dimensions') {
@@ -279,11 +281,11 @@ export function AssetGenerator() {
     }
   }, [canvasWidth, canvasHeight]);
 
-  // Handler for custom cell size input
+  // Handler for custom cell size input - forces exact size (snaps dimensions)
   const handleCustomCellSizeSubmit = useCallback(() => {
     const value = parseInt(customCellSizeInput, 10);
     if (!isNaN(value)) {
-      handleCellSizeChange(value);
+      handleCellSizeChange(value, true); // forceExact = true for custom input
     }
     setCustomCellSizeInput('');
   }, [customCellSizeInput, handleCellSizeChange]);

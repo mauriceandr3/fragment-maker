@@ -210,16 +210,31 @@ export function adjustDimensionsAndCellSize(
 /**
  * Adjust cell size when user manually changes it.
  * Dimensions stay fixed, find nearest valid cell size.
+ *
+ * @param forceExact - If true, force the exact cell size and snap dimensions instead.
+ *                     Use this when user explicitly enters a custom value.
  */
 export function adjustCellSizeForDimensions(
   width: number,
   height: number,
-  targetCellSize: number
+  targetCellSize: number,
+  forceExact: boolean = false
 ): DimensionAdjustmentResult {
   const validCellSizes = getValidCellSizes(width, height);
 
-  if (validCellSizes.length === 0) {
-    // No valid cell sizes - snap dimensions instead
+  // If target is already valid, use it directly
+  if (validCellSizes.includes(targetCellSize)) {
+    return {
+      width,
+      height,
+      cellSize: targetCellSize,
+      adjusted: false,
+      adjustmentType: 'none',
+    };
+  }
+
+  // If forceExact is true (custom input), always snap dimensions to match the requested cell size
+  if (forceExact) {
     const snappedWidth = snapToMultiple(width, targetCellSize);
     const snappedHeight = snapToMultiple(height, targetCellSize);
 
@@ -233,26 +248,30 @@ export function adjustCellSizeForDimensions(
     };
   }
 
-  if (validCellSizes.includes(targetCellSize)) {
-    // Target cell size is valid
+  // For preset selection: try to find nearest valid cell size first
+  if (validCellSizes.length > 0) {
+    const newCellSize = findClosestValidCellSize(validCellSizes, targetCellSize)!;
     return {
       width,
       height,
-      cellSize: targetCellSize,
-      adjusted: false,
-      adjustmentType: 'none',
+      cellSize: newCellSize,
+      adjusted: true,
+      adjustmentType: 'cellSize',
+      message: `Cell size adjusted to ${newCellSize}px (nearest valid size for ${width}×${height})`,
     };
   }
 
-  // Find closest valid cell size
-  const newCellSize = findClosestValidCellSize(validCellSizes, targetCellSize)!;
+  // No valid cell sizes exist - snap dimensions instead
+  const snappedWidth = snapToMultiple(width, targetCellSize);
+  const snappedHeight = snapToMultiple(height, targetCellSize);
+
   return {
-    width,
-    height,
-    cellSize: newCellSize,
+    width: snappedWidth,
+    height: snappedHeight,
+    cellSize: targetCellSize,
     adjusted: true,
-    adjustmentType: 'cellSize',
-    message: `Cell size adjusted to ${newCellSize}px (nearest valid size for ${width}×${height})`,
+    adjustmentType: 'dimensions',
+    message: `Dimensions adjusted to ${snappedWidth}×${snappedHeight} to align with ${targetCellSize}px cells`,
   };
 }
 
