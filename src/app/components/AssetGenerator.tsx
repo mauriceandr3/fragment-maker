@@ -800,6 +800,35 @@ export function AssetGenerator() {
                     </button>
                   ))}
                 </div>
+
+                {/* Custom Ratio Inputs - only visible when Custom is selected */}
+                {aspectRatioPreset === 'custom' && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={customAspectRatio.width}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        setCustomAspectRatio({ ...customAspectRatio, width: Math.max(1, Math.min(99, value)) });
+                      }}
+                      className="w-16 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                    />
+                    <span className="text-white/60 text-sm">:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={customAspectRatio.height}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        setCustomAspectRatio({ ...customAspectRatio, height: Math.max(1, Math.min(99, value)) });
+                      }}
+                      className="w-16 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-white/10 my-4"></div>

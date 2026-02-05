@@ -28,7 +28,7 @@
         "Enter values like 21 and 9 to create a 21:9 ratio",
         "Select a preset again and verify custom inputs disappear"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-003",

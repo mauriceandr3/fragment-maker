@@ -50,3 +50,24 @@ Status: IMPLEMENTED (needs integration)
 - Code is pure TS, no external deps - should compile fine in normal env
 - Next: integrate dimensionUtils into AssetGenerator.tsx (PRD-001, PRD-003, etc.)
 - Need to remove old CANVAS_SIZES constant and replace with dynamic dimensions
+
+---
+
+## PRD-002: Custom Ratio Inputs (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Added conditional custom ratio inputs below aspect ratio presets
+- Two number inputs (width ratio : height ratio) with colon separator
+- Inputs only visible when aspectRatioPreset === 'custom'
+- Input validation: min=1, max=99, clamped on change
+- Same styling as existing inputs (bg-black/30, border-white/20, etc.)
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx (lines ~803-825)
+
+### Notes:
+- Uses existing customAspectRatio state from PRD-001
+- Inputs update customAspectRatio which feeds currentAspectRatio via useMemo
+- Height recalculation behavior (PRD-005) not yet implemented
+- No feedback loops available in sandbox - project has no test/lint/typecheck scripts
