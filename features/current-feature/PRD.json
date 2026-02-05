@@ -110,7 +110,7 @@
         "Verify these buttons no longer exist anywhere in the interface",
         "Verify Canvas Settings section has the new aspect ratio and dimension controls instead"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-009",

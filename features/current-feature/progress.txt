@@ -177,3 +177,29 @@ Status: COMPLETE
 ### Notes:
 - Build tools segfault in sandbox; code verified syntactically correct manually
 - cellSize intentionally excluded from useEffect deps to avoid loops
+
+---
+
+## PRD-008: Remove Legacy Controls (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Removed 1K/2K/4K canvas size buttons from UI (Canvas Settings section)
+- Removed canvasSize state from AssetGenerator.tsx
+- Updated generation functions to use canvasWidth/canvasHeight instead of canvasSize
+- Updated gridDimensions useMemo to use canvasWidth/canvasHeight
+- Updated gridVariations to pass canvasWidth/canvasHeight instead of canvasSize
+- Updated generateSVG callback to use canvasWidth/canvasHeight
+- Updated resetToDefaults to use DEFAULT_WIDTH/HEIGHT from dimensionUtils
+- Updated exportSettingsAsJson to include canvasWidth/canvasHeight and aspectRatio info
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx (removed canvasSize, updated all usages)
+- src/lib/generateFragmentSvg.ts (added canvasWidth/canvasHeight to FragmentConfig, updated gridToSvg and generateFragmentSvg)
+- src/lib/generateFragmentSvgGrid.ts (updated generateFragmentSvgDirect to use explicit dimensions)
+
+### Notes:
+- FragmentConfig now has optional canvasSize (deprecated) + canvasWidth/canvasHeight
+- gridToSvg supports both old (canvasSize: string) and new (width: number) signatures
+- Build tools have binary compatibility issues in sandbox; verified syntax manually
+- Canvas Settings now has: aspect ratio presets, custom ratio inputs, width/height inputs, zoom controls

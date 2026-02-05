@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, memo } from "react";
 import { Shuffle, ChevronRight, ChevronLeft, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid } from "lucide-react";
 import {
-  type CanvasSize,
   type FillType,
   type SeedableParam,
-  CANVAS_SIZES,
   generateGridVariations,
   generateFragmentSvgDirect,
 } from "../../lib/generateFragmentSvgGrid";
@@ -162,7 +160,6 @@ export function AssetGenerator() {
   const [foregroundColor, setForegroundColor] = useState("#FCFCFC");
   const [backgroundColor, setBackgroundColor] = useState("#000000");
   const [customPreset, setCustomPreset] = useState({ background: "#000000", foreground: "#FCFCFC" });
-  const [canvasSize, setCanvasSize] = useState<CanvasSize>('1K');
   const [cellSize, setCellSize] = useState(DEFAULT_CELL_SIZE);
 
   // Aspect ratio state
@@ -258,7 +255,8 @@ export function AssetGenerator() {
   const [debouncedBackground, setDebouncedBackground] = useState(backgroundColor);
   const [debouncedCellSize, setDebouncedCellSize] = useState(cellSize);
   const [debouncedInvertColors, setDebouncedInvertColors] = useState(invertColors);
-  const [debouncedCanvasSize, setDebouncedCanvasSize] = useState(canvasSize);
+  const [debouncedCanvasWidth, setDebouncedCanvasWidth] = useState(canvasWidth);
+  const [debouncedCanvasHeight, setDebouncedCanvasHeight] = useState(canvasHeight);
 
   // Debounce effect for params
   useEffect(() => {
@@ -293,21 +291,21 @@ export function AssetGenerator() {
     return () => clearTimeout(timer);
   }, [invertColors]);
 
-  // Debounce effect for canvas size
+  // Debounce effect for canvas dimensions
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedCanvasSize(canvasSize);
+      setDebouncedCanvasWidth(canvasWidth);
+      setDebouncedCanvasHeight(canvasHeight);
     }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
-  }, [canvasSize]);
-  
+  }, [canvasWidth, canvasHeight]);
+
   // Memoize grid dimensions
   const gridDimensions = useMemo(() => {
-    const canvasDimensions = CANVAS_SIZES[canvasSize];
-    const cols = Math.floor(canvasDimensions.width / cellSize);
-    const rows = Math.floor(canvasDimensions.height / cellSize);
+    const cols = Math.floor(canvasWidth / cellSize);
+    const rows = Math.floor(canvasHeight / cellSize);
     return { cols, rows };
-  }, [canvasSize, cellSize]);
+  }, [canvasWidth, canvasHeight, cellSize]);
 
   // Generate grid variations for Grid view (20 configs with varying parameter)
   // Uses debounced values to avoid regenerating on every slider tick
@@ -326,10 +324,11 @@ export function AssetGenerator() {
       foregroundColor: debouncedInvertColors ? debouncedBackground : debouncedForeground,
       backgroundColor: debouncedInvertColors ? debouncedForeground : debouncedBackground,
       cellSize: debouncedCellSize,
-      canvasSize: debouncedCanvasSize,
+      canvasWidth: debouncedCanvasWidth,
+      canvasHeight: debouncedCanvasHeight,
     };
     return generateGridVariations(baseConfig, 'frequency', 20);
-  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasSize]);
+  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasWidth, debouncedCanvasHeight]);
 
   // Generate SVG strings for each grid variation
   const gridSvgs = useMemo(() => {
@@ -570,10 +569,11 @@ export function AssetGenerator() {
       foregroundColor: displayForeground,
       backgroundColor: displayBackground,
       cellSize,
-      canvasSize,
+      canvasWidth,
+      canvasHeight,
     };
     return generateFragmentSvgDirect(config);
-  }, [params, displayForeground, displayBackground, cellSize, canvasSize]);
+  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight]);
 
   // Draw grid to canvas
   useEffect(() => {
@@ -627,8 +627,10 @@ export function AssetGenerator() {
     setForegroundColor("#FCFCFC");
     setBackgroundColor("#000000");
     setCustomPreset({ background: "#000000", foreground: "#FCFCFC" });
-    setCanvasSize('1K');
-    setCellSize(48);
+    setCanvasWidth(DEFAULT_WIDTH);
+    setCanvasHeight(DEFAULT_HEIGHT);
+    setAspectRatioPreset('1:1');
+    setCellSize(DEFAULT_CELL_SIZE);
     setInvertColors(false);
     setParams({
       threshold: 0.5,
@@ -701,7 +703,10 @@ export function AssetGenerator() {
         foregroundColor,
         backgroundColor,
         cellSize,
-        canvasSize,
+        canvasWidth,
+        canvasHeight,
+        aspectRatioPreset,
+        customAspectRatio: aspectRatioPreset === 'custom' ? customAspectRatio : undefined,
       },
     };
 
@@ -924,26 +929,6 @@ export function AssetGenerator() {
                   {adjustmentWarning}
                 </div>
               )}
-
-              <div className="border-t border-white/10 my-4"></div>
-
-              {/* Legacy Canvas Size - TODO: Remove in PRD-008 */}
-              <h3 className="text-sm text-white/60 mb-3">Canvas Size</h3>
-              <div className="flex gap-3">
-                {(['1K', '2K', '4K'] as const).map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setCanvasSize(size)}
-                    className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all shadow-lg ${
-                      canvasSize === size
-                        ? 'bg-white/20 border-2 border-white/40 text-white'
-                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
 
               <div className="border-t border-white/10 my-4"></div>
 

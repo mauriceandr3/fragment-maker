@@ -62,8 +62,12 @@ export interface FragmentConfig {
   backgroundColor: string;
   /** Cell size in pixels */
   cellSize: number;
-  /** Canvas size preset */
-  canvasSize: CanvasSize;
+  /** Canvas size preset (deprecated, use canvasWidth/canvasHeight) */
+  canvasSize?: CanvasSize;
+  /** Canvas width in pixels */
+  canvasWidth?: number;
+  /** Canvas height in pixels */
+  canvasHeight?: number;
   /** Which parameter to vary based on seed string (optional, defaults to 'frequency') */
   seedParam?: SeedableParam;
 }
@@ -317,14 +321,29 @@ export function gridToSvg(
   grid: boolean[][],
   cols: number,
   rows: number,
-  canvasSize: CanvasSize,
+  canvasSizeOrWidth: CanvasSize | number,
   foregroundColor: string,
   backgroundColor: string,
-  outputHeight?: number
+  outputHeightOrCanvasHeight?: number,
+  canvasHeight?: number
 ): string {
-  const canvasDimensions = CANVAS_SIZES[canvasSize];
-  const viewBoxWidth = canvasDimensions.width;
-  const viewBoxHeight = canvasDimensions.height;
+  // Support both old (canvasSize) and new (width, height) signatures
+  let viewBoxWidth: number;
+  let viewBoxHeight: number;
+  let outputHeight: number | undefined;
+
+  if (typeof canvasSizeOrWidth === 'string') {
+    // Legacy: canvasSize preset
+    const canvasDimensions = CANVAS_SIZES[canvasSizeOrWidth];
+    viewBoxWidth = canvasDimensions.width;
+    viewBoxHeight = canvasDimensions.height;
+    outputHeight = outputHeightOrCanvasHeight;
+  } else {
+    // New: explicit width/height
+    viewBoxWidth = canvasSizeOrWidth;
+    viewBoxHeight = outputHeightOrCanvasHeight ?? canvasSizeOrWidth;
+    outputHeight = canvasHeight;
+  }
   const aspectRatio = viewBoxWidth / viewBoxHeight;
   const height = outputHeight ?? viewBoxHeight;
   const width = outputHeight ? Math.round(outputHeight * aspectRatio) : viewBoxWidth;
@@ -376,6 +395,8 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     backgroundColor,
     cellSize,
     canvasSize,
+    canvasWidth: explicitWidth,
+    canvasHeight: explicitHeight,
     seedParam = 'frequency',
   } = config;
 
@@ -401,9 +422,23 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     [seedParam]: roundedSeededValue,
   };
 
-  const canvasDimensions = CANVAS_SIZES[canvasSize];
-  const cols = Math.floor(canvasDimensions.width / cellSize);
-  const rows = Math.floor(canvasDimensions.height / cellSize);
+  // Use explicit dimensions if provided, otherwise fall back to canvasSize preset
+  let width: number;
+  let height: number;
+  if (explicitWidth !== undefined && explicitHeight !== undefined) {
+    width = explicitWidth;
+    height = explicitHeight;
+  } else if (canvasSize) {
+    const canvasDimensions = CANVAS_SIZES[canvasSize];
+    width = canvasDimensions.width;
+    height = canvasDimensions.height;
+  } else {
+    // Default to 1K if nothing specified
+    width = CANVAS_SIZES['1K'].width;
+    height = CANVAS_SIZES['1K'].height;
+  }
+  const cols = Math.floor(width / cellSize);
+  const rows = Math.floor(height / cellSize);
 
   if (cols <= 0 || rows <= 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
@@ -424,5 +459,5 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     effectiveParams.directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, canvasSize, foregroundColor, backgroundColor, outputHeight);
+  return gridToSvg(grid, cols, rows, width, foregroundColor, backgroundColor, height, outputHeight);
 }

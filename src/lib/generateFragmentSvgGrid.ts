@@ -99,11 +99,28 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
     backgroundColor,
     cellSize,
     canvasSize,
+    canvasWidth: explicitWidth,
+    canvasHeight: explicitHeight,
   } = config;
 
-  const canvasDimensions = CANVAS_SIZES[canvasSize];
-  const cols = Math.floor(canvasDimensions.width / cellSize);
-  const rows = Math.floor(canvasDimensions.height / cellSize);
+  // Use explicit dimensions if provided, otherwise fall back to canvasSize preset
+  let width: number;
+  let height: number;
+  if (explicitWidth !== undefined && explicitHeight !== undefined) {
+    width = explicitWidth;
+    height = explicitHeight;
+  } else if (canvasSize) {
+    const canvasDimensions = CANVAS_SIZES[canvasSize];
+    width = canvasDimensions.width;
+    height = canvasDimensions.height;
+  } else {
+    // Default to 1K if nothing specified
+    width = CANVAS_SIZES['1K'].width;
+    height = CANVAS_SIZES['1K'].height;
+  }
+
+  const cols = Math.floor(width / cellSize);
+  const rows = Math.floor(height / cellSize);
 
   if (cols <= 0 || rows <= 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
@@ -124,5 +141,5 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
     directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, canvasSize, foregroundColor, backgroundColor);
+  return gridToSvg(grid, cols, rows, width, foregroundColor, backgroundColor, height);
 }
