@@ -139,7 +139,7 @@
         "Verify cell size is set to a valid divisor of 1000 (e.g., 40px)",
         "Verify the generated fragment is square"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-011",
