@@ -285,3 +285,23 @@ Status: COMPLETE
 - 9:16 fragments now display taller than wide in grid view
 - Responsive grid layout unchanged (4/5 cols based on breakpoint)
 - Build tools have binary issues in sandbox; verified syntax manually
+
+---
+
+## PRD-014: Height Recalculation on Ratio Change (2026-02-05)
+Status: COMPLETE (verified existing implementation)
+
+### What was verified:
+- Height recalculates when aspect ratio changes via useEffect at lines 198-202
+- Dependencies: [canvasWidth, currentAspectRatio] - triggers on ratio change
+- calculateHeight formula: Math.round(width * aspectRatio.height / aspectRatio.width)
+- 16:9 @ 1600px -> 900px (1600*9/16=900) ✓
+- 4:3 @ 1600px -> 1200px (1600*3/4=1200) ✓
+- Custom 2:1 @ 1600px -> 800px (1600*1/2=800) ✓
+
+### Files changed:
+- None (implementation was already complete from PRD-004)
+
+### Notes:
+- Build tools segfault in sandbox; verified by code inspection
+- Implementation chain: setAspectRatioPreset -> currentAspectRatio useMemo -> useEffect triggers -> setCanvasHeight

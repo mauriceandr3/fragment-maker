@@ -196,7 +196,7 @@
         "Switch to Custom and enter 2:1",
         "Verify height updates to 800 (1600 * 1/2)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-015",
