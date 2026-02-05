@@ -14,7 +14,7 @@
         "Click each preset button and verify it becomes visually highlighted",
         "Verify only one preset can be selected at a time"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-002",

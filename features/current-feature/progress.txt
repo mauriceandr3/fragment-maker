@@ -1,5 +1,27 @@
 # Progress Log
 
+## PRD-001: Aspect Ratio Presets UI (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Added aspect ratio preset buttons to Canvas Settings section
+- 6 presets: 1:1 (default), 4:3, 3:2, 16:9, 9:16, Custom
+- Imported types/constants from dimensionUtils.ts
+- Added state: aspectRatioPreset, customAspectRatio, canvasWidth, canvasHeight
+- Added computed currentAspectRatio using useMemo
+- Uses same visual style as existing buttons (highlighted when selected)
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx
+
+### Notes:
+- Legacy 1K/2K/4K buttons kept for now (PRD-008 will remove)
+- Custom ratio inputs not yet visible (PRD-002)
+- Dimension inputs not yet added (PRD-003)
+- No behavior changes yet - just UI scaffolding
+
+---
+
 ## PRD-017: Cell Size Algorithm (2026-02-05)
 Status: IMPLEMENTED (needs integration)
 

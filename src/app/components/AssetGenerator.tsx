@@ -8,6 +8,14 @@ import {
   generateGridVariations,
   generateFragmentSvgDirect,
 } from "../../lib/generateFragmentSvgGrid";
+import {
+  type AspectRatioPreset,
+  type AspectRatio,
+  ASPECT_RATIO_PRESETS,
+  DEFAULT_WIDTH,
+  DEFAULT_HEIGHT,
+  DEFAULT_CELL_SIZE,
+} from "../../lib/dimensionUtils";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
 
@@ -153,7 +161,22 @@ export function AssetGenerator() {
   const [backgroundColor, setBackgroundColor] = useState("#000000");
   const [customPreset, setCustomPreset] = useState({ background: "#000000", foreground: "#FCFCFC" });
   const [canvasSize, setCanvasSize] = useState<CanvasSize>('1K');
-  const [cellSize, setCellSize] = useState(48);
+  const [cellSize, setCellSize] = useState(DEFAULT_CELL_SIZE);
+
+  // Aspect ratio state
+  const [aspectRatioPreset, setAspectRatioPreset] = useState<AspectRatioPreset>('1:1');
+  const [customAspectRatio, setCustomAspectRatio] = useState<AspectRatio>({ width: 1, height: 1 });
+  const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
+  const [canvasHeight, setCanvasHeight] = useState(DEFAULT_HEIGHT);
+
+  // Computed current aspect ratio (from preset or custom)
+  const currentAspectRatio = useMemo((): AspectRatio => {
+    if (aspectRatioPreset === 'custom') {
+      return customAspectRatio;
+    }
+    return ASPECT_RATIO_PRESETS[aspectRatioPreset];
+  }, [aspectRatioPreset, customAspectRatio]);
+
   const [invertColors, setInvertColors] = useState(false);
   const [params, setParams] = useState<GeneratorParams>({
     threshold: 0.5,
@@ -755,10 +778,34 @@ export function AssetGenerator() {
               </div>
 
               <>
-            {/* Canvas Size */}
+            {/* Canvas Settings */}
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-              <h2 className="text-xl font-semibold mb-4 text-white">Canvas Size</h2>
-              
+              <h2 className="text-xl font-semibold mb-4 text-white">Canvas Settings</h2>
+
+              {/* Aspect Ratio Presets */}
+              <div>
+                <label className="block text-sm text-white/60 mb-3">Aspect Ratio</label>
+                <div className="flex flex-wrap gap-2">
+                  {(['1:1', '4:3', '3:2', '16:9', '9:16', 'custom'] as AspectRatioPreset[]).map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => setAspectRatioPreset(preset)}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-all shadow-lg ${
+                        aspectRatioPreset === preset
+                          ? 'bg-white/20 border-2 border-white/40 text-white'
+                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                      }`}
+                    >
+                      {preset === 'custom' ? 'Custom' : preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 my-4"></div>
+
+              {/* Legacy Canvas Size - TODO: Remove in PRD-008 */}
+              <h3 className="text-sm text-white/60 mb-3">Canvas Size</h3>
               <div className="flex gap-3">
                 {(['1K', '2K', '4K'] as const).map((size) => (
                   <button
@@ -774,9 +821,9 @@ export function AssetGenerator() {
                   </button>
                 ))}
               </div>
-              
+
               <div className="border-t border-white/10 my-4"></div>
-              
+
               {/* Zoom Controls */}
               <h3 className="text-sm text-white/60 mb-3">Zoom</h3>
               <div className="flex gap-3">
