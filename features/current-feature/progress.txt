@@ -1,0 +1,30 @@
+# Progress Log
+
+## PRD-017: Cell Size Algorithm (2026-02-05)
+Status: IMPLEMENTED (needs integration)
+
+### What was done:
+- Created src/lib/dimensionUtils.ts with core cell size algorithm
+- Implemented GCD calculation and divisor finding
+- Algorithm: GCD(width,height) -> find divisors >= 8px -> pick closest to current cell size
+- If no valid divisors, snap dimensions to multiples of current cell size
+- Added validation functions for canvas dimensions (64-4096), cell size (8-128), aspect ratio values (1-99)
+- Defined constants: CELL_SIZE_PRESETS [8,16,24,32,48,64], defaults (1000x1000, 40px cells)
+- Added aspect ratio types and presets (1:1, 4:3, 3:2, 16:9, 9:16, custom)
+
+### Key functions:
+- gcd() - Euclidean algorithm
+- getValidCellSizes(w,h) - returns valid cell sizes for dimensions
+- findClosestValidCellSize(sizes, target) - finds nearest match
+- adjustDimensionsAndCellSize() - main algorithm per PRD-017
+- adjustCellSizeForDimensions() - for manual cell size changes
+- validateCanvasDimension/validateCellSize/validateAspectRatioValue - input validation
+
+### Files changed:
+- src/lib/dimensionUtils.ts (new)
+
+### Notes for next iteration:
+- Build/typecheck tools have binary compatibility issues in sandbox (esbuild/rollup segfault)
+- Code is pure TS, no external deps - should compile fine in normal env
+- Next: integrate dimensionUtils into AssetGenerator.tsx (PRD-001, PRD-003, etc.)
+- Need to remove old CANVAS_SIZES constant and replace with dynamic dimensions
