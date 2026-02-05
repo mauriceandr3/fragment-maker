@@ -259,3 +259,29 @@ Status: COMPLETE
 - GCD(1000, 1000) = 1000; divisors >= 8: 8, 10, 20, 25, 40, 50, 100, 125, 200, 250, 500, 1000
 - 40px is valid and default - requirement already satisfied
 - Build tools have binary issues in sandbox; verified code inspection only
+
+---
+
+## PRD-011: Grid View Non-Square Support (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Updated GridSkeleton and GridItem components to accept aspectRatio prop
+- Replaced hardcoded `aspect-square` CSS class with dynamic `style={{ aspectRatio }}`
+- Computed aspect ratio as debouncedCanvasWidth / debouncedCanvasHeight
+- SVG container now fills grid item using `[&>svg]:w-full [&>svg]:h-full` instead of letterboxing
+
+### Implementation:
+- GridSkeletonProps interface: { aspectRatio: number }
+- GridItemProps: added aspectRatio: number
+- Grid items use CSS aspect-ratio property for true proportions
+- Both skeleton placeholders and rendered items respect canvas dimensions
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx (GridSkeleton, GridItem, grid rendering)
+
+### Notes:
+- 16:9 fragments now display wider than tall in grid view
+- 9:16 fragments now display taller than wide in grid view
+- Responsive grid layout unchanged (4/5 cols based on breakpoint)
+- Build tools have binary issues in sandbox; verified syntax manually

@@ -54,9 +54,16 @@ const TOOLTIP_DELAY = 200;
 const TOUCH_LONG_PRESS_DELAY = 500;
 
 // Skeleton placeholder for loading state
-const GridSkeleton = memo(function GridSkeleton() {
+interface GridSkeletonProps {
+  aspectRatio: number; // width / height
+}
+
+const GridSkeleton = memo(function GridSkeleton({ aspectRatio }: GridSkeletonProps) {
   return (
-    <div className="aspect-square bg-black/40 rounded-lg overflow-hidden border border-white/20 animate-pulse">
+    <div
+      className="bg-black/40 rounded-lg overflow-hidden border border-white/20 animate-pulse"
+      style={{ aspectRatio: aspectRatio }}
+    >
       <div className="w-full h-full bg-white/5" />
     </div>
   );
@@ -69,6 +76,7 @@ interface GridItemProps {
   isHighlighted: boolean;
   varyingParam: SeedableParam;
   paramValue: number | string;
+  aspectRatio: number; // width / height
 }
 
 const GridItem = memo(function GridItem({
@@ -76,6 +84,7 @@ const GridItem = memo(function GridItem({
   isHighlighted,
   varyingParam,
   paramValue,
+  aspectRatio,
 }: GridItemProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,20 +141,21 @@ const GridItem = memo(function GridItem({
 
   return (
     <div
-      className={`relative aspect-square bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
+      className={`relative bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
         isHighlighted
           ? 'ring-2 ring-white/60 border-2 border-white/50'
           : 'border border-white/20 hover:border-white/40'
       }`}
+      style={{ aspectRatio: aspectRatio }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
-      {/* SVG Container - letterboxed */}
+      {/* SVG Container - fills the container with proper aspect ratio */}
       <div
-        className="absolute inset-0 flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
+        className="absolute inset-0 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
 
@@ -829,7 +839,7 @@ export function AssetGenerator() {
                 {!hasGeneratedGrid ? (
                   // Show skeleton placeholders immediately when switching to Grid view
                   Array.from({ length: 20 }, (_, index) => (
-                    <GridSkeleton key={index} />
+                    <GridSkeleton key={index} aspectRatio={debouncedCanvasWidth / debouncedCanvasHeight} />
                   ))
                 ) : (
                   deferredGridSvgs.map((svg, index) => {
@@ -843,6 +853,7 @@ export function AssetGenerator() {
                         isHighlighted={index === highlightedGridIndex}
                         varyingParam="frequency"
                         paramValue={config.frequency}
+                        aspectRatio={debouncedCanvasWidth / debouncedCanvasHeight}
                       />
                     );
                   })
