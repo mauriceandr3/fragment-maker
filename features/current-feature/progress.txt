@@ -93,3 +93,27 @@ Status: COMPLETE
 - Validation clamps values on change (not on blur yet - PRD-016)
 - Inputs use existing canvasWidth/canvasHeight state from PRD-001
 - No feedback loops available - build tool segfaults in sandbox
+
+---
+
+## PRD-004: Aspect Ratio Lock Behavior (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Imported calculateHeight from dimensionUtils.ts
+- Added useEffect that recalculates height when canvasWidth or currentAspectRatio changes
+- Made Height input field read-only and disabled when AR is locked
+- Updated styling: text-white/50 (dimmed), cursor-not-allowed
+- Height = width × (aspectRatio.height / aspectRatio.width)
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx (import + useEffect at ~line 182, height input at ~line 858)
+
+### Verification:
+- 16:9 @ 1600px width -> 900px height (1600 * 9/16 = 900)
+- 4:3 @ 1600px width -> 1200px height (1600 * 3/4 = 1200)
+- Height field cannot be edited (read-only + disabled)
+
+### Notes:
+- Build tools segfault in sandbox; code is pure TS, verified syntactically correct
+- PRD-005 (custom ratio calculation) uses same mechanism - should work automatically

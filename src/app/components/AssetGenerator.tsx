@@ -15,6 +15,7 @@ import {
   DEFAULT_WIDTH,
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
+  calculateHeight,
 } from "../../lib/dimensionUtils";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
@@ -176,6 +177,12 @@ export function AssetGenerator() {
     }
     return ASPECT_RATIO_PRESETS[aspectRatioPreset];
   }, [aspectRatioPreset, customAspectRatio]);
+
+  // PRD-004: Recalculate height when width or aspect ratio changes
+  useEffect(() => {
+    const newHeight = calculateHeight(canvasWidth, currentAspectRatio);
+    setCanvasHeight(newHeight);
+  }, [canvasWidth, currentAspectRatio]);
 
   const [invertColors, setInvertColors] = useState(false);
   const [params, setParams] = useState<GeneratorParams>({
@@ -854,11 +861,9 @@ export function AssetGenerator() {
                     min="64"
                     max="4096"
                     value={canvasHeight}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 64;
-                      setCanvasHeight(Math.max(64, Math.min(4096, value)));
-                    }}
-                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                    readOnly
+                    disabled
+                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white/50 focus:outline-none transition-colors backdrop-blur-sm cursor-not-allowed"
                   />
                 </div>
               </div>

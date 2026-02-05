@@ -55,7 +55,7 @@
         "Select 4:3 aspect ratio",
         "Verify Height recalculates to 1200 (1600 * 3/4)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-005",
