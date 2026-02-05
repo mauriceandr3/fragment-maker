@@ -168,7 +168,7 @@
         "Verify Height input field is present with label",
         "Verify the layout is logical and follows the specified order"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-013",
@@ -181,7 +181,7 @@
         "Select Custom and enter 21:9",
         "Verify display shows 'Custom' or '21:9' appropriately"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-014",

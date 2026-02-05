@@ -305,3 +305,41 @@ Status: COMPLETE (verified existing implementation)
 ### Notes:
 - Build tools segfault in sandbox; verified by code inspection
 - Implementation chain: setAspectRatioPreset -> currentAspectRatio useMemo -> useEffect triggers -> setCanvasHeight
+
+---
+
+## PRD-012: Canvas Settings Section Layout (2026-02-05)
+Status: COMPLETE (verified existing implementation)
+
+### What was verified:
+- Canvas Settings section at line 901-1016 in AssetGenerator.tsx
+- Aspect ratio buttons in horizontal row (flex flex-wrap gap-2) - line 908
+- Custom ratio inputs appear conditionally when 'custom' selected - line 925
+- Width input with label "Width (px)" - line 957
+- Height input with label "Height (px)" - line 973
+- Layout order: AR presets → custom inputs → width/height grid
+
+### Files changed:
+- None (implementation already complete)
+
+### Notes:
+- Zoom controls also in Canvas Settings (per PRD-009 "remain unchanged")
+- Adjustment warning toast appears below dimension inputs per PRD-007
+
+---
+
+## PRD-013: Aspect Ratio Display (2026-02-05)
+Status: COMPLETE (verified existing implementation)
+
+### What was verified:
+- Aspect ratio displayed via button labels: '1:1', '4:3', '3:2', '16:9', '9:16', 'Custom'
+- Selected preset is visually highlighted (bg-white/20 border-2 border-white/40)
+- Custom mode shows "Custom" button highlighted + custom ratio inputs visible
+- Display format matches PRD requirement for simplified form
+
+### Files changed:
+- None (implementation already complete)
+
+### Notes:
+- Button highlighting effectively shows current aspect ratio state
+- No separate "display" element needed - button selection IS the display
