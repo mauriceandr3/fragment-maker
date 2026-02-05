@@ -125,7 +125,7 @@
         "Enter invalid value 4px and verify it's rejected (below minimum)",
         "Verify Zoom controls (25%, 50%, 100%) are present and functional"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-010",

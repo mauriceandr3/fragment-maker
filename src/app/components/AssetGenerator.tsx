@@ -10,14 +10,17 @@ import {
   type AspectRatioPreset,
   type AspectRatio,
   ASPECT_RATIO_PRESETS,
+  CELL_SIZE_PRESETS,
+  MIN_CELL_SIZE,
+  MAX_CELL_SIZE,
   DEFAULT_WIDTH,
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
   calculateHeight,
   adjustDimensionsAndCellSize,
+  adjustCellSizeForDimensions,
+  validateCellSize,
 } from "../../lib/dimensionUtils";
-
-const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
 
 // Debounce delay for settings changes (100ms per PRD-017)
 const DEBOUNCE_DELAY = 100;
@@ -161,6 +164,8 @@ export function AssetGenerator() {
   const [backgroundColor, setBackgroundColor] = useState("#000000");
   const [customPreset, setCustomPreset] = useState({ background: "#000000", foreground: "#FCFCFC" });
   const [cellSize, setCellSize] = useState(DEFAULT_CELL_SIZE);
+  const [customCellSizeInput, setCustomCellSizeInput] = useState<string>('');
+  const [showCustomCellSize, setShowCustomCellSize] = useState(false);
 
   // Aspect ratio state
   const [aspectRatioPreset, setAspectRatioPreset] = useState<AspectRatioPreset>('1:1');
@@ -228,6 +233,50 @@ export function AssetGenerator() {
       }
     };
   }, []);
+
+  // Handler for cell size changes (preset or custom)
+  const handleCellSizeChange = useCallback((newCellSize: number) => {
+    // Clear any existing warning
+    setAdjustmentWarning(null);
+    if (adjustmentWarningTimeoutRef.current) {
+      clearTimeout(adjustmentWarningTimeoutRef.current);
+    }
+
+    // Validate the input
+    const validated = validateCellSize(newCellSize);
+    const targetSize = validated.value;
+
+    // Check if adjustment is needed
+    const result = adjustCellSizeForDimensions(canvasWidth, canvasHeight, targetSize);
+
+    setCellSize(result.cellSize);
+    if (result.adjustmentType === 'dimensions') {
+      setCanvasWidth(result.width);
+      // Height will be recalculated by the aspect ratio useEffect
+    }
+
+    // Show warning if adjustment was made
+    if (result.adjusted && result.message) {
+      setAdjustmentWarning(result.message);
+      adjustmentWarningTimeoutRef.current = setTimeout(() => {
+        setAdjustmentWarning(null);
+      }, 5000);
+    }
+
+    // Hide custom input if a preset was selected
+    if (CELL_SIZE_PRESETS.includes(targetSize as typeof CELL_SIZE_PRESETS[number])) {
+      setShowCustomCellSize(false);
+    }
+  }, [canvasWidth, canvasHeight]);
+
+  // Handler for custom cell size input
+  const handleCustomCellSizeSubmit = useCallback(() => {
+    const value = parseInt(customCellSizeInput, 10);
+    if (!isNaN(value)) {
+      handleCellSizeChange(value);
+    }
+    setCustomCellSizeInput('');
+  }, [customCellSizeInput, handleCellSizeChange]);
 
   const [invertColors, setInvertColors] = useState(false);
   const [params, setParams] = useState<GeneratorParams>({
@@ -1088,22 +1137,58 @@ export function AssetGenerator() {
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
               <h2 className="text-xl font-semibold mb-4 text-white">Parameters</h2>
               
-              {/* Cell Scale Dropdown */}
+              {/* Cell Size Control (PRD-009) */}
               <div>
                 <label className="block text-sm text-white/60 mb-2">
-                  Cell Scale: {cellSize}px
+                  Cell Size: {cellSize}px
                 </label>
-                <select
-                  value={cellSize}
-                  onChange={(e) => setCellSize(parseInt(e.target.value))}
-                  className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm cursor-pointer"
-                >
-                  {CELL_SIZES.map((size) => (
-                    <option key={size} value={size} className="bg-black text-white">
+                {/* Preset buttons */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {CELL_SIZE_PRESETS.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => handleCellSizeChange(size)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        cellSize === size && !showCustomCellSize
+                          ? 'bg-white/20 border-2 border-white/40 text-white'
+                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                      }`}
+                    >
                       {size}px
-                    </option>
+                    </button>
                   ))}
-                </select>
+                  <button
+                    onClick={() => setShowCustomCellSize(!showCustomCellSize)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])
+                        ? 'bg-white/20 border-2 border-white/40 text-white'
+                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                    }`}
+                  >
+                    Custom
+                  </button>
+                </div>
+                {/* Custom input (visible when Custom is selected or current size is not a preset) */}
+                {(showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])) && (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      min={MIN_CELL_SIZE}
+                      max={MAX_CELL_SIZE}
+                      value={customCellSizeInput || cellSize}
+                      onChange={(e) => setCustomCellSizeInput(e.target.value)}
+                      onBlur={handleCustomCellSizeSubmit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCustomCellSizeSubmit();
+                        }
+                      }}
+                      placeholder={`${MIN_CELL_SIZE}-${MAX_CELL_SIZE}px`}
+                      className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors"
+                    />
+                    <span className="text-xs text-white/40">({MIN_CELL_SIZE}-{MAX_CELL_SIZE}px)</span>
+                  </div>
+                )}
               </div>
               
               <div>

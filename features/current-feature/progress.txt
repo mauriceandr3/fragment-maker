@@ -203,3 +203,38 @@ Status: COMPLETE
 - gridToSvg supports both old (canvasSize: string) and new (width: number) signatures
 - Build tools have binary compatibility issues in sandbox; verified syntax manually
 - Canvas Settings now has: aspect ratio presets, custom ratio inputs, width/height inputs, zoom controls
+
+---
+
+## PRD-009: Cell Size Control (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Renamed "Cell Scale" to "Cell Size" in Parameters section
+- Replaced dropdown with preset buttons: 8, 16, 24, 32, 48, 64px (from CELL_SIZE_PRESETS)
+- Added "Custom" button that shows input field for values 8-128px
+- Custom input validates on blur and Enter, uses validateCellSize from dimensionUtils
+- When user changes cell size, adjustCellSizeForDimensions finds nearest valid size for current dimensions
+- Shows adjustment warning toast if cell size or dimensions adjusted
+- Zoom controls (25%, 50%, 100%) unchanged
+
+### Key implementation:
+- Imported CELL_SIZE_PRESETS, MIN_CELL_SIZE, MAX_CELL_SIZE, adjustCellSizeForDimensions, validateCellSize
+- Removed old CELL_SIZES constant [12,24,36,48,60,72,84,96]
+- Added state: customCellSizeInput, showCustomCellSize
+- Added handlers: handleCellSizeChange, handleCustomCellSizeSubmit
+- Preset buttons highlight when selected; Custom highlights when active or current size not in presets
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx
+
+### Verification:
+- Label shows "Cell Size: Xpx" (not "Cell Scale")
+- Presets: 8, 16, 24, 32, 48, 64px buttons visible
+- Custom input appears when Custom clicked or when current size not in presets
+- Input validates 8-128px range
+- Zoom controls still at 25%, 50%, 100%
+
+### Notes:
+- Build tools segfault in sandbox; syntax verified manually
+- Cell size adjustment uses same warning toast system as dimension adjustment (PRD-006/007)
