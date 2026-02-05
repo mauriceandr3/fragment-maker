@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, memo } from "react";
-import { Shuffle, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid } from "lucide-react";
+import { Shuffle, ChevronRight, ChevronLeft, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid } from "lucide-react";
 import {
   type CanvasSize,
   type FillType,
@@ -7,8 +7,7 @@ import {
   CANVAS_SIZES,
   generateGridVariations,
   generateFragmentSvgDirect,
-  PARAM_RANGES,
-} from "../../lib/generateFragmentSvg";
+} from "../../lib/generateFragmentSvgGrid";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
 
@@ -63,7 +62,6 @@ interface GridItemProps {
 
 const GridItem = memo(function GridItem({
   svg,
-  index,
   isHighlighted,
   varyingParam,
   paramValue,
@@ -171,10 +169,8 @@ export function AssetGenerator() {
     invertFill: false,
   });
   const [grid, setGrid] = useState<boolean[][]>([]);
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
-  const [varyingParam, setVaryingParam] = useState<SeedableParam>('frequency');
   const [hasGeneratedGrid, setHasGeneratedGrid] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -254,8 +250,8 @@ export function AssetGenerator() {
       cellSize: debouncedCellSize,
       canvasSize: debouncedCanvasSize,
     };
-    return generateGridVariations(baseConfig, varyingParam, 20);
-  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasSize, varyingParam]);
+    return generateGridVariations(baseConfig, 'frequency', 20);
+  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasSize]);
 
   // Generate SVG strings for each grid variation
   const gridSvgs = useMemo(() => {
@@ -287,15 +283,15 @@ export function AssetGenerator() {
 
   // Find which grid item best matches the current base config value
   const highlightedGridIndex = useMemo(() => {
-    // Get the current base value for the varying parameter
-    const currentValue = params[varyingParam as keyof GeneratorParams] as number;
+    // Get the current base value for frequency
+    const currentValue = params.frequency;
 
     // Find the grid item with the closest value
     let closestIndex = 0;
     let closestDiff = Infinity;
 
     for (let i = 0; i < gridVariations.length; i++) {
-      const gridValue = gridVariations[i][varyingParam as keyof typeof gridVariations[0]] as number;
+      const gridValue = gridVariations[i].frequency;
       const diff = Math.abs(gridValue - currentValue);
       if (diff < closestDiff) {
         closestDiff = diff;
@@ -304,7 +300,7 @@ export function AssetGenerator() {
     }
 
     return closestIndex;
-  }, [params, varyingParam, gridVariations]);
+  }, [params.frequency, gridVariations]);
 
   // Derive display colors based on invert flag
   const displayForeground = invertColors ? backgroundColor : foregroundColor;
@@ -613,7 +609,6 @@ export function AssetGenerator() {
     const exportData = {
       version: '1.0.0',
       exportedAt: new Date().toISOString(),
-      seedParam: 'frequency' as SeedableParam,
       config: {
         threshold: params.threshold,
         gamma: params.gamma,
@@ -644,35 +639,39 @@ export function AssetGenerator() {
 
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">
-      <div className="flex-1 relative overflow-hidden">
-        {/* View Mode Toggle - Centered above canvas */}
-        <div className="absolute top-4 left-8 z-10 flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('single')}
-            className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
-              viewMode === 'single'
-                ? 'bg-white/20 border-2 border-white/40 text-white'
-                : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
-            }`}
-          >
-            <Square className="w-4 h-4" />
-            <span className="text-sm">Single</span>
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
-              viewMode === 'grid'
-                ? 'bg-white/20 border-2 border-white/40 text-white'
-                : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span className="text-sm">Grid</span>
-          </button>
-        </div>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Canvas/Grid Area (shrinks) */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* View Mode Toggle */}
+          <div className="p-4 pl-8">
+            <div className="inline-flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('single')}
+                className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
+                  viewMode === 'single'
+                    ? 'bg-white/20 border-2 border-white/40 text-white'
+                    : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
+                }`}
+              >
+                <Square className="w-4 h-4" />
+                <span className="text-sm">Single</span>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white/20 border-2 border-white/40 text-white'
+                    : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span className="text-sm">Grid</span>
+              </button>
+            </div>
+          </div>
 
-        {/* Canvas Area */}
-        <div className="absolute inset-x-0 top-16 bottom-0 bg-black flex items-center justify-start overflow-auto pl-8">
+          {/* Canvas Area */}
+          <div className="flex-1 bg-[rgba(255,255,255,0.08)] flex items-center justify-start overflow-auto pl-8">
           {viewMode === 'single' && (
             <canvas
               ref={canvasRef}
@@ -682,29 +681,9 @@ export function AssetGenerator() {
           )}
           {viewMode === 'grid' && (
             <div className="w-full h-full overflow-auto p-4">
-              {/* Parameter Selector Chips */}
-              <div className="flex flex-wrap gap-3 mb-4 max-w-[1100px] mx-auto">
-                {([
-                  { param: 'threshold' as SeedableParam, label: 'Density' },
-                  { param: 'fillAmount' as SeedableParam, label: 'Fill %' },
-                  { param: 'gamma' as SeedableParam, label: 'Gamma' },
-                  { param: 'frequency' as SeedableParam, label: 'Frequency' },
-                  { param: 'contrast' as SeedableParam, label: 'Contrast' },
-                  { param: 'directionalNeighbors' as SeedableParam, label: 'Dir. Neighbors' },
-                  { param: 'directionDensity' as SeedableParam, label: 'Dir. Density' },
-                ]).map(({ param, label }) => (
-                  <button
-                    key={param}
-                    onClick={() => setVaryingParam(param)}
-                    className={`py-2 px-4 rounded-lg font-medium transition-all ${
-                      varyingParam === param
-                        ? 'bg-white/20 border-2 border-white/40 text-white'
-                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              {/* Parameter Variation Label */}
+              <div className="mb-4 flex justify-center">
+                <span className="text-white/60 text-sm">Variations in the frequency parameter</span>
               </div>
 
               {/* Grid of 20 SVG previews - uses deferred values for smooth UI */}
@@ -723,7 +702,6 @@ export function AssetGenerator() {
                 ) : (
                   deferredGridSvgs.map((svg, index) => {
                     const config = gridVariations[index];
-                    const paramValue = config[varyingParam as keyof typeof config];
 
                     return (
                       <GridItem
@@ -731,8 +709,8 @@ export function AssetGenerator() {
                         svg={svg}
                         index={index}
                         isHighlighted={index === highlightedGridIndex}
-                        varyingParam={varyingParam}
-                        paramValue={paramValue as number | string}
+                        varyingParam="frequency"
+                        paramValue={config.frequency}
                       />
                     );
                   })
@@ -740,45 +718,42 @@ export function AssetGenerator() {
               </div>
             </div>
           )}
+          </div>
         </div>
-        
-        {/* Floating Controls Panel */}
-        <div 
-          className={`absolute top-8 right-8 bg-black/60 backdrop-blur-xl border border-white/20 transition-all duration-300 shadow-2xl rounded-3xl overflow-hidden ${
-            isPanelOpen ? 'translate-x-0' : 'translate-x-[calc(100%+2rem)]'
-          } ${isCollapsed ? 'bottom-auto' : 'bottom-8'}`}
-          style={{ width: '400px' }}
-        >
-          {/* Toggle Button */}
-          <button
-            onClick={() => setIsPanelOpen(!isPanelOpen)}
-            className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 bg-black/60 backdrop-blur-xl border border-white/20 border-r-0 rounded-l-lg p-2 hover:bg-black/70 transition-all shadow-lg text-white"
-          >
-            {isPanelOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </button>
 
-          {/* Panel Content */}
-          <div 
-            className={`h-full overflow-y-auto space-y-6 ${isCollapsed ? 'p-6' : 'p-6 pb-12'}`} 
-            style={{ 
-              fontFamily: 'Inter Tight, sans-serif', 
-              fontWeight: 300,
-              scrollbarGutter: 'stable',
-            }}
+        {/* Right: Controls Panel (fixed width, doesn't shrink) */}
+        {isCollapsed ? (
+          /* Collapsed state - just show open button */
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="flex-shrink-0 flex items-center justify-center w-12 bg-black/60 backdrop-blur-xl border-l border-white/20 text-white/60 hover:text-white hover:bg-black/70 transition-colors"
           >
-            {/* Header */}
-            <div className={`flex items-center justify-between ${isCollapsed ? 'pb-0' : 'pb-2'}`}>
-              <h1 className="text-lg text-white tracking-wide">Fragment Generator</h1>
-              <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-              >
-                {isCollapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
-              </button>
-            </div>
-            
-            {/* Collapsible Content */}
-            {!isCollapsed && (
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        ) : (
+          <div
+            className="w-[400px] flex-shrink-0 bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden"
+          >
+            {/* Panel Content */}
+            <div
+              className="h-full overflow-y-auto space-y-6 p-6 pb-12"
+              style={{
+                fontFamily: 'Inter Tight, sans-serif',
+                fontWeight: 300,
+                scrollbarGutter: 'stable',
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2">
+                <h1 className="text-lg text-white tracking-wide">Fragment Generator</h1>
+                <button
+                  onClick={() => setIsCollapsed(true)}
+                  className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
               <>
             {/* Canvas Size */}
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
@@ -1194,19 +1169,17 @@ export function AssetGenerator() {
               <span className="text-sm">Export Settings as JSON</span>
             </button>
             </>
-            )}
           </div>
-          
+
           {/* Fade Mask at Bottom */}
-          {!isCollapsed && (
-          <div 
+          <div
             className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
             style={{
               background: 'linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent)'
             }}
           />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

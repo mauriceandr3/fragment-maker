@@ -2,32 +2,20 @@
  * Fragment SVG Generator
  *
  * A self-contained module for generating Fragment pattern SVGs.
- * This module has no React dependencies and can be used standalone.
+ * No dependencies required - copy this file to your website repo.
  *
- * @example
+ * ## Website Usage
  * ```typescript
- * import { generateFragmentSvg, FragmentConfig } from './generateFragmentSvg';
+ * import { generateFragmentSvg, type FragmentConfig } from './generateFragmentSvg';
  *
- * const config: FragmentConfig = {
- *   threshold: 0.5,
- *   gamma: 1.0,
- *   frequency: 0.1,
- *   contrast: 1.0,
- *   seed: 0.5,
- *   directionalNeighbors: 8,
- *   directionDensity: 50,
- *   fillAmount: 50,
- *   fillType: 'linear',
- *   invertFill: false,
- *   foregroundColor: '#FCFCFC',
- *   backgroundColor: '#000000',
- *   cellSize: 48,
- *   canvasSize: '1K',
- *   seedParam: 'frequency',
- * };
- *
- * const svg = generateFragmentSvg('my-seed-string', config);
+ * const config = await fetch('/config.json').then(r => r.json());
+ * const svg = generateFragmentSvg('my-seed-string', config.config);
+ * document.getElementById('container').innerHTML = svg;
  * ```
+ *
+ * ## Exports
+ * - `generateFragmentSvg` - Main function for website use
+ * - `generateGrid`, `gridToSvg` - Internal functions (for tool use only)
  */
 
 // ============================================================================
@@ -106,49 +94,32 @@ export const PARAM_RANGES: Record<SeedableParam, { min: number; max: number; ste
 
 /**
  * djb2 hash algorithm - converts a string to a 32-bit unsigned integer.
- * This is a simple, fast hash function that produces consistent results
- * across different platforms and environments.
- *
- * @param str - The string to hash
- * @returns A 32-bit unsigned integer hash value
  */
 export function djb2Hash(str: string): number {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) + hash) ^ char; // hash * 33 ^ char
+    hash = ((hash << 5) + hash) ^ char;
   }
-  // Convert to unsigned 32-bit integer
   return hash >>> 0;
 }
 
 /**
  * Normalizes a djb2 hash value to a range [0, 1].
- *
- * @param hash - The hash value from djb2Hash
- * @returns A number between 0 and 1
  */
 export function normalizeHash(hash: number): number {
   return hash / 0xffffffff;
 }
 
 // ============================================================================
-// Core Generation Functions
+// Internal Functions
 // ============================================================================
 
-/**
- * Seeded random number generator using sine-based hashing.
- * Produces deterministic pseudo-random values for given coordinates.
- */
 function seededRandom(seed: number, x: number, y: number): number {
   const value = Math.sin(seed * 12.9898 + x * 78.233 + y * 43.758) * 43758.5453;
   return value - Math.floor(value);
 }
 
-/**
- * Calculates fill threshold based on gradient type.
- * Returns a percentage (0-100) indicating fill level at given coordinates.
- */
 function calculateFillThreshold(
   x: number,
   y: number,
@@ -190,10 +161,6 @@ function calculateFillThreshold(
   }
 }
 
-/**
- * Creates a boundary fragment extending from a cell.
- * Modifies the grid in place to add directional line segments.
- */
 function createBoundaryFragment(
   grid: boolean[][],
   startX: number,
@@ -250,10 +217,6 @@ function createBoundaryFragment(
   }
 }
 
-/**
- * Applies directional neighbors at boundary transitions.
- * Finds cells at color boundaries and creates fragments from them.
- */
 function applyDirectionalNeighbors(
   grid: boolean[][],
   seed: number,
@@ -267,7 +230,6 @@ function applyDirectionalNeighbors(
   const actualCols = grid[0].length;
   const boundaryCells: { x: number; y: number; color: boolean }[] = [];
 
-  // Find boundary cells
   for (let y = 0; y < actualRows; y++) {
     for (let x = 0; x < actualCols; x++) {
       const currentColor = grid[y][x];
@@ -293,7 +255,6 @@ function applyDirectionalNeighbors(
     }
   }
 
-  // Select and create fragments
   const numFragments = Math.min(directionDensity, boundaryCells.length);
   for (let i = 0; i < numFragments; i++) {
     const randomSeed = seededRandom(seed, i, 5000);
@@ -303,10 +264,14 @@ function applyDirectionalNeighbors(
   }
 }
 
+// ============================================================================
+// Exported Internal Functions (for tool use)
+// ============================================================================
+
 /**
- * Generates a 2D boolean grid based on noise parameters.
+ * @internal Generates a 2D boolean grid. Exported for tool use only.
  */
-function generateGrid(
+export function generateGrid(
   cols: number,
   rows: number,
   seed: number,
@@ -325,13 +290,11 @@ function generateGrid(
   for (let y = 0; y < rows; y++) {
     const row: boolean[] = [];
     for (let x = 0; x < cols; x++) {
-      // Generate and process noise
       let noise = seededRandom(seed, x * frequency, y * frequency);
       noise = Math.pow(noise, gamma);
       noise = (noise - 0.5) * contrast + 0.5;
       noise = Math.max(0, Math.min(1, noise));
 
-      // Calculate fill threshold
       const fillThreshold = calculateFillThreshold(x, y, fillType, cols, rows);
       const effectiveFillAmount = invertFill ? 100 - fillAmount : fillAmount;
       const shouldFill = invertFill
@@ -348,24 +311,28 @@ function generateGrid(
 }
 
 /**
- * Converts a boolean grid to an SVG string.
+ * @internal Converts a boolean grid to SVG. Exported for tool use only.
  */
-function gridToSvg(
+export function gridToSvg(
   grid: boolean[][],
   cols: number,
   rows: number,
   canvasSize: CanvasSize,
   foregroundColor: string,
-  backgroundColor: string
+  backgroundColor: string,
+  outputHeight?: number
 ): string {
   const canvasDimensions = CANVAS_SIZES[canvasSize];
-  const width = canvasDimensions.width;
-  const height = canvasDimensions.height;
+  const viewBoxWidth = canvasDimensions.width;
+  const viewBoxHeight = canvasDimensions.height;
+  const aspectRatio = viewBoxWidth / viewBoxHeight;
+  const height = outputHeight ?? viewBoxHeight;
+  const width = outputHeight ? Math.round(outputHeight * aspectRatio) : viewBoxWidth;
 
-  const scaledCellWidth = width / cols;
-  const scaledCellHeight = height / rows;
+  const scaledCellWidth = viewBoxWidth / cols;
+  const scaledCellHeight = viewBoxHeight / rows;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" shape-rendering="crispEdges">`;
 
   for (let y = 0; y < Math.min(rows, grid.length); y++) {
     for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
@@ -387,14 +354,13 @@ function gridToSvg(
  *
  * The seed string is hashed using djb2 to produce a deterministic value
  * that modifies one parameter (specified by config.seedParam, defaults to 'frequency').
- * This allows generating unique but reproducible patterns from any string input
- * (e.g., user IDs, wallet addresses, etc.).
  *
  * @param seedString - Any string to use as seed (e.g., principal ID, username)
  * @param config - The fragment configuration object
+ * @param outputHeight - Optional output height in pixels. Width is scaled proportionally.
  * @returns SVG string
  */
-export function generateFragmentSvg(seedString: string, config: FragmentConfig): string {
+export function generateFragmentSvg(seedString: string, config: FragmentConfig, outputHeight?: number): string {
   const {
     threshold,
     gamma,
@@ -413,22 +379,17 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig):
     seedParam = 'frequency',
   } = config;
 
-  // Hash the seed string and normalize to [0, 1]
   const hash = djb2Hash(seedString);
   const normalizedHash = normalizeHash(hash);
 
-  // Calculate the seeded parameter value
   const paramRange = PARAM_RANGES[seedParam];
-  const seededValue =
-    paramRange.min + normalizedHash * (paramRange.max - paramRange.min);
+  const seededValue = paramRange.min + normalizedHash * (paramRange.max - paramRange.min);
 
-  // Round to step if it's an integer parameter
   const roundedSeededValue =
     paramRange.step >= 1
       ? Math.round(seededValue)
       : Math.round(seededValue / paramRange.step) * paramRange.step;
 
-  // Build effective parameters with the seeded value
   const effectiveParams = {
     threshold,
     gamma,
@@ -440,7 +401,6 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig):
     [seedParam]: roundedSeededValue,
   };
 
-  // Calculate grid dimensions
   const canvasDimensions = CANVAS_SIZES[canvasSize];
   const cols = Math.floor(canvasDimensions.width / cellSize);
   const rows = Math.floor(canvasDimensions.height / cellSize);
@@ -449,7 +409,6 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig):
     return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
   }
 
-  // Generate the grid
   const grid = generateGrid(
     cols,
     rows,
@@ -465,135 +424,5 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig):
     effectiveParams.directionDensity
   );
 
-  // Convert to SVG
-  return gridToSvg(grid, cols, rows, canvasSize, foregroundColor, backgroundColor);
-}
-
-/**
- * Generates an array of configurations with one parameter varying across its range.
- * Useful for grid view previews and batch generation.
- *
- * For parameters with limited discrete values (e.g., integers with a small range),
- * values are repeated as needed to fill the requested count rather than interpolating
- * invalid values.
- *
- * @param baseConfig - The base configuration (non-varying parameters)
- * @param varyingParam - Which parameter to vary across the configurations
- * @param count - Number of configurations to generate (default: 20)
- * @returns Array of configurations with the varying parameter adjusted
- *
- * @example
- * ```typescript
- * const variations = generateGridVariations(baseConfig, 'frequency', 20);
- * // variations[0].frequency = 0.01 (min)
- * // variations[19].frequency = 0.5 (max)
- * ```
- */
-export function generateGridVariations(
-  baseConfig: Omit<FragmentConfig, 'seedParam'>,
-  varyingParam: SeedableParam,
-  count: number = 20
-): Omit<FragmentConfig, 'seedParam'>[] {
-  const range = PARAM_RANGES[varyingParam];
-  const { min, max, step } = range;
-
-  // Calculate all valid discrete values for this parameter
-  const validValues: number[] = [];
-  for (let value = min; value <= max + step / 2; value += step) {
-    // Round to avoid floating point errors
-    const roundedValue = step >= 1 ? Math.round(value) : Math.round(value / step) * step;
-    if (roundedValue <= max) {
-      validValues.push(roundedValue);
-    }
-  }
-
-  // Generate the configurations
-  const configs: Omit<FragmentConfig, 'seedParam'>[] = [];
-
-  for (let i = 0; i < count; i++) {
-    let paramValue: number;
-
-    if (validValues.length >= count) {
-      // Enough unique values: distribute evenly across the range
-      // Index 0 gets min, index (count-1) gets max
-      const t = count === 1 ? 0 : i / (count - 1);
-      const rawValue = min + t * (max - min);
-
-      // Snap to nearest valid step
-      if (step >= 1) {
-        paramValue = Math.round(rawValue);
-      } else {
-        paramValue = Math.round(rawValue / step) * step;
-      }
-
-      // Clamp to valid range
-      paramValue = Math.max(min, Math.min(max, paramValue));
-    } else {
-      // Not enough unique values: repeat values to fill count slots
-      // Distribute available values as evenly as possible
-      const slotIndex = Math.floor((i / count) * validValues.length);
-      paramValue = validValues[Math.min(slotIndex, validValues.length - 1)];
-    }
-
-    configs.push({
-      ...baseConfig,
-      [varyingParam]: paramValue,
-    });
-  }
-
-  return configs;
-}
-
-/**
- * Generates a Fragment pattern SVG with explicit parameter values (no seed string).
- * This is useful when you want full control over all parameters.
- *
- * @param config - The fragment configuration object
- * @returns SVG string
- */
-export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedParam'>): string {
-  const {
-    threshold,
-    gamma,
-    frequency,
-    contrast,
-    seed,
-    directionalNeighbors,
-    directionDensity,
-    fillAmount,
-    fillType,
-    invertFill,
-    foregroundColor,
-    backgroundColor,
-    cellSize,
-    canvasSize,
-  } = config;
-
-  // Calculate grid dimensions
-  const canvasDimensions = CANVAS_SIZES[canvasSize];
-  const cols = Math.floor(canvasDimensions.width / cellSize);
-  const rows = Math.floor(canvasDimensions.height / cellSize);
-
-  if (cols <= 0 || rows <= 0) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
-  }
-
-  // Generate the grid
-  const grid = generateGrid(
-    cols,
-    rows,
-    seed,
-    threshold,
-    gamma,
-    frequency,
-    contrast,
-    fillAmount,
-    fillType,
-    invertFill,
-    directionalNeighbors,
-    directionDensity
-  );
-
-  // Convert to SVG
-  return gridToSvg(grid, cols, rows, canvasSize, foregroundColor, backgroundColor);
+  return gridToSvg(grid, cols, rows, canvasSize, foregroundColor, backgroundColor, outputHeight);
 }
