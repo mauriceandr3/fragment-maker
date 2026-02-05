@@ -40,7 +40,7 @@
         "Verify Height field displays the calculated dimension",
         "Verify both fields show pixel values (not percentages or other units)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-004",

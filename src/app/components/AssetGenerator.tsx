@@ -831,6 +831,38 @@ export function AssetGenerator() {
                 )}
               </div>
 
+              {/* Canvas Dimensions */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Width (px)</label>
+                  <input
+                    type="number"
+                    min="64"
+                    max="4096"
+                    value={canvasWidth}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 64;
+                      setCanvasWidth(Math.max(64, Math.min(4096, value)));
+                    }}
+                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Height (px)</label>
+                  <input
+                    type="number"
+                    min="64"
+                    max="4096"
+                    value={canvasHeight}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 64;
+                      setCanvasHeight(Math.max(64, Math.min(4096, value)));
+                    }}
+                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                  />
+                </div>
+              </div>
+
               <div className="border-t border-white/10 my-4"></div>
 
               {/* Legacy Canvas Size - TODO: Remove in PRD-008 */}

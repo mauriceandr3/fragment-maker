@@ -71,3 +71,25 @@ Status: COMPLETE
 - Inputs update customAspectRatio which feeds currentAspectRatio via useMemo
 - Height recalculation behavior (PRD-005) not yet implemented
 - No feedback loops available in sandbox - project has no test/lint/typecheck scripts
+
+---
+
+## PRD-003: Dimension Inputs (2026-02-05)
+Status: COMPLETE
+
+### What was done:
+- Added Width and Height input fields to Canvas Settings section
+- Grid layout (2 cols) for compact display side-by-side
+- Width: editable number input, min 64, max 4096, bound to canvasWidth state
+- Height: editable number input, min 64, max 4096, bound to canvasHeight state
+- Labels show "(px)" suffix for clarity
+- Same styling as other inputs in the panel
+
+### Files changed:
+- src/app/components/AssetGenerator.tsx (added ~lines 834-864)
+
+### Notes:
+- Currently both inputs are editable; PRD-004 will make Height read-only when AR is locked
+- Validation clamps values on change (not on blur yet - PRD-016)
+- Inputs use existing canvasWidth/canvasHeight state from PRD-001
+- No feedback loops available - build tool segfaults in sandbox
