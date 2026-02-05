@@ -225,7 +225,7 @@
         "Enter 150 in custom ratio field - verify error (above 99 max)",
         "Verify invalid fields revert to last valid value on blur"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-017",
@@ -239,7 +239,7 @@
         "GCD = 256, divisors ≥ 8: [8, 16, 32, 64, 128, 256]",
         "Closest to 48 is 32 or 64 - verify one is selected"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

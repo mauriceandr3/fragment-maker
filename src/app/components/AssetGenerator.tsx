@@ -13,6 +13,8 @@ import {
   CELL_SIZE_PRESETS,
   MIN_CELL_SIZE,
   MAX_CELL_SIZE,
+  MIN_CANVAS_DIMENSION,
+  MAX_CANVAS_DIMENSION,
   DEFAULT_WIDTH,
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
@@ -20,6 +22,8 @@ import {
   adjustDimensionsAndCellSize,
   adjustCellSizeForDimensions,
   validateCellSize,
+  validateCanvasDimension,
+  validateAspectRatioValue,
 } from "../../lib/dimensionUtils";
 
 // Debounce delay for settings changes (100ms per PRD-017)
@@ -187,6 +191,15 @@ export function AssetGenerator() {
   const [adjustmentWarning, setAdjustmentWarning] = useState<string | null>(null);
   const adjustmentWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // PRD-016: Input validation state - track string input values and errors
+  const [widthInputValue, setWidthInputValue] = useState<string>(String(DEFAULT_WIDTH));
+  const [widthInputError, setWidthInputError] = useState<string | null>(null);
+  const [customRatioWidthInput, setCustomRatioWidthInput] = useState<string>('1');
+  const [customRatioWidthError, setCustomRatioWidthError] = useState<string | null>(null);
+  const [customRatioHeightInput, setCustomRatioHeightInput] = useState<string>('1');
+  const [customRatioHeightError, setCustomRatioHeightError] = useState<string | null>(null);
+  const [cellSizeInputError, setCellSizeInputError] = useState<string | null>(null);
+
   // Computed current aspect ratio (from preset or custom)
   const currentAspectRatio = useMemo((): AspectRatio => {
     if (aspectRatioPreset === 'custom') {
@@ -243,6 +256,19 @@ export function AssetGenerator() {
       }
     };
   }, []);
+
+  // PRD-016: Sync string input values with underlying state when changed externally (e.g., reset)
+  useEffect(() => {
+    setWidthInputValue(String(canvasWidth));
+    setWidthInputError(null);
+  }, [canvasWidth]);
+
+  useEffect(() => {
+    setCustomRatioWidthInput(String(customAspectRatio.width));
+    setCustomRatioWidthError(null);
+    setCustomRatioHeightInput(String(customAspectRatio.height));
+    setCustomRatioHeightError(null);
+  }, [customAspectRatio.width, customAspectRatio.height]);
 
   // Handler for cell size changes (preset or custom)
   // forceExact: true when user enters custom value (snap dimensions to fit exact size)
@@ -691,8 +717,15 @@ export function AssetGenerator() {
     setCanvasWidth(DEFAULT_WIDTH);
     setCanvasHeight(DEFAULT_HEIGHT);
     setAspectRatioPreset('1:1');
+    setCustomAspectRatio({ width: 1, height: 1 });
     setCellSize(DEFAULT_CELL_SIZE);
     setInvertColors(false);
+    // Clear all validation errors
+    setWidthInputError(null);
+    setCustomRatioWidthError(null);
+    setCustomRatioHeightError(null);
+    setCellSizeInputError(null);
+    setAdjustmentWarning(null);
     setParams({
       threshold: 0.5,
       gamma: 1.0,
@@ -925,30 +958,90 @@ export function AssetGenerator() {
 
                 {/* Custom Ratio Inputs - only visible when Custom is selected */}
                 {aspectRatioPreset === 'custom' && (
-                  <div className="flex items-center gap-2 mt-3">
-                    <input
-                      type="number"
-                      min="1"
-                      max="99"
-                      value={customAspectRatio.width}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1;
-                        setCustomAspectRatio({ ...customAspectRatio, width: Math.max(1, Math.min(99, value)) });
-                      }}
-                      className="w-16 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
-                    />
-                    <span className="text-white/60 text-sm">:</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="99"
-                      value={customAspectRatio.height}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1;
-                        setCustomAspectRatio({ ...customAspectRatio, height: Math.max(1, Math.min(99, value)) });
-                      }}
-                      className="w-16 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
-                    />
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col">
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={customRatioWidthInput}
+                          onChange={(e) => {
+                            const rawValue = e.target.value;
+                            setCustomRatioWidthInput(rawValue);
+
+                            const parsed = parseFloat(rawValue);
+                            if (rawValue === '' || isNaN(parsed)) {
+                              setCustomRatioWidthError('Invalid');
+                            } else if (parsed < 1) {
+                              setCustomRatioWidthError('Min 1');
+                            } else if (parsed > 99) {
+                              setCustomRatioWidthError('Max 99');
+                            } else {
+                              setCustomRatioWidthError(null);
+                              const intValue = Math.round(parsed);
+                              setCustomAspectRatio({ ...customAspectRatio, width: intValue });
+                              setCustomRatioWidthInput(String(intValue));
+                            }
+                          }}
+                          onBlur={() => {
+                            if (customRatioWidthError) {
+                              setCustomRatioWidthInput(String(customAspectRatio.width));
+                              setCustomRatioWidthError(null);
+                            }
+                          }}
+                          className={`w-16 bg-black/30 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none transition-colors backdrop-blur-sm ${
+                            customRatioWidthError
+                              ? 'border-2 border-red-500/60 focus:border-red-500/80'
+                              : 'border border-white/20 focus:border-white/40'
+                          }`}
+                        />
+                        {customRatioWidthError && (
+                          <span className="text-xs text-red-400 mt-1">{customRatioWidthError}</span>
+                        )}
+                      </div>
+                      <span className="text-white/60 text-sm">:</span>
+                      <div className="flex flex-col">
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={customRatioHeightInput}
+                          onChange={(e) => {
+                            const rawValue = e.target.value;
+                            setCustomRatioHeightInput(rawValue);
+
+                            const parsed = parseFloat(rawValue);
+                            if (rawValue === '' || isNaN(parsed)) {
+                              setCustomRatioHeightError('Invalid');
+                            } else if (parsed < 1) {
+                              setCustomRatioHeightError('Min 1');
+                            } else if (parsed > 99) {
+                              setCustomRatioHeightError('Max 99');
+                            } else {
+                              setCustomRatioHeightError(null);
+                              const intValue = Math.round(parsed);
+                              setCustomAspectRatio({ ...customAspectRatio, height: intValue });
+                              setCustomRatioHeightInput(String(intValue));
+                            }
+                          }}
+                          onBlur={() => {
+                            if (customRatioHeightError) {
+                              setCustomRatioHeightInput(String(customAspectRatio.height));
+                              setCustomRatioHeightError(null);
+                            }
+                          }}
+                          className={`w-16 bg-black/30 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none transition-colors backdrop-blur-sm ${
+                            customRatioHeightError
+                              ? 'border-2 border-red-500/60 focus:border-red-500/80'
+                              : 'border border-white/20 focus:border-white/40'
+                          }`}
+                        />
+                        {customRatioHeightError && (
+                          <span className="text-xs text-red-400 mt-1">{customRatioHeightError}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -959,24 +1052,53 @@ export function AssetGenerator() {
                   <label className="block text-sm text-white/60 mb-2">Width (px)</label>
                   <input
                     type="number"
-                    min="64"
-                    max="4096"
-                    value={canvasWidth}
+                    min={MIN_CANVAS_DIMENSION}
+                    max={MAX_CANVAS_DIMENSION}
+                    value={widthInputValue}
                     onChange={(e) => {
-                      const value = parseInt(e.target.value) || 64;
-                      // Clear any existing warning when user makes a new change
+                      const rawValue = e.target.value;
+                      setWidthInputValue(rawValue);
                       setAdjustmentWarning(null);
-                      setCanvasWidth(Math.max(64, Math.min(4096, value)));
+
+                      // Validate as user types
+                      const parsed = parseFloat(rawValue);
+                      if (rawValue === '' || isNaN(parsed)) {
+                        setWidthInputError('Invalid number');
+                      } else if (parsed < MIN_CANVAS_DIMENSION) {
+                        setWidthInputError(`Minimum ${MIN_CANVAS_DIMENSION}px`);
+                      } else if (parsed > MAX_CANVAS_DIMENSION) {
+                        setWidthInputError(`Maximum ${MAX_CANVAS_DIMENSION}px`);
+                      } else {
+                        setWidthInputError(null);
+                        // Round to integer and apply
+                        const intValue = Math.round(parsed);
+                        setCanvasWidth(intValue);
+                        setWidthInputValue(String(intValue));
+                      }
                     }}
-                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                    onBlur={() => {
+                      // PRD-016: Revert to last valid value on blur if invalid
+                      if (widthInputError) {
+                        setWidthInputValue(String(canvasWidth));
+                        setWidthInputError(null);
+                      }
+                    }}
+                    className={`w-full bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors backdrop-blur-sm ${
+                      widthInputError
+                        ? 'border-2 border-red-500/60 focus:border-red-500/80'
+                        : 'border border-white/20 focus:border-white/40'
+                    }`}
                   />
+                  {widthInputError && (
+                    <span className="text-xs text-red-400 mt-1 block">{widthInputError}</span>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm text-white/60 mb-2">Height (px)</label>
                   <input
                     type="number"
-                    min="64"
-                    max="4096"
+                    min={MIN_CANVAS_DIMENSION}
+                    max={MAX_CANVAS_DIMENSION}
                     value={canvasHeight}
                     readOnly
                     disabled
@@ -1183,23 +1305,55 @@ export function AssetGenerator() {
                 </div>
                 {/* Custom input (visible when Custom is selected or current size is not a preset) */}
                 {(showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])) && (
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="number"
-                      min={MIN_CELL_SIZE}
-                      max={MAX_CELL_SIZE}
-                      value={customCellSizeInput || cellSize}
-                      onChange={(e) => setCustomCellSizeInput(e.target.value)}
-                      onBlur={handleCustomCellSizeSubmit}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleCustomCellSizeSubmit();
-                        }
-                      }}
-                      placeholder={`${MIN_CELL_SIZE}-${MAX_CELL_SIZE}px`}
-                      className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors"
-                    />
-                    <span className="text-xs text-white/40">({MIN_CELL_SIZE}-{MAX_CELL_SIZE}px)</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        min={MIN_CELL_SIZE}
+                        max={MAX_CELL_SIZE}
+                        value={customCellSizeInput || cellSize}
+                        onChange={(e) => {
+                          const rawValue = e.target.value;
+                          setCustomCellSizeInput(rawValue);
+
+                          // Validate as user types
+                          const parsed = parseFloat(rawValue);
+                          if (rawValue === '' || isNaN(parsed)) {
+                            setCellSizeInputError('Invalid number');
+                          } else if (parsed < MIN_CELL_SIZE) {
+                            setCellSizeInputError(`Minimum ${MIN_CELL_SIZE}px`);
+                          } else if (parsed > MAX_CELL_SIZE) {
+                            setCellSizeInputError(`Maximum ${MAX_CELL_SIZE}px`);
+                          } else {
+                            setCellSizeInputError(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          // PRD-016: Revert to last valid value on blur if invalid
+                          if (cellSizeInputError) {
+                            setCustomCellSizeInput(String(cellSize));
+                            setCellSizeInputError(null);
+                          } else {
+                            handleCustomCellSizeSubmit();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !cellSizeInputError) {
+                            handleCustomCellSizeSubmit();
+                          }
+                        }}
+                        placeholder={`${MIN_CELL_SIZE}-${MAX_CELL_SIZE}px`}
+                        className={`flex-1 bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors ${
+                          cellSizeInputError
+                            ? 'border-2 border-red-500/60 focus:border-red-500/80'
+                            : 'border border-white/20 focus:border-white/40'
+                        }`}
+                      />
+                      <span className="text-xs text-white/40">({MIN_CELL_SIZE}-{MAX_CELL_SIZE}px)</span>
+                    </div>
+                    {cellSizeInputError && (
+                      <span className="text-xs text-red-400">{cellSizeInputError}</span>
+                    )}
                   </div>
                 )}
               </div>
