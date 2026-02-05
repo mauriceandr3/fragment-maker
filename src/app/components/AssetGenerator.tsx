@@ -16,6 +16,7 @@ import {
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
   calculateHeight,
+  adjustDimensionsAndCellSize,
 } from "../../lib/dimensionUtils";
 
 const CELL_SIZES = [12, 24, 36, 48, 60, 72, 84, 96];
@@ -170,6 +171,10 @@ export function AssetGenerator() {
   const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
   const [canvasHeight, setCanvasHeight] = useState(DEFAULT_HEIGHT);
 
+  // PRD-006/007: Adjustment warning state
+  const [adjustmentWarning, setAdjustmentWarning] = useState<string | null>(null);
+  const adjustmentWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Computed current aspect ratio (from preset or custom)
   const currentAspectRatio = useMemo((): AspectRatio => {
     if (aspectRatioPreset === 'custom') {
@@ -183,6 +188,49 @@ export function AssetGenerator() {
     const newHeight = calculateHeight(canvasWidth, currentAspectRatio);
     setCanvasHeight(newHeight);
   }, [canvasWidth, currentAspectRatio]);
+
+  // PRD-006: Auto-adjust cell size (or snap dimensions) when dimensions change
+  useEffect(() => {
+    const result = adjustDimensionsAndCellSize(
+      canvasWidth,
+      canvasHeight,
+      cellSize,
+      currentAspectRatio
+    );
+
+    if (result.adjusted) {
+      if (result.adjustmentType === 'cellSize') {
+        // Cell size was adjusted to fit dimensions
+        setCellSize(result.cellSize);
+      } else if (result.adjustmentType === 'dimensions') {
+        // Dimensions were snapped to fit cell size
+        setCanvasWidth(result.width);
+        // Note: height will be recalculated by the PRD-004 effect
+      }
+
+      // Show warning message (PRD-007)
+      if (result.message) {
+        // Clear any existing timeout
+        if (adjustmentWarningTimeoutRef.current) {
+          clearTimeout(adjustmentWarningTimeoutRef.current);
+        }
+        setAdjustmentWarning(result.message);
+        // Auto-dismiss after 5 seconds
+        adjustmentWarningTimeoutRef.current = setTimeout(() => {
+          setAdjustmentWarning(null);
+        }, 5000);
+      }
+    }
+  }, [canvasWidth, canvasHeight, currentAspectRatio]); // Note: cellSize intentionally excluded to avoid loops
+
+  // Cleanup adjustment warning timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (adjustmentWarningTimeoutRef.current) {
+        clearTimeout(adjustmentWarningTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [invertColors, setInvertColors] = useState(false);
   const [params, setParams] = useState<GeneratorParams>({
@@ -849,6 +897,8 @@ export function AssetGenerator() {
                     value={canvasWidth}
                     onChange={(e) => {
                       const value = parseInt(e.target.value) || 64;
+                      // Clear any existing warning when user makes a new change
+                      setAdjustmentWarning(null);
                       setCanvasWidth(Math.max(64, Math.min(4096, value)));
                     }}
                     className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
@@ -867,6 +917,13 @@ export function AssetGenerator() {
                   />
                 </div>
               </div>
+
+              {/* PRD-007: Adjustment Warning Toast */}
+              {adjustmentWarning && (
+                <div className="bg-yellow-500/20 border border-yellow-500/40 rounded-lg px-3 py-2 text-sm text-yellow-200">
+                  {adjustmentWarning}
+                </div>
+              )}
 
               <div className="border-t border-white/10 my-4"></div>
 

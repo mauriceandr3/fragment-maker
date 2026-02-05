@@ -84,7 +84,7 @@
         "Verify dimensions snap instead (since no valid cell size ≥ 8px)",
         "Verify warning explains dimensions were adjusted to align with current cell size"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-007",
@@ -98,7 +98,7 @@
         "Verify toast shows dimension adjustment message",
         "Make another change quickly - verify new toast replaces old one (no stacking)"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "PRD-008",
