@@ -22,3 +22,27 @@
 - PRD-007+ (dynamic cell size buttons, allow cropping) not started
 - Width/Height are now independent but cell size preset system unchanged
 - Next priority: PRD-007 dynamic cell size buttons based on GCD divisors
+
+## 2026-02-06 - PRD-007, PRD-008, PRD-009, PRD-010, PRD-011, PRD-018, PRD-019
+
+### Completed
+- Implemented dynamic GCD-based cell size buttons
+- Added getDynamicMinCellSize function: max(2, ceil(max(width,height) * 0.01))
+- Added getValidCellSizesForButtons: divisors of GCD in [dynamicMin, 200]
+- Added findNearestValidCellSize with tie-breaking (prefer larger)
+- Removed old CELL_SIZE_PRESETS constant
+- Removed Custom button and freeform cell size input
+- Removed adjustCellSizeForDimensions function (no longer used)
+- Auto-selects nearest valid cell size when dimensions change
+- Keeps current cell size if still valid after dimension change
+- Added blocking state when zero valid sizes: grid disabled, exports disabled, message shown
+- Added hint when <=3 valid sizes: "Few valid sizes. Enable Allow cropping..."
+
+### Files changed
+- src/lib/dimensionUtils.ts (refactored, removed old functions)
+- src/app/components/AssetGenerator.tsx (dynamic buttons, blocking state)
+
+### Notes for next iteration
+- PRD-011a partially done - blocking messages shown but "Allow cropping" feature needed for full verification
+- PRD-005 depends on Allow cropping feature (step 4 tests cropping mode)
+- Next priority: PRD-012+ (Allow cropping checkbox and slider)

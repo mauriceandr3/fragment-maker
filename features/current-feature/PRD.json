@@ -80,7 +80,7 @@
       "Confirm the divisors of GCD(1000,1000)=1000 that are >= 10 and <= 200 are shown (10, 20, 25, 40, 50, 100, 125, 200).",
       "Confirm divisors < 10 (1, 2, 4, 5, 8) and > 200 (250, 500, 1000) are NOT shown."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-008",
@@ -92,7 +92,7 @@
       "Set dimensions to 64x64 (dynamicMin = 2). Confirm 2px and 4px are available (both divide 64).",
       "Set dimensions to 4096x4096 (dynamicMin = 41). Confirm no buttons below 41px are shown."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-009",
@@ -104,7 +104,7 @@
       "Confirm the old preset buttons (8px, 16px, 24px, 32px, 48px, 64px) are no longer hardcoded.",
       "Confirm cell size options are entirely derived from GCD divisors."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-010",
@@ -115,7 +115,7 @@
       "Change width to 300 (now 300x400, GCD=100, divisors include 10).",
       "Confirm cell size 10 is still selected."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-011",
@@ -127,7 +127,7 @@
       "Confirm cell size auto-selects 50 (nearest to 40 in the valid set).",
       "Test tie-breaking: select cell size 15, change to dimensions where valid set is [10, 20] - confirm 20 is selected (larger wins tie)."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-011a",
@@ -232,7 +232,7 @@
       "Confirm no 'adjustment warning' toast appears.",
       "Search the codebase for adjustmentWarning - confirm the warning system is removed."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-019",
@@ -244,7 +244,7 @@
       "Search for 'adjustmentWarning' in the codebase - confirm it is removed.",
       "Confirm no yellow warning toast appears during any user interaction."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-020",

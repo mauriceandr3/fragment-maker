@@ -7,16 +7,13 @@ import {
   generateFragmentSvgDirect,
 } from "../../lib/generateFragmentSvgGrid";
 import {
-  CELL_SIZE_PRESETS,
-  MIN_CELL_SIZE,
-  MAX_CELL_SIZE,
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
   DEFAULT_WIDTH,
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
-  adjustCellSizeForDimensions,
-  validateCellSize,
+  getValidCellSizesForButtons,
+  findNearestValidCellSize,
 } from "../../lib/dimensionUtils";
 
 // Debounce delay for settings changes (100ms per PRD-017)
@@ -171,8 +168,6 @@ export function AssetGenerator() {
   const [backgroundColor, setBackgroundColor] = useState("#000000");
   const [customPreset, setCustomPreset] = useState({ background: "#000000", foreground: "#FCFCFC" });
   const [cellSize, setCellSize] = useState(DEFAULT_CELL_SIZE);
-  const [customCellSizeInput, setCustomCellSizeInput] = useState<string>('');
-  const [showCustomCellSize, setShowCustomCellSize] = useState(false);
 
   // Canvas dimensions state (width and height are now independent)
   const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
@@ -183,7 +178,30 @@ export function AssetGenerator() {
   const [widthInputError, setWidthInputError] = useState<string | null>(null);
   const [heightInputValue, setHeightInputValue] = useState<string>(String(DEFAULT_HEIGHT));
   const [heightInputError, setHeightInputError] = useState<string | null>(null);
-  const [cellSizeInputError, setCellSizeInputError] = useState<string | null>(null);
+
+  // Calculate valid cell sizes based on current dimensions (PRD-007)
+  const validCellSizes = useMemo(() => {
+    return getValidCellSizesForButtons(canvasWidth, canvasHeight);
+  }, [canvasWidth, canvasHeight]);
+
+  // Auto-select nearest valid cell size when dimensions change (PRD-010, PRD-011)
+  useEffect(() => {
+    if (validCellSizes.length === 0) {
+      // No valid sizes - will be handled by blocking state (PRD-011a)
+      return;
+    }
+
+    // If current cell size is valid, keep it (PRD-010)
+    if (validCellSizes.includes(cellSize)) {
+      return;
+    }
+
+    // Otherwise, select nearest valid size (PRD-011)
+    const nearest = findNearestValidCellSize(validCellSizes, cellSize);
+    if (nearest !== null) {
+      setCellSize(nearest);
+    }
+  }, [validCellSizes, cellSize]);
 
   // Sync string input values with underlying state when changed externally (e.g., reset)
   useEffect(() => {
@@ -195,38 +213,6 @@ export function AssetGenerator() {
     setHeightInputValue(String(canvasHeight));
     setHeightInputError(null);
   }, [canvasHeight]);
-
-  // Handler for cell size changes (preset or custom)
-  // forceExact: true when user enters custom value (snap dimensions to fit exact size)
-  //             false when user clicks preset (find nearest valid size instead)
-  const handleCellSizeChange = useCallback((newCellSize: number, forceExact: boolean = false) => {
-    // Validate the input
-    const validated = validateCellSize(newCellSize);
-    const targetSize = validated.value;
-
-    // Check if adjustment is needed
-    const result = adjustCellSizeForDimensions(canvasWidth, canvasHeight, targetSize, forceExact);
-
-    setCellSize(result.cellSize);
-    if (result.adjustmentType === 'dimensions') {
-      setCanvasWidth(result.width);
-      setCanvasHeight(result.height);
-    }
-
-    // Hide custom input if a preset was selected
-    if (CELL_SIZE_PRESETS.includes(targetSize as typeof CELL_SIZE_PRESETS[number])) {
-      setShowCustomCellSize(false);
-    }
-  }, [canvasWidth, canvasHeight]);
-
-  // Handler for custom cell size input - forces exact size (snaps dimensions)
-  const handleCustomCellSizeSubmit = useCallback(() => {
-    const value = parseInt(customCellSizeInput, 10);
-    if (!isNaN(value)) {
-      handleCellSizeChange(value, true); // forceExact = true for custom input
-    }
-    setCustomCellSizeInput('');
-  }, [customCellSizeInput, handleCellSizeChange]);
 
   const [invertColors, setInvertColors] = useState(false);
   const [params, setParams] = useState<GeneratorParams>({
@@ -633,7 +619,6 @@ export function AssetGenerator() {
     // Clear all validation errors
     setWidthInputError(null);
     setHeightInputError(null);
-    setCellSizeInputError(null);
     setParams({
       threshold: 0.5,
       gamma: 1.0,
@@ -755,14 +740,23 @@ export function AssetGenerator() {
 
           {/* Canvas Area */}
           <div className="flex-1 bg-[rgba(255,255,255,0.08)] flex items-center justify-start overflow-auto pl-8">
-          {viewMode === 'single' && (
+          {/* Blocking state when no valid cell sizes (PRD-011a) */}
+          {validCellSizes.length === 0 && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center p-8 bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl">
+                <p className="text-white/60 text-lg mb-2">No valid cell sizes</p>
+                <p className="text-white/40 text-sm">Change dimensions or enable Allow cropping.</p>
+              </div>
+            </div>
+          )}
+          {validCellSizes.length > 0 && viewMode === 'single' && (
             <canvas
               ref={canvasRef}
               className="border border-white/10 shadow-2xl"
               style={{ imageRendering: 'pixelated' }}
             />
           )}
-          {viewMode === 'grid' && (
+          {validCellSizes.length > 0 && viewMode === 'grid' && (
             <div className="w-full h-full overflow-auto p-4">
               {/* Parameter Variation Label */}
               <div className="mb-4 flex justify-center">
@@ -935,19 +929,19 @@ export function AssetGenerator() {
                 </div>
               </div>
 
-              {/* Cell Size Control */}
+              {/* Cell Size Control - Dynamic GCD-based buttons (PRD-007) */}
               <div>
                 <label className="block text-sm text-white/60 mb-2">
                   Cell Size: {cellSize}px
                 </label>
-                {/* Preset buttons */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {CELL_SIZE_PRESETS.map((size) => (
+                {/* Dynamic valid size buttons based on GCD */}
+                <div className="flex flex-wrap gap-1.5">
+                  {validCellSizes.map((size) => (
                     <button
                       key={size}
-                      onClick={() => handleCellSizeChange(size)}
+                      onClick={() => setCellSize(size)}
                       className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        cellSize === size && !showCustomCellSize
+                        cellSize === size
                           ? 'bg-white/20 border-2 border-white/40 text-white'
                           : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
                       }`}
@@ -955,69 +949,18 @@ export function AssetGenerator() {
                       {size}px
                     </button>
                   ))}
-                  <button
-                    onClick={() => setShowCustomCellSize(!showCustomCellSize)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])
-                        ? 'bg-white/20 border-2 border-white/40 text-white'
-                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                    }`}
-                  >
-                    Custom
-                  </button>
                 </div>
-                {/* Custom input (visible when Custom is selected or current size is not a preset) */}
-                {(showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])) && (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="number"
-                        min={MIN_CELL_SIZE}
-                        max={MAX_CELL_SIZE}
-                        value={customCellSizeInput || cellSize}
-                        onChange={(e) => {
-                          const rawValue = e.target.value;
-                          setCustomCellSizeInput(rawValue);
-
-                          // Validate as user types
-                          const parsed = parseFloat(rawValue);
-                          if (rawValue === '' || isNaN(parsed)) {
-                            setCellSizeInputError('Invalid number');
-                          } else if (parsed < MIN_CELL_SIZE) {
-                            setCellSizeInputError(`Minimum ${MIN_CELL_SIZE}px`);
-                          } else if (parsed > MAX_CELL_SIZE) {
-                            setCellSizeInputError(`Maximum ${MAX_CELL_SIZE}px`);
-                          } else {
-                            setCellSizeInputError(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          // PRD-016: Revert to last valid value on blur if invalid
-                          if (cellSizeInputError) {
-                            setCustomCellSizeInput(String(cellSize));
-                            setCellSizeInputError(null);
-                          } else {
-                            handleCustomCellSizeSubmit();
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !cellSizeInputError) {
-                            handleCustomCellSizeSubmit();
-                          }
-                        }}
-                        placeholder={`${MIN_CELL_SIZE}-${MAX_CELL_SIZE}px`}
-                        className={`flex-1 bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors ${
-                          cellSizeInputError
-                            ? 'border-2 border-red-500/60 focus:border-red-500/80'
-                            : 'border border-white/20 focus:border-white/40'
-                        }`}
-                      />
-                      <span className="text-xs text-white/40">({MIN_CELL_SIZE}-{MAX_CELL_SIZE}px)</span>
-                    </div>
-                    {cellSizeInputError && (
-                      <span className="text-xs text-red-400">{cellSizeInputError}</span>
-                    )}
-                  </div>
+                {/* Hint when few valid sizes (PRD-011a) */}
+                {validCellSizes.length > 0 && validCellSizes.length <= 3 && (
+                  <p className="text-xs text-white/40 mt-2">
+                    Few valid sizes. Enable Allow cropping for more options.
+                  </p>
+                )}
+                {/* Blocking state when no valid sizes (PRD-011a) */}
+                {validCellSizes.length === 0 && (
+                  <p className="text-xs text-red-400 mt-2">
+                    No valid sizes for these dimensions. Change dimensions or enable Allow cropping.
+                  </p>
                 )}
               </div>
 
@@ -1357,20 +1300,30 @@ export function AssetGenerator() {
                   Generate Random
                 </span>
               </button>
-              
+
               <button
                 onClick={exportToSVG}
-                className="group relative flex-1 bg-black/30 hover:bg-white backdrop-blur-md border border-white/20 text-white hover:text-black py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
+                disabled={validCellSizes.length === 0}
+                className={`group relative flex-1 backdrop-blur-md border py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg ${
+                  validCellSizes.length === 0
+                    ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
+                    : 'bg-black/30 hover:bg-white border-white/20 text-white hover:text-black hover:shadow-xl'
+                }`}
               >
                 <Download className="w-5 h-5" />
                 <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity delay-500">
                   Export SVG
                 </span>
               </button>
-              
+
               <button
                 onClick={copyToClipboard}
-                className="group relative flex-1 bg-black/30 hover:bg-white backdrop-blur-md border border-white/20 text-white hover:text-black py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
+                disabled={validCellSizes.length === 0}
+                className={`group relative flex-1 backdrop-blur-md border py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg ${
+                  validCellSizes.length === 0
+                    ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
+                    : 'bg-black/30 hover:bg-white border-white/20 text-white hover:text-black hover:shadow-xl'
+                }`}
               >
                 <Copy className="w-5 h-5" />
                 <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity delay-500">
@@ -1391,7 +1344,12 @@ export function AssetGenerator() {
             {/* Export Settings as JSON */}
             <button
               onClick={exportSettingsAsJson}
-              className="group relative w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl mt-3"
+              disabled={validCellSizes.length === 0}
+              className={`group relative w-full backdrop-blur-md border py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg mt-3 ${
+                validCellSizes.length === 0
+                  ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
+                  : 'bg-black/30 hover:bg-white/10 border-white/20 text-white/70 hover:text-white hover:shadow-xl'
+              }`}
             >
               <FileJson className="w-4 h-4" />
               <span className="text-sm">Export Settings as JSON</span>
