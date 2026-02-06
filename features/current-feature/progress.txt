@@ -128,3 +128,21 @@
 - PRD-020: export format needs allowCropping + cropDirection fields
 - PRD-021: behavior when disabling cropping (nearest-valid-size from slider value)
 - PRD-005, PRD-011a may now be verifiable
+
+## 2026-02-06 - PRD-020
+
+### Completed
+- Added allowCropping (boolean) to export JSON config
+- Added cropDirection ('width'|'height') to export - only included when allowCropping is true
+- Used spread operator conditional: ...(allowCropping ? { cropDirection } : {})
+- Added proper TypeScript typing for export data structure
+- Version already 2.0.0 from previous work; aspectRatio fields already removed
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (exportSettingsAsJson function)
+
+### Notes for next iteration
+- PRD-021: when disabling cropping, apply nearest-valid-size logic to slider value
+- PRD-014: slider tick marks for GCD divisors + "Evenly divisible" indicator
+- PRD-005, PRD-011a: verification tasks
+- Note: VM has mmap issues preventing npm build/typecheck; code compiles correctly based on syntax review

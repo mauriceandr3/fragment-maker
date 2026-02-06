@@ -738,7 +738,29 @@ export function AssetGenerator() {
   };
 
   const exportSettingsAsJson = () => {
-    const exportData = {
+    const exportData: {
+      version: string;
+      exportedAt: string;
+      config: {
+        threshold: number;
+        gamma: number;
+        frequency: number;
+        contrast: number;
+        seed: number;
+        directionalNeighbors: number;
+        directionDensity: number;
+        fillAmount: number;
+        fillType: FillType;
+        invertFill: boolean;
+        foregroundColor: string;
+        backgroundColor: string;
+        cellSize: number;
+        canvasWidth: number;
+        canvasHeight: number;
+        allowCropping: boolean;
+        cropDirection?: 'width' | 'height';
+      };
+    } = {
       version: '2.0.0',
       exportedAt: new Date().toISOString(),
       config: {
@@ -757,6 +779,8 @@ export function AssetGenerator() {
         cellSize,
         canvasWidth,
         canvasHeight,
+        allowCropping,
+        ...(allowCropping ? { cropDirection } : {}),
       },
     };
 

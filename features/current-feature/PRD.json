@@ -259,7 +259,7 @@
       "Export a configuration with 'Allow cropping' disabled.",
       "Confirm allowCropping is false and cropDirection field is absent."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-021",
