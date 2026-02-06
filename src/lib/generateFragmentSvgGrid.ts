@@ -141,5 +141,5 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
     directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, width, foregroundColor, backgroundColor, height);
+  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height);
 }

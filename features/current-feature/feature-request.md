@@ -1,127 +1,65 @@
-# Feature Request: Canvas Dimensions & Aspect Ratio Controls
+# Feature Request: Simplify Dimension & Cell Size Controls
 
-## Overview
+## Problem
 
-Replace the current "Canvas Size" presets (1K, 2K, 4K) with more flexible controls that allow users to specify exact output dimensions and aspect ratios.
+The current controls for dimensions and cell size are coupled in a way that makes the tool frustrating to use. Changing one setting triggers automatic adjustments to others, creating a "wobbly" experience where the user never feels in control. Specifically:
 
-## Current Behavior
+- **Aspect ratio** constrains height, which cascades into cell size adjustments.
+- **Cell size presets** that don't evenly divide the current dimensions trigger warnings and silently switch to a "custom" nearest-fit value.
+- **Width input is effectively broken** — automatic adjustments fight the user's input, making it impossible to type a value freely.
+- The overall effect: everything affects everything, and the user can't predict what will happen when they change a setting.
 
-- Canvas size is selected from fixed presets: 1K (1056px), 2K (2112px), 4K (4224px)
-- All presets are square (1:1 aspect ratio)
-- Dimensions are chosen to be divisible by cell sizes, but this isn't communicated to users
-- The "1K" label is confusing since the actual dimension is 1056px
+## Solution
 
-## New Behavior
+Establish a clear hierarchy: **dimensions are primary, cell size is derived**.
 
-### 1. Aspect Ratio Presets
+### 1. Remove the Aspect Ratio control
 
-Display a row of aspect ratio buttons:
-- **1:1** (square) - default
-- **4:3** (classic/photo)
-- **3:2** (35mm photo)
-- **16:9** (widescreen)
-- **9:16** (portrait/mobile)
-- **Custom** (unlocked)
+Delete the aspect ratio preset selector and custom ratio inputs entirely. They add complexity without enough value.
 
-When a preset is selected, it stays "locked" (visually highlighted). Changing the width will automatically recalculate the height to maintain the ratio.
+### 2. Make both Width and Height independently editable
 
-### 2. Custom Aspect Ratio Input
+- Both fields accept values in the range **64–4096 px** (same validation as current width).
+- Width and height are fully independent — changing one does not affect the other.
+- Default dimensions on load: keep whatever the current defaults are.
 
-When "Custom" is selected, show two small number inputs for defining the ratio:
-- Width ratio (e.g., 16)
-- Height ratio (e.g., 9)
+### 3. Replace cell size presets with dynamic valid-size buttons
 
-This allows any arbitrary ratio like 21:9 or 5:4 without cluttering the preset buttons.
+When dimensions change:
 
-### 3. Output Dimension Inputs
+1. Calculate `GCD(width, height)`.
+2. Find all divisors of that GCD — these are the cell sizes that evenly tile both dimensions.
+3. Display them as selectable buttons (no minimum — show all divisors, including small ones like 1px, 2px, etc.).
+4. **Remove the "Custom cell size" freeform input** — it's no longer needed since only valid sizes are shown.
+5. If the previously selected cell size is still in the new valid set, keep it selected.
+6. If not, **auto-select the nearest valid cell size** to what was previously selected.
 
-Two number input fields:
-- **Width** (in pixels) - the "primary" dimension
-- **Height** (in pixels) - calculated automatically when AR is locked
+**Example:** For dimensions 200 x 350, GCD = 50, divisors = **1, 2, 5, 10, 25, 50** — these become the available cell size options.
 
-**Behavior:**
-- When an aspect ratio is locked (any preset or custom ratio selected):
-  - Editing width auto-updates height based on the ratio
-  - Height field is read-only (displays calculated value, not editable)
-- Width is always the "fixed" dimension; aspect ratio changes affect height only
-- Default: 1000px width, 1000px height (1:1 ratio)
+### 4. Add an "Allow cropping" option
 
-### 4. Cell Size Alignment & Snapping
+Add a checkbox labeled **"Allow cropping"** with an info icon. On hover, the tooltip explains:
 
-Since the grid is built from cells of a specific size (e.g., 48px), dimensions must be divisible by the cell size to avoid partial cells at edges.
+> "Enabling this allows any cell size, even if it doesn't perfectly divide the SVG dimensions. Fragments at the edge will be cropped."
 
-**Snapping behavior:**
-- When the user enters a dimension that doesn't divide evenly by the current cell size, snap to the **nearest** valid dimension (could be larger or smaller)
-- Show a warning message explaining what happened: *"Dimensions adjusted to [X] x [Y] to align with [N]px cell size. Try a different cell size for other dimension options."*
-- The warning should be dismissible and non-blocking
+When enabled:
 
-**Example:**
-- User enters 1000px width with 48px cell size
-- 1000 / 48 = 20.83 (partial cells)
-- Nearest options: 960px (20 cells, diff=40) or 1008px (21 cells, diff=8)
-- Snap to 1008px because it's closer
-- Show warning explaining the adjustment
+- A **freeform cell size input** appears (replaces the divisor buttons, or is shown alongside them).
+- A **direction toggle** appears: **Horizontal** / **Vertical**, indicating which axis is allowed to be cropped.
+  - **Horizontal cropping:** the grid may not fill the full width (right edge is cropped). Height is automatically adjusted to be perfectly divisible by the cell size.
+  - **Vertical cropping:** the grid may not fill the full height (bottom edge is cropped). Width is automatically adjusted to be perfectly divisible by the cell size.
+- Only the chosen axis gets cropped; the other axis is auto-adjusted to remain perfectly divisible by the cell size.
 
-### 5. Aspect Ratio Display
+### 5. Remove all automatic dimension/cell-size adjustment logic
 
-Show the current aspect ratio in simplified form:
-- "1:1" for square
-- "4:3" for that preset
-- "Custom" when using custom ratio inputs
-- Calculate and simplify when dimensions result in a known ratio
+The current system where changing cell size can snap dimensions (and vice versa) should be removed. The new flow is:
 
-### 6. UI Layout Changes
+- User sets width and height → valid cell sizes are calculated and shown.
+- User picks a cell size → grid renders. No dimension adjustment.
+- If "Allow cropping" is on → user can enter any cell size, one axis crops, the other auto-adjusts.
 
-**Remove:**
-- The 1K / 2K / 4K buttons
+## Out of scope
 
-**Keep (unchanged):**
-- Cell Scale dropdown in the Parameters section (it affects pattern detail, not output size)
-- Zoom controls (25%, 50%, 100%)
-
-**New Canvas Settings section should contain:**
-1. Aspect Ratio preset buttons (row)
-2. Custom ratio inputs (only visible when Custom selected)
-3. Width input field
-4. Height input field (or display-only when AR is locked)
-
-### 7. Grid View Compatibility
-
-The grid view displays multiple fragment variations. With non-square aspect ratios:
-- Each grid item should maintain its true aspect ratio (no stretching)
-- Items may have varying sizes in the grid to accommodate different proportions
-- The responsive grid should still work, just with items that aren't all the same shape
-
-## Acceptance Criteria
-
-1. User can select from 5 aspect ratio presets plus custom option
-2. User can define custom aspect ratios with two number inputs
-3. User can specify exact pixel dimensions for output
-4. Width is the primary dimension; changing it updates height (not vice versa) when AR is locked
-5. Dimensions snap to cell-aligned values with a clear warning message
-6. Grid view displays non-square fragments correctly without distortion
-7. Default state: 1000 x 1000px, 1:1 aspect ratio
-8. Cell Scale remains in Parameters section, functioning as before
-
-## Out of Scope
-
-- Resolution/DPI settings for print output
-- Multiple export format support
-- Preset dimension sizes (like "HD 1920x1080" buttons)
-
-## Clarifications (from review)
-
-### Cell Size vs Snapping Priority
-- **Primary behavior**: Dimensions entered by user are respected; cell size adjusts to fit
-- **Fallback**: If no valid cell size ≥ 8px exists, dimensions snap to align with current cell size
-- This means users get their exact dimensions in most cases
-
-### Input Constraints
-- Canvas dimensions: 64px - 4096px
-- Cell size: 8px - 128px (rename from "Cell Scale")
-- Custom aspect ratio values: 1-99 (positive integers)
-
-### Warning Behavior
-- Inline toast notification
-- Auto-dismisses after 5 seconds
-- New warnings replace old (no stacking)
+- Aspect ratio (removed entirely)
+- "Custom cell size" freeform input in normal mode (removed — replaced by dynamic buttons)
+- Automatic dimension snapping when cell size changes (removed)

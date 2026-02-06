@@ -671,8 +671,8 @@ export function AssetGenerator() {
     if (!ctx) return;
     
     const { cols, rows } = gridDimensions;
-    const scaledCellWidth = cellSize * params.scale;
-    const scaledCellHeight = cellSize * params.scale;
+    const scaledCellWidth = Math.max(1, Math.round(cellSize * params.scale));
+    const scaledCellHeight = Math.max(1, Math.round(cellSize * params.scale));
     canvas.width = cols * scaledCellWidth;
     canvas.height = rows * scaledCellHeight;
     
@@ -1107,6 +1107,92 @@ export function AssetGenerator() {
                 </div>
               </div>
 
+              {/* Cell Size Control */}
+              <div>
+                <label className="block text-sm text-white/60 mb-2">
+                  Cell Size: {cellSize}px
+                </label>
+                {/* Preset buttons */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {CELL_SIZE_PRESETS.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => handleCellSizeChange(size)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        cellSize === size && !showCustomCellSize
+                          ? 'bg-white/20 border-2 border-white/40 text-white'
+                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                      }`}
+                    >
+                      {size}px
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowCustomCellSize(!showCustomCellSize)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])
+                        ? 'bg-white/20 border-2 border-white/40 text-white'
+                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                    }`}
+                  >
+                    Custom
+                  </button>
+                </div>
+                {/* Custom input (visible when Custom is selected or current size is not a preset) */}
+                {(showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])) && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        min={MIN_CELL_SIZE}
+                        max={MAX_CELL_SIZE}
+                        value={customCellSizeInput || cellSize}
+                        onChange={(e) => {
+                          const rawValue = e.target.value;
+                          setCustomCellSizeInput(rawValue);
+
+                          // Validate as user types
+                          const parsed = parseFloat(rawValue);
+                          if (rawValue === '' || isNaN(parsed)) {
+                            setCellSizeInputError('Invalid number');
+                          } else if (parsed < MIN_CELL_SIZE) {
+                            setCellSizeInputError(`Minimum ${MIN_CELL_SIZE}px`);
+                          } else if (parsed > MAX_CELL_SIZE) {
+                            setCellSizeInputError(`Maximum ${MAX_CELL_SIZE}px`);
+                          } else {
+                            setCellSizeInputError(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          // PRD-016: Revert to last valid value on blur if invalid
+                          if (cellSizeInputError) {
+                            setCustomCellSizeInput(String(cellSize));
+                            setCellSizeInputError(null);
+                          } else {
+                            handleCustomCellSizeSubmit();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !cellSizeInputError) {
+                            handleCustomCellSizeSubmit();
+                          }
+                        }}
+                        placeholder={`${MIN_CELL_SIZE}-${MAX_CELL_SIZE}px`}
+                        className={`flex-1 bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors ${
+                          cellSizeInputError
+                            ? 'border-2 border-red-500/60 focus:border-red-500/80'
+                            : 'border border-white/20 focus:border-white/40'
+                        }`}
+                      />
+                      <span className="text-xs text-white/40">({MIN_CELL_SIZE}-{MAX_CELL_SIZE}px)</span>
+                    </div>
+                    {cellSizeInputError && (
+                      <span className="text-xs text-red-400">{cellSizeInputError}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* PRD-007: Adjustment Warning Toast */}
               {adjustmentWarning && (
                 <div className="bg-yellow-500/20 border border-yellow-500/40 rounded-lg px-3 py-2 text-sm text-yellow-200">
@@ -1271,92 +1357,6 @@ export function AssetGenerator() {
             {/* Parameter Sliders */}
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
               <h2 className="text-xl font-semibold mb-4 text-white">Parameters</h2>
-              
-              {/* Cell Size Control (PRD-009) */}
-              <div>
-                <label className="block text-sm text-white/60 mb-2">
-                  Cell Size: {cellSize}px
-                </label>
-                {/* Preset buttons */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {CELL_SIZE_PRESETS.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => handleCellSizeChange(size)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        cellSize === size && !showCustomCellSize
-                          ? 'bg-white/20 border-2 border-white/40 text-white'
-                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                      }`}
-                    >
-                      {size}px
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setShowCustomCellSize(!showCustomCellSize)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])
-                        ? 'bg-white/20 border-2 border-white/40 text-white'
-                        : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                    }`}
-                  >
-                    Custom
-                  </button>
-                </div>
-                {/* Custom input (visible when Custom is selected or current size is not a preset) */}
-                {(showCustomCellSize || !CELL_SIZE_PRESETS.includes(cellSize as typeof CELL_SIZE_PRESETS[number])) && (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="number"
-                        min={MIN_CELL_SIZE}
-                        max={MAX_CELL_SIZE}
-                        value={customCellSizeInput || cellSize}
-                        onChange={(e) => {
-                          const rawValue = e.target.value;
-                          setCustomCellSizeInput(rawValue);
-
-                          // Validate as user types
-                          const parsed = parseFloat(rawValue);
-                          if (rawValue === '' || isNaN(parsed)) {
-                            setCellSizeInputError('Invalid number');
-                          } else if (parsed < MIN_CELL_SIZE) {
-                            setCellSizeInputError(`Minimum ${MIN_CELL_SIZE}px`);
-                          } else if (parsed > MAX_CELL_SIZE) {
-                            setCellSizeInputError(`Maximum ${MAX_CELL_SIZE}px`);
-                          } else {
-                            setCellSizeInputError(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          // PRD-016: Revert to last valid value on blur if invalid
-                          if (cellSizeInputError) {
-                            setCustomCellSizeInput(String(cellSize));
-                            setCellSizeInputError(null);
-                          } else {
-                            handleCustomCellSizeSubmit();
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !cellSizeInputError) {
-                            handleCustomCellSizeSubmit();
-                          }
-                        }}
-                        placeholder={`${MIN_CELL_SIZE}-${MAX_CELL_SIZE}px`}
-                        className={`flex-1 bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors ${
-                          cellSizeInputError
-                            ? 'border-2 border-red-500/60 focus:border-red-500/80'
-                            : 'border border-white/20 focus:border-white/40'
-                        }`}
-                      />
-                      <span className="text-xs text-white/40">({MIN_CELL_SIZE}-{MAX_CELL_SIZE}px)</span>
-                    </div>
-                    {cellSizeInputError && (
-                      <span className="text-xs text-red-400">{cellSizeInputError}</span>
-                    )}
-                  </div>
-                )}
-              </div>
               
               <div>
                 <label className="block text-sm text-white/60 mb-2">

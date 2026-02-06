@@ -321,6 +321,7 @@ export function gridToSvg(
   grid: boolean[][],
   cols: number,
   rows: number,
+  cellSize: number,
   canvasSizeOrWidth: CanvasSize | number,
   foregroundColor: string,
   backgroundColor: string,
@@ -328,35 +329,42 @@ export function gridToSvg(
   canvasHeight?: number
 ): string {
   // Support both old (canvasSize) and new (width, height) signatures
-  let viewBoxWidth: number;
-  let viewBoxHeight: number;
-  let outputHeight: number | undefined;
+  let outputWidth: number;
+  let outputHeight: number;
 
   if (typeof canvasSizeOrWidth === 'string') {
     // Legacy: canvasSize preset
     const canvasDimensions = CANVAS_SIZES[canvasSizeOrWidth];
-    viewBoxWidth = canvasDimensions.width;
-    viewBoxHeight = canvasDimensions.height;
-    outputHeight = outputHeightOrCanvasHeight;
+    outputWidth = canvasDimensions.width;
+    outputHeight = canvasDimensions.height;
+    if (outputHeightOrCanvasHeight !== undefined) {
+      // outputHeightOrCanvasHeight is the desired output height for scaling
+      const aspectRatio = outputWidth / outputHeight;
+      outputHeight = outputHeightOrCanvasHeight;
+      outputWidth = Math.round(outputHeightOrCanvasHeight * aspectRatio);
+    }
   } else {
     // New: explicit width/height
-    viewBoxWidth = canvasSizeOrWidth;
-    viewBoxHeight = outputHeightOrCanvasHeight ?? canvasSizeOrWidth;
-    outputHeight = canvasHeight;
+    outputWidth = canvasSizeOrWidth;
+    outputHeight = outputHeightOrCanvasHeight ?? canvasSizeOrWidth;
+    if (canvasHeight !== undefined) {
+      // canvasHeight is the desired output height for scaling
+      const aspectRatio = outputWidth / outputHeight;
+      outputHeight = canvasHeight;
+      outputWidth = Math.round(canvasHeight * aspectRatio);
+    }
   }
-  const aspectRatio = viewBoxWidth / viewBoxHeight;
-  const height = outputHeight ?? viewBoxHeight;
-  const width = outputHeight ? Math.round(outputHeight * aspectRatio) : viewBoxWidth;
 
-  const scaledCellWidth = viewBoxWidth / cols;
-  const scaledCellHeight = viewBoxHeight / rows;
+  // Use integer grid dimensions for the viewBox to avoid fractional coordinates
+  const viewBoxWidth = cols * cellSize;
+  const viewBoxHeight = rows * cellSize;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" shape-rendering="crispEdges">`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputWidth}" height="${outputHeight}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" shape-rendering="crispEdges">`;
 
   for (let y = 0; y < Math.min(rows, grid.length); y++) {
     for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
       const color = grid[y][x] ? foregroundColor : backgroundColor;
-      svg += `<rect x="${x * scaledCellWidth}" y="${y * scaledCellHeight}" width="${scaledCellWidth}" height="${scaledCellHeight}" fill="${color}"/>`;
+      svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${cellSize}" height="${cellSize}" fill="${color}"/>`;
     }
   }
 
@@ -459,5 +467,5 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     effectiveParams.directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, width, foregroundColor, backgroundColor, height, outputHeight);
+  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height, outputHeight);
 }
