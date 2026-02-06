@@ -1105,7 +1105,21 @@ export function AssetGenerator() {
                 <input
                   type="checkbox"
                   checked={allowCropping}
-                  onChange={(e) => setAllowCropping(e.target.checked)}
+                  onChange={(e) => {
+                    const newAllowCropping = e.target.checked;
+                    setAllowCropping(newAllowCropping);
+
+                    // PRD-021: When disabling cropping, apply nearest-valid-size logic to slider value
+                    if (!newAllowCropping) {
+                      // If current cell size is not in the valid set, select nearest
+                      if (!validCellSizes.includes(cellSize)) {
+                        const nearest = findNearestValidCellSize(validCellSizes, cellSize);
+                        if (nearest !== null) {
+                          setCellSize(nearest);
+                        }
+                      }
+                    }
+                  }}
                   className="w-5 h-5 rounded cursor-pointer accent-white"
                 />
                 <span className="text-sm text-white/60 group-hover:text-white transition-colors">Allow cropping</span>

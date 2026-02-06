@@ -164,3 +164,19 @@
 - PRD-021: when disabling cropping, apply nearest-valid-size logic to slider value
 - PRD-005, PRD-011a: verification tasks (may need manual UI testing)
 - VM environment issues persist (Vite/tsc runtime crashes) - code reviewed for syntax correctness
+
+## 2026-02-06 - PRD-021
+
+### Completed
+- When disabling 'Allow cropping', applies nearest-valid-size logic to current slider value
+- Added handler in checkbox onChange that checks if cellSize is in validCellSizes
+- If not valid, calls findNearestValidCellSize and updates state
+- If validCellSizes is empty (blocking state), no change made - blocking state handles display
+- No separate 'pre-cropping cell size' memory - uses current slider value directly
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (Allow cropping checkbox onChange handler)
+
+### Notes for next iteration
+- PRD-005, PRD-011a: remaining verification tasks
+- VM environment issues persist - manual testing needed for full verification

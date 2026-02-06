@@ -271,6 +271,6 @@
       "Set dimensions to 100x101 (zero valid sizes). Enable 'Allow cropping'. Slide to 37.",
       "Disable 'Allow cropping' - confirm the blocking state is entered (grid disabled, message shown)."
     ],
-    "passes": false
+    "passes": true
   }
 ]
