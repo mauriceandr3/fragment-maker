@@ -22,7 +22,7 @@
 // Types
 // ============================================================================
 
-export type FillType = 'linear' | 'radial' | 'angular' | 'diamond' | 'square';
+export type FillType = 'linear' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
 
 export type CanvasSize = '1K' | '2K' | '4K';
 
@@ -79,8 +79,8 @@ export interface FragmentConfig {
 }
 
 export interface GenerateFragmentSvgOptions {
-  /** Any string to use as seed (e.g., principal ID, username) */
-  seed: string;
+  /** Any string to use as seed (e.g., principal ID, username). If omitted, uses config.seed directly. */
+  seed?: string;
   /** The fragment configuration object */
   config: FragmentConfig;
   /** Optional output width in pixels. If provided without height, output is square. */
@@ -180,6 +180,12 @@ function calculateFillThreshold(
       const squareDistance = Math.max(Math.abs(x - centerX), Math.abs(y - centerY));
       const maxSquareDistance = Math.max(centerX, centerY);
       return (squareDistance / maxSquareDistance) * 100;
+    }
+
+    case 'box': {
+      const distToEdge = Math.min(x, y, cols - 1 - x, rows - 1 - y);
+      const maxDist = (Math.min(cols, rows) - 1) / 2;
+      return maxDist > 0 ? (1 - distToEdge / maxDist) * 100 : 0;
     }
   }
 }
@@ -582,7 +588,11 @@ export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string
 
   const { seedParam = 'frequency', ...rest } = config;
 
-  const hash = djb2Hash(seedString);
+  if (seedString === undefined) {
+    return renderConfigToSvg({ config: rest, outputWidth, outputHeight, maintainProportions });
+  }
+
+  const hash = djb2Hash(seedString as string);
   const normalizedHash = normalizeHash(hash);
 
   const paramRange = PARAM_RANGES[seedParam];

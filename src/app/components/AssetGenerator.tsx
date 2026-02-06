@@ -437,6 +437,12 @@ export function AssetGenerator() {
         const squareDistance = Math.max(Math.abs(x - centerX), Math.abs(y - centerY));
         const maxSquareDistance = Math.max(centerX, centerY);
         return (squareDistance / maxSquareDistance) * 100;
+
+      case 'box': {
+        const distToEdge = Math.min(x, y, cols - 1 - x, rows - 1 - y);
+        const maxDist = (Math.min(cols, rows) - 1) / 2;
+        return maxDist > 0 ? (1 - distToEdge / maxDist) * 100 : 0;
+      }
     }
   }, []);
 
@@ -606,8 +612,8 @@ export function AssetGenerator() {
 
     const { cols, rows } = gridDimensions;
     const scale = params.scale;
-    const scaledCellWidth = Math.max(1, Math.round(cellSize * scale));
-    const scaledCellHeight = Math.max(1, Math.round(cellSize * scale));
+    const fractionalCellWidth = cellSize * scale;
+    const fractionalCellHeight = cellSize * scale;
 
     // Canvas size is the actual user-specified dimensions (scaled)
     const scaledCanvasWidth = Math.round(canvasWidth * scale);
@@ -619,36 +625,34 @@ export function AssetGenerator() {
     ctx.fillStyle = displayBackground;
     ctx.fillRect(0, 0, scaledCanvasWidth, scaledCanvasHeight);
 
-    // Draw cells - with cropping, the last row/column may be partial
+    // Draw cells - compute positions from fractional cell size to avoid
+    // rounding accumulation that shifts the grid off-center
     for (let y = 0; y < Math.min(rows, grid.length); y++) {
+      const cellY = Math.round(y * fractionalCellHeight);
+      const nextCellY = Math.round((y + 1) * fractionalCellHeight);
       for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
         // Only draw foreground cells (background is already filled)
         if (!grid[y][x]) continue;
 
-        let rectWidth = scaledCellWidth;
-        let rectHeight = scaledCellHeight;
+        const cellX = Math.round(x * fractionalCellWidth);
+        const nextCellX = Math.round((x + 1) * fractionalCellWidth);
+        let rectWidth = nextCellX - cellX;
+        let rectHeight = nextCellY - cellY;
 
         if (allowCropping) {
           // Calculate partial cell dimensions at edges
           if (cropDirection === 'width' && x === cols - 1) {
-            const remainingWidth = scaledCanvasWidth - x * scaledCellWidth;
-            rectWidth = Math.min(scaledCellWidth, remainingWidth);
+            rectWidth = Math.min(rectWidth, scaledCanvasWidth - cellX);
           }
           if (cropDirection === 'height' && y === rows - 1) {
-            const remainingHeight = scaledCanvasHeight - y * scaledCellHeight;
-            rectHeight = Math.min(scaledCellHeight, remainingHeight);
+            rectHeight = Math.min(rectHeight, scaledCanvasHeight - cellY);
           }
         }
 
         if (rectWidth <= 0 || rectHeight <= 0) continue;
 
         ctx.fillStyle = displayForeground;
-        ctx.fillRect(
-          x * scaledCellWidth,
-          y * scaledCellHeight,
-          rectWidth,
-          rectHeight
-        );
+        ctx.fillRect(cellX, cellY, rectWidth, rectHeight);
       }
     }
   }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection]);
@@ -1340,13 +1344,14 @@ export function AssetGenerator() {
               <div>
                 <label className="block text-sm text-white/60 mb-3">Fill Type</label>
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  {(['linear', 'radial', 'angular', 'diamond', 'square'] as const).map((type) => {
+                  {(['linear', 'radial', 'angular', 'diamond', 'square', 'box'] as const).map((type) => {
                     const typeLabels = {
                       linear: 'Linear',
                       radial: 'Radial',
                       angular: 'Angular',
                       diamond: 'Diamond',
-                      square: 'Square'
+                      square: 'Square',
+                      box: 'Box'
                     };
                     return (
                       <button
