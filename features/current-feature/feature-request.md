@@ -29,12 +29,16 @@ When dimensions change:
 
 1. Calculate `GCD(width, height)`.
 2. Find all divisors of that GCD — these are the cell sizes that evenly tile both dimensions.
-3. Display them as selectable buttons (no minimum — show all divisors, including small ones like 1px, 2px, etc.).
+3. Display divisors between a **dynamic minimum** and **200px** as selectable buttons. The dynamic minimum is `max(2, ceil(max(width, height) * 0.01))` — roughly 1% of the largest dimension, with a floor of 2px. Divisors below this minimum or above 200 are excluded.
 4. **Remove the "Custom cell size" freeform input** — it's no longer needed since only valid sizes are shown.
 5. If the previously selected cell size is still in the new valid set, keep it selected.
 6. If not, **auto-select the nearest valid cell size** to what was previously selected.
 
-**Example:** For dimensions 200 x 350, GCD = 50, divisors = **1, 2, 5, 10, 25, 50** — these become the available cell size options.
+**Example:** For dimensions 200 x 350, GCD = 50, divisors of 50 that are ≥ dynamic minimum = **5, 10, 25, 50** — these become the available cell size options.
+
+**Hint for limited options:** When there are 3 or fewer valid cell sizes, show a subtle hint: *"Few valid sizes. Enable Allow cropping for more options."*
+
+**Zero valid sizes (blocking state):** When there are **zero** valid cell sizes in the allowed range (e.g., coprime dimensions like 100×101 where GCD=1), the grid preview and export buttons are **disabled**. A message is shown: *"No valid sizes for these dimensions. Change dimensions or enable Allow cropping."* The user must act before rendering resumes.
 
 ### 4. Add an "Allow cropping" option
 
@@ -42,13 +46,17 @@ Add a checkbox labeled **"Allow cropping"** with an info icon. On hover, the too
 
 > "Enabling this allows any cell size, even if it doesn't perfectly divide the SVG dimensions. Fragments at the edge will be cropped."
 
+**Canvas dimensions never change.** The user's entered width and height are always preserved. Only the cells at the grid edges are affected — partial cells are rendered and clipped to the canvas boundary.
+
 When enabled:
 
-- A **freeform cell size input** appears (replaces the divisor buttons, or is shown alongside them).
-- A **direction toggle** appears: **Horizontal** / **Vertical**, indicating which axis is allowed to be cropped.
-  - **Horizontal cropping:** the grid may not fill the full width (right edge is cropped). Height is automatically adjusted to be perfectly divisible by the cell size.
-  - **Vertical cropping:** the grid may not fill the full height (bottom edge is cropped). Width is automatically adjusted to be perfectly divisible by the cell size.
-- Only the chosen axis gets cropped; the other axis is auto-adjusted to remain perfectly divisible by the cell size.
+- The divisor buttons are **replaced by a slider** (range **dynamic minimum–200**). The slider allows any integer cell size.
+  - The slider visually **marks positions** that correspond to GCD divisors (evenly divisible sizes) with tick marks or indicators.
+  - When the slider value lands on a divisor of **both** the original width and height, an **"Evenly divisible"** indicator is shown next to the slider.
+- A **direction toggle** appears: **Crop width** / **Crop height**, indicating which axis will have cropped (partial) cells at the edge.
+  - **Crop width:** the rightmost column of cells may be narrower than the cell size (cropped to fit the canvas width). Only full rows of cells are rendered on the height axis.
+  - **Crop height:** the bottom row of cells may be shorter than the cell size (cropped to fit the canvas height). Only full columns of cells are rendered on the width axis.
+- Only the chosen axis has cropped (partial) cells; the other axis renders only complete cells.
 
 ### 5. Remove all automatic dimension/cell-size adjustment logic
 
@@ -56,7 +64,7 @@ The current system where changing cell size can snap dimensions (and vice versa)
 
 - User sets width and height → valid cell sizes are calculated and shown.
 - User picks a cell size → grid renders. No dimension adjustment.
-- If "Allow cropping" is on → user can enter any cell size, one axis crops, the other auto-adjusts.
+- If "Allow cropping" is on → user can enter any cell size, one axis has cropped (partial) cells at the edge, the other axis renders only full cells. Canvas dimensions never change.
 
 ## Out of scope
 

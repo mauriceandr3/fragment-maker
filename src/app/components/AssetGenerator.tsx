@@ -7,9 +7,6 @@ import {
   generateFragmentSvgDirect,
 } from "../../lib/generateFragmentSvgGrid";
 import {
-  type AspectRatioPreset,
-  type AspectRatio,
-  ASPECT_RATIO_PRESETS,
   CELL_SIZE_PRESETS,
   MIN_CELL_SIZE,
   MAX_CELL_SIZE,
@@ -18,12 +15,8 @@ import {
   DEFAULT_WIDTH,
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
-  calculateHeight,
-  adjustDimensionsAndCellSize,
   adjustCellSizeForDimensions,
   validateCellSize,
-  validateCanvasDimension,
-  validateAspectRatioValue,
 } from "../../lib/dimensionUtils";
 
 // Debounce delay for settings changes (100ms per PRD-017)
@@ -181,105 +174,32 @@ export function AssetGenerator() {
   const [customCellSizeInput, setCustomCellSizeInput] = useState<string>('');
   const [showCustomCellSize, setShowCustomCellSize] = useState(false);
 
-  // Aspect ratio state
-  const [aspectRatioPreset, setAspectRatioPreset] = useState<AspectRatioPreset>('1:1');
-  const [customAspectRatio, setCustomAspectRatio] = useState<AspectRatio>({ width: 1, height: 1 });
+  // Canvas dimensions state (width and height are now independent)
   const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
   const [canvasHeight, setCanvasHeight] = useState(DEFAULT_HEIGHT);
 
-  // PRD-006/007: Adjustment warning state
-  const [adjustmentWarning, setAdjustmentWarning] = useState<string | null>(null);
-  const adjustmentWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // PRD-016: Input validation state - track string input values and errors
+  // Input validation state - track string input values and errors
   const [widthInputValue, setWidthInputValue] = useState<string>(String(DEFAULT_WIDTH));
   const [widthInputError, setWidthInputError] = useState<string | null>(null);
-  const [customRatioWidthInput, setCustomRatioWidthInput] = useState<string>('1');
-  const [customRatioWidthError, setCustomRatioWidthError] = useState<string | null>(null);
-  const [customRatioHeightInput, setCustomRatioHeightInput] = useState<string>('1');
-  const [customRatioHeightError, setCustomRatioHeightError] = useState<string | null>(null);
+  const [heightInputValue, setHeightInputValue] = useState<string>(String(DEFAULT_HEIGHT));
+  const [heightInputError, setHeightInputError] = useState<string | null>(null);
   const [cellSizeInputError, setCellSizeInputError] = useState<string | null>(null);
 
-  // Computed current aspect ratio (from preset or custom)
-  const currentAspectRatio = useMemo((): AspectRatio => {
-    if (aspectRatioPreset === 'custom') {
-      return customAspectRatio;
-    }
-    return ASPECT_RATIO_PRESETS[aspectRatioPreset];
-  }, [aspectRatioPreset, customAspectRatio]);
-
-  // PRD-004: Recalculate height when width or aspect ratio changes
-  useEffect(() => {
-    const newHeight = calculateHeight(canvasWidth, currentAspectRatio);
-    setCanvasHeight(newHeight);
-  }, [canvasWidth, currentAspectRatio]);
-
-  // PRD-006: Auto-adjust cell size (or snap dimensions) when dimensions change
-  useEffect(() => {
-    const result = adjustDimensionsAndCellSize(
-      canvasWidth,
-      canvasHeight,
-      cellSize,
-      currentAspectRatio
-    );
-
-    if (result.adjusted) {
-      if (result.adjustmentType === 'cellSize') {
-        // Cell size was adjusted to fit dimensions
-        setCellSize(result.cellSize);
-      } else if (result.adjustmentType === 'dimensions') {
-        // Dimensions were snapped to fit cell size
-        setCanvasWidth(result.width);
-        // Note: height will be recalculated by the PRD-004 effect
-      }
-
-      // Show warning message (PRD-007)
-      if (result.message) {
-        // Clear any existing timeout
-        if (adjustmentWarningTimeoutRef.current) {
-          clearTimeout(adjustmentWarningTimeoutRef.current);
-        }
-        setAdjustmentWarning(result.message);
-        // Auto-dismiss after 5 seconds
-        adjustmentWarningTimeoutRef.current = setTimeout(() => {
-          setAdjustmentWarning(null);
-        }, 5000);
-      }
-    }
-  }, [canvasWidth, canvasHeight, currentAspectRatio]); // Note: cellSize intentionally excluded to avoid loops
-
-  // Cleanup adjustment warning timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (adjustmentWarningTimeoutRef.current) {
-        clearTimeout(adjustmentWarningTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // PRD-016: Sync string input values with underlying state when changed externally (e.g., reset)
+  // Sync string input values with underlying state when changed externally (e.g., reset)
   useEffect(() => {
     setWidthInputValue(String(canvasWidth));
     setWidthInputError(null);
   }, [canvasWidth]);
 
   useEffect(() => {
-    setCustomRatioWidthInput(String(customAspectRatio.width));
-    setCustomRatioWidthError(null);
-    setCustomRatioHeightInput(String(customAspectRatio.height));
-    setCustomRatioHeightError(null);
-  }, [customAspectRatio.width, customAspectRatio.height]);
+    setHeightInputValue(String(canvasHeight));
+    setHeightInputError(null);
+  }, [canvasHeight]);
 
   // Handler for cell size changes (preset or custom)
   // forceExact: true when user enters custom value (snap dimensions to fit exact size)
   //             false when user clicks preset (find nearest valid size instead)
   const handleCellSizeChange = useCallback((newCellSize: number, forceExact: boolean = false) => {
-    // Clear any existing warning
-    setAdjustmentWarning(null);
-    if (adjustmentWarningTimeoutRef.current) {
-      clearTimeout(adjustmentWarningTimeoutRef.current);
-    }
-
     // Validate the input
     const validated = validateCellSize(newCellSize);
     const targetSize = validated.value;
@@ -290,15 +210,7 @@ export function AssetGenerator() {
     setCellSize(result.cellSize);
     if (result.adjustmentType === 'dimensions') {
       setCanvasWidth(result.width);
-      // Height will be recalculated by the aspect ratio useEffect
-    }
-
-    // Show warning if adjustment was made
-    if (result.adjusted && result.message) {
-      setAdjustmentWarning(result.message);
-      adjustmentWarningTimeoutRef.current = setTimeout(() => {
-        setAdjustmentWarning(null);
-      }, 5000);
+      setCanvasHeight(result.height);
     }
 
     // Hide custom input if a preset was selected
@@ -716,16 +628,12 @@ export function AssetGenerator() {
     setCustomPreset({ background: "#000000", foreground: "#FCFCFC" });
     setCanvasWidth(DEFAULT_WIDTH);
     setCanvasHeight(DEFAULT_HEIGHT);
-    setAspectRatioPreset('1:1');
-    setCustomAspectRatio({ width: 1, height: 1 });
     setCellSize(DEFAULT_CELL_SIZE);
     setInvertColors(false);
     // Clear all validation errors
     setWidthInputError(null);
-    setCustomRatioWidthError(null);
-    setCustomRatioHeightError(null);
+    setHeightInputError(null);
     setCellSizeInputError(null);
-    setAdjustmentWarning(null);
     setParams({
       threshold: 0.5,
       gamma: 1.0,
@@ -781,7 +689,7 @@ export function AssetGenerator() {
 
   const exportSettingsAsJson = () => {
     const exportData = {
-      version: '1.0.0',
+      version: '2.0.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -799,8 +707,6 @@ export function AssetGenerator() {
         cellSize,
         canvasWidth,
         canvasHeight,
-        aspectRatioPreset,
-        customAspectRatio: aspectRatioPreset === 'custom' ? customAspectRatio : undefined,
       },
     };
 
@@ -937,115 +843,6 @@ export function AssetGenerator() {
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
               <h2 className="text-xl font-semibold mb-4 text-white">Canvas Settings</h2>
 
-              {/* Aspect Ratio Presets */}
-              <div>
-                <label className="block text-sm text-white/60 mb-3">Aspect Ratio</label>
-                <div className="flex flex-wrap gap-2">
-                  {(['1:1', '4:3', '3:2', '16:9', '9:16', 'custom'] as AspectRatioPreset[]).map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setAspectRatioPreset(preset)}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-all shadow-lg ${
-                        aspectRatioPreset === preset
-                          ? 'bg-white/20 border-2 border-white/40 text-white'
-                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                      }`}
-                    >
-                      {preset === 'custom' ? 'Custom' : preset}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom Ratio Inputs - only visible when Custom is selected */}
-                {aspectRatioPreset === 'custom' && (
-                  <div className="mt-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col">
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          value={customRatioWidthInput}
-                          onChange={(e) => {
-                            const rawValue = e.target.value;
-                            setCustomRatioWidthInput(rawValue);
-
-                            const parsed = parseFloat(rawValue);
-                            if (rawValue === '' || isNaN(parsed)) {
-                              setCustomRatioWidthError('Invalid');
-                            } else if (parsed < 1) {
-                              setCustomRatioWidthError('Min 1');
-                            } else if (parsed > 99) {
-                              setCustomRatioWidthError('Max 99');
-                            } else {
-                              setCustomRatioWidthError(null);
-                              const intValue = Math.round(parsed);
-                              setCustomAspectRatio({ ...customAspectRatio, width: intValue });
-                              setCustomRatioWidthInput(String(intValue));
-                            }
-                          }}
-                          onBlur={() => {
-                            if (customRatioWidthError) {
-                              setCustomRatioWidthInput(String(customAspectRatio.width));
-                              setCustomRatioWidthError(null);
-                            }
-                          }}
-                          className={`w-16 bg-black/30 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none transition-colors backdrop-blur-sm ${
-                            customRatioWidthError
-                              ? 'border-2 border-red-500/60 focus:border-red-500/80'
-                              : 'border border-white/20 focus:border-white/40'
-                          }`}
-                        />
-                        {customRatioWidthError && (
-                          <span className="text-xs text-red-400 mt-1">{customRatioWidthError}</span>
-                        )}
-                      </div>
-                      <span className="text-white/60 text-sm">:</span>
-                      <div className="flex flex-col">
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          value={customRatioHeightInput}
-                          onChange={(e) => {
-                            const rawValue = e.target.value;
-                            setCustomRatioHeightInput(rawValue);
-
-                            const parsed = parseFloat(rawValue);
-                            if (rawValue === '' || isNaN(parsed)) {
-                              setCustomRatioHeightError('Invalid');
-                            } else if (parsed < 1) {
-                              setCustomRatioHeightError('Min 1');
-                            } else if (parsed > 99) {
-                              setCustomRatioHeightError('Max 99');
-                            } else {
-                              setCustomRatioHeightError(null);
-                              const intValue = Math.round(parsed);
-                              setCustomAspectRatio({ ...customAspectRatio, height: intValue });
-                              setCustomRatioHeightInput(String(intValue));
-                            }
-                          }}
-                          onBlur={() => {
-                            if (customRatioHeightError) {
-                              setCustomRatioHeightInput(String(customAspectRatio.height));
-                              setCustomRatioHeightError(null);
-                            }
-                          }}
-                          className={`w-16 bg-black/30 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none transition-colors backdrop-blur-sm ${
-                            customRatioHeightError
-                              ? 'border-2 border-red-500/60 focus:border-red-500/80'
-                              : 'border border-white/20 focus:border-white/40'
-                          }`}
-                        />
-                        {customRatioHeightError && (
-                          <span className="text-xs text-red-400 mt-1">{customRatioHeightError}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Canvas Dimensions */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1058,7 +855,6 @@ export function AssetGenerator() {
                     onChange={(e) => {
                       const rawValue = e.target.value;
                       setWidthInputValue(rawValue);
-                      setAdjustmentWarning(null);
 
                       // Validate as user types
                       const parsed = parseFloat(rawValue);
@@ -1077,7 +873,7 @@ export function AssetGenerator() {
                       }
                     }}
                     onBlur={() => {
-                      // PRD-016: Revert to last valid value on blur if invalid
+                      // Revert to last valid value on blur if invalid
                       if (widthInputError) {
                         setWidthInputValue(String(canvasWidth));
                         setWidthInputError(null);
@@ -1099,11 +895,43 @@ export function AssetGenerator() {
                     type="number"
                     min={MIN_CANVAS_DIMENSION}
                     max={MAX_CANVAS_DIMENSION}
-                    value={canvasHeight}
-                    readOnly
-                    disabled
-                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white/50 focus:outline-none transition-colors backdrop-blur-sm cursor-not-allowed"
+                    value={heightInputValue}
+                    onChange={(e) => {
+                      const rawValue = e.target.value;
+                      setHeightInputValue(rawValue);
+
+                      // Validate as user types
+                      const parsed = parseFloat(rawValue);
+                      if (rawValue === '' || isNaN(parsed)) {
+                        setHeightInputError('Invalid number');
+                      } else if (parsed < MIN_CANVAS_DIMENSION) {
+                        setHeightInputError(`Minimum ${MIN_CANVAS_DIMENSION}px`);
+                      } else if (parsed > MAX_CANVAS_DIMENSION) {
+                        setHeightInputError(`Maximum ${MAX_CANVAS_DIMENSION}px`);
+                      } else {
+                        setHeightInputError(null);
+                        // Round to integer and apply
+                        const intValue = Math.round(parsed);
+                        setCanvasHeight(intValue);
+                        setHeightInputValue(String(intValue));
+                      }
+                    }}
+                    onBlur={() => {
+                      // Revert to last valid value on blur if invalid
+                      if (heightInputError) {
+                        setHeightInputValue(String(canvasHeight));
+                        setHeightInputError(null);
+                      }
+                    }}
+                    className={`w-full bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors backdrop-blur-sm ${
+                      heightInputError
+                        ? 'border-2 border-red-500/60 focus:border-red-500/80'
+                        : 'border border-white/20 focus:border-white/40'
+                    }`}
                   />
+                  {heightInputError && (
+                    <span className="text-xs text-red-400 mt-1 block">{heightInputError}</span>
+                  )}
                 </div>
               </div>
 
@@ -1192,13 +1020,6 @@ export function AssetGenerator() {
                   </div>
                 )}
               </div>
-
-              {/* PRD-007: Adjustment Warning Toast */}
-              {adjustmentWarning && (
-                <div className="bg-yellow-500/20 border border-yellow-500/40 rounded-lg px-3 py-2 text-sm text-yellow-200">
-                  {adjustmentWarning}
-                </div>
-              )}
 
               <div className="border-t border-white/10 my-4"></div>
 
