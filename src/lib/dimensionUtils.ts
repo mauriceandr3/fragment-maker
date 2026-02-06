@@ -19,11 +19,11 @@ export const DEFAULT_HEIGHT = 1000;
 
 /**
  * Calculate the dynamic minimum cell size based on canvas dimensions.
- * This is roughly 1% of the largest dimension, with a floor of 2px.
+ * This is roughly 0.3% of the largest dimension, with a floor of 2px.
  * Prevents performance issues with extremely small cells.
  */
 export function getDynamicMinCellSize(width: number, height: number): number {
-  return Math.max(2, Math.ceil(Math.max(width, height) * 0.01));
+  return Math.max(2, Math.ceil(Math.max(width, height) * 0.003));
 }
 
 // ============================================================================

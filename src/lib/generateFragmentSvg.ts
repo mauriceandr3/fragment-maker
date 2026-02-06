@@ -6,10 +6,10 @@
  *
  * ## Website Usage
  * ```typescript
- * import { generateFragmentSvg, type FragmentConfig } from './generateFragmentSvg';
+ * import { generateFragmentSvg, type GenerateFragmentSvgOptions, type FragmentConfig } from './generateFragmentSvg';
  *
  * const config = await fetch('/config.json').then(r => r.json());
- * const svg = generateFragmentSvg('my-seed-string', config.config);
+ * const svg = generateFragmentSvg({ seed: 'my-seed-string', config: config.config });
  * document.getElementById('container').innerHTML = svg;
  * ```
  *
@@ -76,6 +76,19 @@ export interface FragmentConfig {
   allowCropping?: boolean;
   /** Which axis to crop: 'width' crops rightmost column, 'height' crops bottom row */
   cropDirection?: CropDirection;
+}
+
+export interface GenerateFragmentSvgOptions {
+  /** Any string to use as seed (e.g., principal ID, username) */
+  seed: string;
+  /** The fragment configuration object */
+  config: FragmentConfig;
+  /** Optional output width in pixels. If provided without height, output is square. */
+  width?: number;
+  /** Optional output height in pixels. */
+  height?: number;
+  /** Scale cell size proportionally to maintain the same visual pattern at different dimensions. */
+  maintainProportions?: boolean;
 }
 
 // ============================================================================
@@ -424,21 +437,27 @@ export function gridToSvg(
 }
 
 // ============================================================================
-// Main Exported Function
+// Shared Rendering Pipeline
 // ============================================================================
 
+interface RenderParams {
+  config: Omit<FragmentConfig, 'seedParam'>;
+  outputWidth?: number;
+  outputHeight?: number;
+  maintainProportions?: boolean;
+}
+
 /**
- * Generates a Fragment pattern SVG from a seed string and configuration.
- *
- * The seed string is hashed using djb2 to produce a deterministic value
- * that modifies one parameter (specified by config.seedParam, defaults to 'frequency').
- *
- * @param seedString - Any string to use as seed (e.g., principal ID, username)
- * @param config - The fragment configuration object
- * @param outputHeight - Optional output height in pixels. Width is scaled proportionally.
- * @returns SVG string
+ * @internal Shared dimension→grid→svg pipeline used by both generateFragmentSvg and generateFragmentSvgDirect.
  */
-export function generateFragmentSvg(seedString: string, config: FragmentConfig, outputHeight?: number): string {
+function renderConfigToSvg(params: RenderParams): string {
+  const {
+    config,
+    outputWidth,
+    outputHeight,
+    maintainProportions = false,
+  } = params;
+
   const {
     threshold,
     gamma,
@@ -456,32 +475,9 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     canvasSize,
     canvasWidth: explicitWidth,
     canvasHeight: explicitHeight,
-    seedParam = 'frequency',
     allowCropping = false,
     cropDirection = 'height',
   } = config;
-
-  const hash = djb2Hash(seedString);
-  const normalizedHash = normalizeHash(hash);
-
-  const paramRange = PARAM_RANGES[seedParam];
-  const seededValue = paramRange.min + normalizedHash * (paramRange.max - paramRange.min);
-
-  const roundedSeededValue =
-    paramRange.step >= 1
-      ? Math.round(seededValue)
-      : Math.round(seededValue / paramRange.step) * paramRange.step;
-
-  const effectiveParams = {
-    threshold,
-    gamma,
-    frequency,
-    contrast,
-    directionalNeighbors,
-    directionDensity,
-    fillAmount,
-    [seedParam]: roundedSeededValue,
-  };
 
   // Use explicit dimensions if provided, otherwise fall back to canvasSize preset
   let width: number;
@@ -499,6 +495,19 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     height = CANVAS_SIZES['1K'].height;
   }
 
+  // Override dimensions if output params provided
+  let effectiveCellSize = cellSize;
+  if (outputWidth !== undefined) {
+    const origMaxAxis = Math.max(width, height);
+    width = outputWidth;
+    height = outputHeight !== undefined ? outputHeight : outputWidth;
+
+    if (maintainProportions) {
+      const cellRatio = cellSize / origMaxAxis;
+      effectiveCellSize = cellRatio * Math.max(width, height);
+    }
+  }
+
   // Calculate cols/rows based on cropping mode
   // Crop width: ceil cols (partial last column), floor rows (full rows only)
   // Crop height: floor cols (full columns only), ceil rows (partial last row)
@@ -506,15 +515,15 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
   let rows: number;
   if (allowCropping) {
     if (cropDirection === 'width') {
-      cols = Math.ceil(width / cellSize);
-      rows = Math.floor(height / cellSize);
+      cols = Math.ceil(width / effectiveCellSize);
+      rows = Math.floor(height / effectiveCellSize);
     } else {
-      cols = Math.floor(width / cellSize);
-      rows = Math.ceil(height / cellSize);
+      cols = Math.floor(width / effectiveCellSize);
+      rows = Math.ceil(height / effectiveCellSize);
     }
   } else {
-    cols = Math.floor(width / cellSize);
-    rows = Math.floor(height / cellSize);
+    cols = Math.floor(width / effectiveCellSize);
+    rows = Math.floor(height / effectiveCellSize);
   }
 
   if (cols <= 0 || rows <= 0) {
@@ -525,16 +534,69 @@ export function generateFragmentSvg(seedString: string, config: FragmentConfig, 
     cols,
     rows,
     seed,
-    effectiveParams.threshold,
-    effectiveParams.gamma,
-    effectiveParams.frequency,
-    effectiveParams.contrast,
-    effectiveParams.fillAmount,
+    threshold,
+    gamma,
+    frequency,
+    contrast,
+    fillAmount,
     fillType,
     invertFill,
-    effectiveParams.directionalNeighbors,
-    effectiveParams.directionDensity
+    directionalNeighbors,
+    directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height, { allowCropping, cropDirection });
+  return gridToSvg(grid, cols, rows, effectiveCellSize, width, foregroundColor, backgroundColor, height, { allowCropping, cropDirection });
+}
+
+// ============================================================================
+// Main Exported Functions
+// ============================================================================
+
+/**
+ * Generates a Fragment pattern SVG with explicit parameter values (no seed string).
+ * Used by the tool's grid preview. Shares the same rendering pipeline as generateFragmentSvg.
+ *
+ * @param config - The fragment configuration object
+ * @returns SVG string
+ */
+export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedParam'>): string {
+  return renderConfigToSvg({ config });
+}
+
+/**
+ * Generates a Fragment pattern SVG from a seed string and configuration.
+ *
+ * The seed string is hashed using djb2 to produce a deterministic value
+ * that modifies one parameter (specified by config.seedParam, defaults to 'frequency').
+ *
+ * @param options - Generation options
+ * @param options.seed - Any string to use as seed (e.g., principal ID, username)
+ * @param options.config - The fragment configuration object
+ * @param options.width - Optional output width in pixels. If provided without height, output is square.
+ * @param options.height - Optional output height in pixels.
+ * @param options.maintainProportions - Scale cell size proportionally to preserve visual pattern at different dimensions.
+ * @returns SVG string
+ */
+export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string {
+  const { seed: seedString, config, width: outputWidth, height: outputHeight, maintainProportions = false } = options;
+
+  const { seedParam = 'frequency', ...rest } = config;
+
+  const hash = djb2Hash(seedString);
+  const normalizedHash = normalizeHash(hash);
+
+  const paramRange = PARAM_RANGES[seedParam];
+  const seededValue = paramRange.min + normalizedHash * (paramRange.max - paramRange.min);
+
+  const roundedSeededValue =
+    paramRange.step >= 1
+      ? Math.round(seededValue)
+      : Math.round(seededValue / paramRange.step) * paramRange.step;
+
+  const seededConfig = {
+    ...rest,
+    [seedParam]: roundedSeededValue,
+  };
+
+  return renderConfigToSvg({ config: seededConfig, outputWidth, outputHeight, maintainProportions });
 }

@@ -194,6 +194,7 @@ export function AssetGenerator() {
 
   // Auto-select nearest valid cell size when dimensions change (PRD-010, PRD-011)
   useEffect(() => {
+    if (allowCropping) return; // In cropping mode, any cell size is valid
     if (validCellSizes.length === 0) {
       // No valid sizes - will be handled by blocking state (PRD-011a)
       return;
@@ -209,7 +210,7 @@ export function AssetGenerator() {
     if (nearest !== null) {
       setCellSize(nearest);
     }
-  }, [validCellSizes, cellSize]);
+  }, [validCellSizes, cellSize, allowCropping]);
 
   // Sync string input values with underlying state when changed externally (e.g., reset)
   useEffect(() => {
@@ -1029,71 +1030,51 @@ export function AssetGenerator() {
                 </label>
                 {/* Cropping mode: slider from dynamicMin to 200 (PRD-013) */}
                 {allowCropping && (
-                  <div className="relative">
-                    <input
-                      type="range"
-                      min={getDynamicMinCellSize(canvasWidth, canvasHeight)}
-                      max={MAX_CELL_SIZE}
-                      step="1"
-                      value={cellSize}
-                      onChange={(e) => setCellSize(parseInt(e.target.value))}
-                      className="w-full h-6 rounded-lg appearance-none cursor-pointer relative z-10"
-                      style={{
-                        background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${
-                          ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
-                            (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
-                          100
-                        }%, rgba(255, 255, 255, 0.2) ${
-                          ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
-                            (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
-                          100
-                        }%, rgba(255, 255, 255, 0.2) 100%)`,
-                      }}
-                    />
-                    {/* Tick marks for GCD divisors (PRD-014) */}
-                    <div className="absolute inset-0 flex items-center pointer-events-none">
-                      {validCellSizes.map((size) => {
-                        const dynamicMin = getDynamicMinCellSize(canvasWidth, canvasHeight);
-                        const range = MAX_CELL_SIZE - dynamicMin;
-                        const position = ((size - dynamicMin) / range) * 100;
-                        return (
-                          <div
-                            key={size}
-                            className="absolute w-0.5 h-3 bg-white/60 rounded-full"
-                            style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
-                            title={`${size}px (evenly divisible)`}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <input
+                    type="range"
+                    min={getDynamicMinCellSize(canvasWidth, canvasHeight)}
+                    max={MAX_CELL_SIZE}
+                    step="1"
+                    value={cellSize}
+                    onChange={(e) => setCellSize(parseInt(e.target.value))}
+                    className="w-full h-6 rounded-lg appearance-none cursor-pointer mb-2"
+                    style={{
+                      background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${
+                        ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
+                          (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
+                        100
+                      }%, rgba(255, 255, 255, 0.2) ${
+                        ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
+                          (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
+                        100
+                      }%, rgba(255, 255, 255, 0.2) 100%)`,
+                    }}
+                  />
                 )}
-                {/* Dynamic valid size buttons based on GCD - non-cropping mode */}
-                {!allowCropping && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {validCellSizes.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setCellSize(size)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          cellSize === size
-                            ? 'bg-white/20 border-2 border-white/40 text-white'
-                            : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                        }`}
-                      >
-                        {size}px
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {/* Hint when few valid sizes (PRD-011a) - only in non-cropping mode */}
-                {!allowCropping && validCellSizes.length > 0 && validCellSizes.length <= 3 && (
+                {/* Dynamic valid size buttons based on GCD (PRD-007) */}
+                <div className="flex flex-wrap gap-1.5">
+                  {validCellSizes.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setCellSize(size)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        cellSize === size
+                          ? 'bg-white/20 border-2 border-white/40 text-white'
+                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                      }`}
+                    >
+                      {size}px
+                    </button>
+                  ))}
+                </div>
+                {/* Hint when few valid sizes (PRD-011a) */}
+                {validCellSizes.length > 0 && validCellSizes.length <= 3 && (
                   <p className="text-xs text-white/40 mt-2">
                     Few valid sizes. Enable Allow cropping for more options.
                   </p>
                 )}
-                {/* Blocking state when no valid sizes (PRD-011a) - only in non-cropping mode */}
-                {!allowCropping && validCellSizes.length === 0 && (
+                {/* Blocking state when no valid sizes (PRD-011a) */}
+                {validCellSizes.length === 0 && (
                   <p className="text-xs text-red-400 mt-2">
                     No valid sizes for these dimensions. Change dimensions or enable Allow cropping.
                   </p>

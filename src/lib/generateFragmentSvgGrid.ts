@@ -13,13 +13,12 @@ import {
   type CropDirection,
   CANVAS_SIZES,
   PARAM_RANGES,
-  generateGrid,
-  gridToSvg,
+  generateFragmentSvgDirect,
 } from './generateFragmentSvg';
 
 // Re-export types that the tool needs
 export type { FragmentConfig, SeedableParam, CanvasSize, FillType, CropDirection };
-export { CANVAS_SIZES, PARAM_RANGES };
+export { CANVAS_SIZES, PARAM_RANGES, generateFragmentSvgDirect };
 
 /**
  * Generates an array of configurations with one parameter varying across its range.
@@ -75,89 +74,4 @@ export function generateGridVariations(
   }
 
   return configs;
-}
-
-/**
- * Generates a Fragment pattern SVG with explicit parameter values (no seed string).
- * Uses the same core generation logic as generateFragmentSvg.
- *
- * @param config - The fragment configuration object
- * @returns SVG string
- */
-export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedParam'>): string {
-  const {
-    threshold,
-    gamma,
-    frequency,
-    contrast,
-    seed,
-    directionalNeighbors,
-    directionDensity,
-    fillAmount,
-    fillType,
-    invertFill,
-    foregroundColor,
-    backgroundColor,
-    cellSize,
-    canvasSize,
-    canvasWidth: explicitWidth,
-    canvasHeight: explicitHeight,
-    allowCropping = false,
-    cropDirection = 'height',
-  } = config;
-
-  // Use explicit dimensions if provided, otherwise fall back to canvasSize preset
-  let width: number;
-  let height: number;
-  if (explicitWidth !== undefined && explicitHeight !== undefined) {
-    width = explicitWidth;
-    height = explicitHeight;
-  } else if (canvasSize) {
-    const canvasDimensions = CANVAS_SIZES[canvasSize];
-    width = canvasDimensions.width;
-    height = canvasDimensions.height;
-  } else {
-    // Default to 1K if nothing specified
-    width = CANVAS_SIZES['1K'].width;
-    height = CANVAS_SIZES['1K'].height;
-  }
-
-  // Calculate cols/rows based on cropping mode
-  // Crop width: ceil cols (partial last column), floor rows (full rows only)
-  // Crop height: floor cols (full columns only), ceil rows (partial last row)
-  let cols: number;
-  let rows: number;
-  if (allowCropping) {
-    if (cropDirection === 'width') {
-      cols = Math.ceil(width / cellSize);
-      rows = Math.floor(height / cellSize);
-    } else {
-      cols = Math.floor(width / cellSize);
-      rows = Math.ceil(height / cellSize);
-    }
-  } else {
-    cols = Math.floor(width / cellSize);
-    rows = Math.floor(height / cellSize);
-  }
-
-  if (cols <= 0 || rows <= 0) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
-  }
-
-  const grid = generateGrid(
-    cols,
-    rows,
-    seed,
-    threshold,
-    gamma,
-    frequency,
-    contrast,
-    fillAmount,
-    fillType,
-    invertFill,
-    directionalNeighbors,
-    directionDensity
-  );
-
-  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height, { allowCropping, cropDirection });
 }
