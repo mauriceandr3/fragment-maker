@@ -146,3 +146,21 @@
 - PRD-014: slider tick marks for GCD divisors + "Evenly divisible" indicator
 - PRD-005, PRD-011a: verification tasks
 - Note: VM has mmap issues preventing npm build/typecheck; code compiles correctly based on syntax review
+
+## 2026-02-06 - PRD-014
+
+### Completed
+- Added tick marks on cropping slider at GCD divisor positions
+- Tick marks rendered as white/60 0.5-width 3-height rounded divs
+- Position calculated as percentage: ((size - dynamicMin) / (MAX_CELL_SIZE - dynamicMin)) * 100
+- Added "✓ Evenly divisible" green indicator next to "Cell Size: Xpx" label
+- Indicator only shows when allowCropping=true AND cellSize is in validCellSizes array
+- Wrapped slider in relative div, tick marks in absolute positioned div with pointer-events-none
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (cell size slider section)
+
+### Notes for next iteration
+- PRD-021: when disabling cropping, apply nearest-valid-size logic to slider value
+- PRD-005, PRD-011a: verification tasks (may need manual UI testing)
+- VM environment issues persist (Vite/tsc runtime crashes) - code reviewed for syntax correctness

@@ -1022,29 +1022,51 @@ export function AssetGenerator() {
               <div>
                 <label className="block text-sm text-white/60 mb-2">
                   Cell Size: {cellSize}px
+                  {/* Evenly divisible indicator (PRD-014) */}
+                  {allowCropping && validCellSizes.includes(cellSize) && (
+                    <span className="ml-2 text-xs text-green-400">✓ Evenly divisible</span>
+                  )}
                 </label>
                 {/* Cropping mode: slider from dynamicMin to 200 (PRD-013) */}
                 {allowCropping && (
-                  <input
-                    type="range"
-                    min={getDynamicMinCellSize(canvasWidth, canvasHeight)}
-                    max={MAX_CELL_SIZE}
-                    step="1"
-                    value={cellSize}
-                    onChange={(e) => setCellSize(parseInt(e.target.value))}
-                    className="w-full h-6 rounded-lg appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${
-                        ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
-                          (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
-                        100
-                      }%, rgba(255, 255, 255, 0.2) ${
-                        ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
-                          (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
-                        100
-                      }%, rgba(255, 255, 255, 0.2) 100%)`,
-                    }}
-                  />
+                  <div className="relative">
+                    <input
+                      type="range"
+                      min={getDynamicMinCellSize(canvasWidth, canvasHeight)}
+                      max={MAX_CELL_SIZE}
+                      step="1"
+                      value={cellSize}
+                      onChange={(e) => setCellSize(parseInt(e.target.value))}
+                      className="w-full h-6 rounded-lg appearance-none cursor-pointer relative z-10"
+                      style={{
+                        background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${
+                          ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
+                            (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
+                          100
+                        }%, rgba(255, 255, 255, 0.2) ${
+                          ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
+                            (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
+                          100
+                        }%, rgba(255, 255, 255, 0.2) 100%)`,
+                      }}
+                    />
+                    {/* Tick marks for GCD divisors (PRD-014) */}
+                    <div className="absolute inset-0 flex items-center pointer-events-none">
+                      {validCellSizes.map((size) => {
+                        const dynamicMin = getDynamicMinCellSize(canvasWidth, canvasHeight);
+                        const range = MAX_CELL_SIZE - dynamicMin;
+                        const position = ((size - dynamicMin) / range) * 100;
+                        return (
+                          <div
+                            key={size}
+                            className="absolute w-0.5 h-3 bg-white/60 rounded-full"
+                            style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                            title={`${size}px (evenly divisible)`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
                 {/* Dynamic valid size buttons based on GCD - non-cropping mode */}
                 {!allowCropping && (

@@ -181,7 +181,7 @@
       "Slide to value 11 - confirm the 'Evenly divisible' indicator disappears.",
       "Slide to value 50 - confirm the indicator reappears."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-015",
