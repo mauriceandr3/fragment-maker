@@ -61,9 +61,27 @@
 - src/app/components/AssetGenerator.tsx (added state, checkbox UI, conditional rendering)
 
 ### Notes for next iteration
-- PRD-013 next: slider for cell size in cropping mode (range dynamicMin to 200)
-- PRD-014: mark GCD divisors on slider
+- PRD-014 next: mark GCD divisors on slider
 - PRD-015: crop direction toggle (width/height)
 - PRD-016, PRD-017: actual cropping behavior in grid rendering
 - PRD-020: export format updates for allowCropping, cropDirection
 - PRD-021: behavior when disabling cropping
+
+## 2026-02-06 - PRD-013
+
+### Completed
+- Added cell size slider for cropping mode with range dynamicMin to 200
+- Slider dynamically calculates min based on getDynamicMinCellSize(width, height)
+- Slider replaces divisor buttons when Allow cropping is enabled
+- Divisor buttons return when Allow cropping is disabled
+- Slider has filled track styling matching other sliders in the app
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (added slider, imported getDynamicMinCellSize and MAX_CELL_SIZE)
+
+### Notes for next iteration
+- PRD-014 next: add tick marks on slider for GCD divisors, show "Evenly divisible" indicator
+- PRD-015: crop direction toggle (width/height)
+- PRD-016, PRD-017: actual cropping behavior in grid rendering
+- PRD-020: export format updates for allowCropping, cropDirection
+- PRD-021: behavior when disabling cropping (nearest-valid-size logic)

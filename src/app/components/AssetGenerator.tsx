@@ -9,9 +9,11 @@ import {
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
+  MAX_CELL_SIZE,
   DEFAULT_WIDTH,
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
+  getDynamicMinCellSize,
   getValidCellSizesForButtons,
   findNearestValidCellSize,
 } from "../../lib/dimensionUtils";
@@ -932,12 +934,35 @@ export function AssetGenerator() {
                 </div>
               </div>
 
-              {/* Cell Size Control - Dynamic GCD-based buttons (PRD-007) */}
+              {/* Cell Size Control - Dynamic GCD-based buttons (PRD-007) or slider (PRD-013) */}
               <div>
                 <label className="block text-sm text-white/60 mb-2">
                   Cell Size: {cellSize}px
                 </label>
-                {/* Dynamic valid size buttons based on GCD */}
+                {/* Cropping mode: slider from dynamicMin to 200 (PRD-013) */}
+                {allowCropping && (
+                  <input
+                    type="range"
+                    min={getDynamicMinCellSize(canvasWidth, canvasHeight)}
+                    max={MAX_CELL_SIZE}
+                    step="1"
+                    value={cellSize}
+                    onChange={(e) => setCellSize(parseInt(e.target.value))}
+                    className="w-full h-6 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${
+                        ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
+                          (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
+                        100
+                      }%, rgba(255, 255, 255, 0.2) ${
+                        ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
+                          (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
+                        100
+                      }%, rgba(255, 255, 255, 0.2) 100%)`,
+                    }}
+                  />
+                )}
+                {/* Dynamic valid size buttons based on GCD - non-cropping mode */}
                 {!allowCropping && (
                   <div className="flex flex-wrap gap-1.5">
                     {validCellSizes.map((size) => (

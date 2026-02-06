@@ -168,7 +168,7 @@
       "Slide to value 37 - confirm cell size is set to 37.",
       "Disable 'Allow cropping' - confirm the slider disappears and divisor buttons return."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-014",
