@@ -155,7 +155,7 @@
       "Hover over the info icon next to the checkbox.",
       "Confirm the tooltip text matches the specified message."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-013",

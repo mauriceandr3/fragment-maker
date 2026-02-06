@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, memo } from "react";
-import { Shuffle, ChevronRight, ChevronLeft, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid } from "lucide-react";
+import { Shuffle, ChevronRight, ChevronLeft, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid, Info } from "lucide-react";
 import {
   type FillType,
   type SeedableParam,
@@ -178,6 +178,9 @@ export function AssetGenerator() {
   const [widthInputError, setWidthInputError] = useState<string | null>(null);
   const [heightInputValue, setHeightInputValue] = useState<string>(String(DEFAULT_HEIGHT));
   const [heightInputError, setHeightInputError] = useState<string | null>(null);
+
+  // Allow cropping mode (PRD-012)
+  const [allowCropping, setAllowCropping] = useState(false);
 
   // Calculate valid cell sizes based on current dimensions (PRD-007)
   const validCellSizes = useMemo(() => {
@@ -740,8 +743,8 @@ export function AssetGenerator() {
 
           {/* Canvas Area */}
           <div className="flex-1 bg-[rgba(255,255,255,0.08)] flex items-center justify-start overflow-auto pl-8">
-          {/* Blocking state when no valid cell sizes (PRD-011a) */}
-          {validCellSizes.length === 0 && (
+          {/* Blocking state when no valid cell sizes (PRD-011a) - only when not in cropping mode */}
+          {!allowCropping && validCellSizes.length === 0 && (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center p-8 bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl">
                 <p className="text-white/60 text-lg mb-2">No valid cell sizes</p>
@@ -749,14 +752,14 @@ export function AssetGenerator() {
               </div>
             </div>
           )}
-          {validCellSizes.length > 0 && viewMode === 'single' && (
+          {(allowCropping || validCellSizes.length > 0) && viewMode === 'single' && (
             <canvas
               ref={canvasRef}
               className="border border-white/10 shadow-2xl"
               style={{ imageRendering: 'pixelated' }}
             />
           )}
-          {validCellSizes.length > 0 && viewMode === 'grid' && (
+          {(allowCropping || validCellSizes.length > 0) && viewMode === 'grid' && (
             <div className="w-full h-full overflow-auto p-4">
               {/* Parameter Variation Label */}
               <div className="mb-4 flex justify-center">
@@ -935,34 +938,54 @@ export function AssetGenerator() {
                   Cell Size: {cellSize}px
                 </label>
                 {/* Dynamic valid size buttons based on GCD */}
-                <div className="flex flex-wrap gap-1.5">
-                  {validCellSizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setCellSize(size)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        cellSize === size
-                          ? 'bg-white/20 border-2 border-white/40 text-white'
-                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                      }`}
-                    >
-                      {size}px
-                    </button>
-                  ))}
-                </div>
-                {/* Hint when few valid sizes (PRD-011a) */}
-                {validCellSizes.length > 0 && validCellSizes.length <= 3 && (
+                {!allowCropping && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {validCellSizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setCellSize(size)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          cellSize === size
+                            ? 'bg-white/20 border-2 border-white/40 text-white'
+                            : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                        }`}
+                      >
+                        {size}px
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Hint when few valid sizes (PRD-011a) - only in non-cropping mode */}
+                {!allowCropping && validCellSizes.length > 0 && validCellSizes.length <= 3 && (
                   <p className="text-xs text-white/40 mt-2">
                     Few valid sizes. Enable Allow cropping for more options.
                   </p>
                 )}
-                {/* Blocking state when no valid sizes (PRD-011a) */}
-                {validCellSizes.length === 0 && (
+                {/* Blocking state when no valid sizes (PRD-011a) - only in non-cropping mode */}
+                {!allowCropping && validCellSizes.length === 0 && (
                   <p className="text-xs text-red-400 mt-2">
                     No valid sizes for these dimensions. Change dimensions or enable Allow cropping.
                   </p>
                 )}
               </div>
+
+              {/* Allow Cropping Checkbox (PRD-012) */}
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={allowCropping}
+                  onChange={(e) => setAllowCropping(e.target.checked)}
+                  className="w-5 h-5 rounded cursor-pointer accent-white"
+                />
+                <span className="text-sm text-white/60 group-hover:text-white transition-colors">Allow cropping</span>
+                <div className="relative">
+                  <Info className="w-4 h-4 text-white/40 group-hover:text-white/60 transition-colors" />
+                  {/* Tooltip */}
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 bg-black/90 backdrop-blur-md border border-white/20 text-white text-xs rounded-lg whitespace-normal w-64 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity delay-200 z-20">
+                    Enabling this allows any cell size, even if it doesn&apos;t perfectly divide the SVG dimensions. Fragments at the edge will be cropped.
+                  </div>
+                </div>
+              </label>
 
               <div className="border-t border-white/10 my-4"></div>
 
@@ -1303,9 +1326,9 @@ export function AssetGenerator() {
 
               <button
                 onClick={exportToSVG}
-                disabled={validCellSizes.length === 0}
+                disabled={!allowCropping && validCellSizes.length === 0}
                 className={`group relative flex-1 backdrop-blur-md border py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg ${
-                  validCellSizes.length === 0
+                  !allowCropping && validCellSizes.length === 0
                     ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
                     : 'bg-black/30 hover:bg-white border-white/20 text-white hover:text-black hover:shadow-xl'
                 }`}
@@ -1318,9 +1341,9 @@ export function AssetGenerator() {
 
               <button
                 onClick={copyToClipboard}
-                disabled={validCellSizes.length === 0}
+                disabled={!allowCropping && validCellSizes.length === 0}
                 className={`group relative flex-1 backdrop-blur-md border py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg ${
-                  validCellSizes.length === 0
+                  !allowCropping && validCellSizes.length === 0
                     ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
                     : 'bg-black/30 hover:bg-white border-white/20 text-white hover:text-black hover:shadow-xl'
                 }`}
@@ -1344,9 +1367,9 @@ export function AssetGenerator() {
             {/* Export Settings as JSON */}
             <button
               onClick={exportSettingsAsJson}
-              disabled={validCellSizes.length === 0}
+              disabled={!allowCropping && validCellSizes.length === 0}
               className={`group relative w-full backdrop-blur-md border py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg mt-3 ${
-                validCellSizes.length === 0
+                !allowCropping && validCellSizes.length === 0
                   ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
                   : 'bg-black/30 hover:bg-white/10 border-white/20 text-white/70 hover:text-white hover:shadow-xl'
               }`}

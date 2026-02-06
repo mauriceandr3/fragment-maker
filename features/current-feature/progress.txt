@@ -46,3 +46,24 @@
 - PRD-011a partially done - blocking messages shown but "Allow cropping" feature needed for full verification
 - PRD-005 depends on Allow cropping feature (step 4 tests cropping mode)
 - Next priority: PRD-012+ (Allow cropping checkbox and slider)
+
+## 2026-02-06 - PRD-012
+
+### Completed
+- Added "Allow cropping" checkbox with info icon and hover tooltip
+- Tooltip text: "Enabling this allows any cell size, even if it doesn't perfectly divide the SVG dimensions. Fragments at the edge will be cropped."
+- Added allowCropping state variable (default: false)
+- Cell size buttons hidden when allowCropping enabled (placeholder for slider, PRD-013)
+- Blocking state and hints only show when NOT in cropping mode
+- Export buttons enabled when allowCropping is true (even with zero GCD divisors)
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (added state, checkbox UI, conditional rendering)
+
+### Notes for next iteration
+- PRD-013 next: slider for cell size in cropping mode (range dynamicMin to 200)
+- PRD-014: mark GCD divisors on slider
+- PRD-015: crop direction toggle (width/height)
+- PRD-016, PRD-017: actual cropping behavior in grid rendering
+- PRD-020: export format updates for allowCropping, cropDirection
+- PRD-021: behavior when disabling cropping
