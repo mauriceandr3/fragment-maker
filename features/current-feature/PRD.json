@@ -8,7 +8,7 @@
       "Inspect the Canvas Settings section.",
       "Confirm there are no aspect ratio preset buttons anywhere in the controls."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-002",
@@ -19,7 +19,7 @@
       "Confirm no aspect-ratio-related state, types, or UI elements remain in AssetGenerator.tsx.",
       "Confirm no aspect-ratio-related utilities remain in dimensionUtils.ts (e.g. calculateHeight, validateAspectRatioValue)."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-003",
@@ -31,7 +31,7 @@
       "Confirm it is an editable text/number input, not disabled or read-only.",
       "Type a value (e.g. 500) and confirm it is accepted."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-004",
@@ -45,7 +45,7 @@
       "Enter a decimal (e.g. 100.5) in either field - confirm it is floored to an integer.",
       "Enter a valid value (e.g. 512) in either field - confirm it is accepted without error."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-005",
@@ -67,7 +67,7 @@
       "Reload the application.",
       "Confirm Width is 1000 and Height is 1000."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-007",

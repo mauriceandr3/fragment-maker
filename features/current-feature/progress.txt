@@ -1,0 +1,24 @@
+# Feature Progress Log
+
+## 2026-02-06 - PRD-001, PRD-002, PRD-003, PRD-004, PRD-006
+
+### Completed
+- Removed aspect ratio preset selector (1:1, 4:3, 3:2, 16:9, 9:16, Custom buttons)
+- Removed custom ratio inputs and all aspect ratio state variables
+- Removed AspectRatio type, ASPECT_RATIO_PRESETS, calculateHeight, calculateWidth, validateAspectRatioValue
+- Removed adjustDimensionsAndCellSize function
+- Removed adjustmentWarning state and toast UI
+- Made Height field editable (was disabled/readonly, now identical to Width)
+- Both Width/Height use 64-4096px range validation
+- Default 1000x1000 maintained
+- Export JSON bumped to v2.0.0, removed aspectRatioPreset field
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (-227 lines)
+- src/lib/dimensionUtils.ts (-122 lines)
+
+### Notes for next iteration
+- adjustCellSizeForDimensions still exists - needed for current preset buttons
+- PRD-007+ (dynamic cell size buttons, allow cropping) not started
+- Width/Height are now independent but cell size preset system unchanged
+- Next priority: PRD-007 dynamic cell size buttons based on GCD divisors
