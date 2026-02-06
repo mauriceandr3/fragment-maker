@@ -184,6 +184,9 @@ export function AssetGenerator() {
   // Allow cropping mode (PRD-012)
   const [allowCropping, setAllowCropping] = useState(false);
 
+  // Crop direction: which axis will have partial cells (PRD-015)
+  const [cropDirection, setCropDirection] = useState<'width' | 'height'>('height');
+
   // Calculate valid cell sizes based on current dimensions (PRD-007)
   const validCellSizes = useMemo(() => {
     return getValidCellSizesForButtons(canvasWidth, canvasHeight);
@@ -1011,6 +1014,35 @@ export function AssetGenerator() {
                   </div>
                 </div>
               </label>
+
+              {/* Crop Direction Toggle (PRD-015) - only visible when Allow cropping is enabled */}
+              {allowCropping && (
+                <div className="mt-3">
+                  <label className="block text-sm text-white/60 mb-2">Crop Direction</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCropDirection('width')}
+                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        cropDirection === 'width'
+                          ? 'bg-white/20 border-2 border-white/40 text-white'
+                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                      }`}
+                    >
+                      Crop width
+                    </button>
+                    <button
+                      onClick={() => setCropDirection('height')}
+                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        cropDirection === 'height'
+                          ? 'bg-white/20 border-2 border-white/40 text-white'
+                          : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
+                      }`}
+                    >
+                      Crop height
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="border-t border-white/10 my-4"></div>
 

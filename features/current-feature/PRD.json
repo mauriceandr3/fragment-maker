@@ -193,7 +193,7 @@
       "Confirm 'Crop height' is selected by default.",
       "Disable 'Allow cropping' - confirm the direction toggle disappears."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-016",

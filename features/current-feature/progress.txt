@@ -85,3 +85,22 @@
 - PRD-016, PRD-017: actual cropping behavior in grid rendering
 - PRD-020: export format updates for allowCropping, cropDirection
 - PRD-021: behavior when disabling cropping (nearest-valid-size logic)
+
+## 2026-02-06 - PRD-015
+
+### Completed
+- Added crop direction toggle with "Crop width" and "Crop height" options
+- Toggle only visible when Allow cropping is enabled
+- Default selection is "Crop height" (per PRD spec)
+- Added cropDirection state: 'width' | 'height'
+- Styled consistently with other toggles in the UI
+
+### Files changed
+- src/app/components/AssetGenerator.tsx (added cropDirection state and toggle UI)
+
+### Notes for next iteration
+- PRD-016: implement actual "Crop width" behavior (rightmost column partial, full rows only)
+- PRD-017: implement actual "Crop height" behavior (bottom row partial, full columns only)
+- PRD-014: slider tick marks for GCD divisors + "Evenly divisible" indicator
+- PRD-020: export format needs allowCropping + cropDirection fields
+- PRD-021: behavior when disabling cropping (nearest-valid-size from slider value)
