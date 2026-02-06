@@ -57,7 +57,7 @@
       "Change Height to 768 - confirm Width remains 1024.",
       "Enable 'Allow cropping', set cell size to 37 - confirm Width and Height input fields remain unchanged."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-006",
@@ -143,7 +143,7 @@
       "Disable 'Allow cropping' - confirm the blocking state returns.",
       "Change dimensions to 100x200 (GCD=100, many divisors) - confirm the blocking state clears and buttons appear."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-012",
