@@ -104,3 +104,27 @@
 - PRD-014: slider tick marks for GCD divisors + "Evenly divisible" indicator
 - PRD-020: export format needs allowCropping + cropDirection fields
 - PRD-021: behavior when disabling cropping (nearest-valid-size from slider value)
+
+## 2026-02-06 - PRD-016, PRD-017
+
+### Completed
+- Implemented crop width behavior: ceil(width/cellSize) cols, floor(height/cellSize) rows
+- Implemented crop height behavior: floor(width/cellSize) cols, ceil(height/cellSize) rows
+- Added CropDirection type to FragmentConfig
+- Updated gridToSvg to render partial cells at edges based on cropDirection
+- Background fills entire canvas; partial cells clipped to remaining space
+- Canvas dimensions never change - always user-specified width/height
+- Updated canvas preview to handle cropping mode with proper partial cell rendering
+- Added debounced state for allowCropping and cropDirection
+- Passed cropping params through generateSVG, gridVariations, and generateFragmentSvgDirect
+
+### Files changed
+- src/lib/generateFragmentSvg.ts (added CropDirection type, GridToSvgOptions, cropping logic)
+- src/lib/generateFragmentSvgGrid.ts (re-export CropDirection, updated generateFragmentSvgDirect)
+- src/app/components/AssetGenerator.tsx (debounced cropping state, canvas drawing with cropping)
+
+### Notes for next iteration
+- PRD-014: slider tick marks for GCD divisors + "Evenly divisible" indicator
+- PRD-020: export format needs allowCropping + cropDirection fields
+- PRD-021: behavior when disabling cropping (nearest-valid-size from slider value)
+- PRD-005, PRD-011a may now be verifiable

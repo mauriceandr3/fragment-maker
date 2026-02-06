@@ -250,6 +250,8 @@ export function AssetGenerator() {
   const [debouncedInvertColors, setDebouncedInvertColors] = useState(invertColors);
   const [debouncedCanvasWidth, setDebouncedCanvasWidth] = useState(canvasWidth);
   const [debouncedCanvasHeight, setDebouncedCanvasHeight] = useState(canvasHeight);
+  const [debouncedAllowCropping, setDebouncedAllowCropping] = useState(allowCropping);
+  const [debouncedCropDirection, setDebouncedCropDirection] = useState(cropDirection);
 
   // Debounce effect for params
   useEffect(() => {
@@ -293,12 +295,33 @@ export function AssetGenerator() {
     return () => clearTimeout(timer);
   }, [canvasWidth, canvasHeight]);
 
-  // Memoize grid dimensions
+  // Debounce effect for cropping settings
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAllowCropping(allowCropping);
+      setDebouncedCropDirection(cropDirection);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [allowCropping, cropDirection]);
+
+  // Memoize grid dimensions - account for cropping mode
   const gridDimensions = useMemo(() => {
-    const cols = Math.floor(canvasWidth / cellSize);
-    const rows = Math.floor(canvasHeight / cellSize);
+    let cols: number;
+    let rows: number;
+    if (allowCropping) {
+      if (cropDirection === 'width') {
+        cols = Math.ceil(canvasWidth / cellSize);
+        rows = Math.floor(canvasHeight / cellSize);
+      } else {
+        cols = Math.floor(canvasWidth / cellSize);
+        rows = Math.ceil(canvasHeight / cellSize);
+      }
+    } else {
+      cols = Math.floor(canvasWidth / cellSize);
+      rows = Math.floor(canvasHeight / cellSize);
+    }
     return { cols, rows };
-  }, [canvasWidth, canvasHeight, cellSize]);
+  }, [canvasWidth, canvasHeight, cellSize, allowCropping, cropDirection]);
 
   // Generate grid variations for Grid view (20 configs with varying parameter)
   // Uses debounced values to avoid regenerating on every slider tick
@@ -319,9 +342,11 @@ export function AssetGenerator() {
       cellSize: debouncedCellSize,
       canvasWidth: debouncedCanvasWidth,
       canvasHeight: debouncedCanvasHeight,
+      allowCropping: debouncedAllowCropping,
+      cropDirection: debouncedCropDirection,
     };
     return generateGridVariations(baseConfig, 'frequency', 20);
-  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasWidth, debouncedCanvasHeight]);
+  }, [debouncedParams, debouncedForeground, debouncedBackground, debouncedInvertColors, debouncedCellSize, debouncedCanvasWidth, debouncedCanvasHeight, debouncedAllowCropping, debouncedCropDirection]);
 
   // Generate SVG strings for each grid variation
   const gridSvgs = useMemo(() => {
@@ -564,36 +589,68 @@ export function AssetGenerator() {
       cellSize,
       canvasWidth,
       canvasHeight,
+      allowCropping,
+      cropDirection,
     };
     return generateFragmentSvgDirect(config);
-  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight]);
+  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection]);
 
-  // Draw grid to canvas
+  // Draw grid to canvas - handles cropping mode for preview
   useEffect(() => {
     if (!canvasRef.current || !grid || grid.length === 0 || !grid[0]) return;
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
+
     const { cols, rows } = gridDimensions;
-    const scaledCellWidth = Math.max(1, Math.round(cellSize * params.scale));
-    const scaledCellHeight = Math.max(1, Math.round(cellSize * params.scale));
-    canvas.width = cols * scaledCellWidth;
-    canvas.height = rows * scaledCellHeight;
-    
+    const scale = params.scale;
+    const scaledCellWidth = Math.max(1, Math.round(cellSize * scale));
+    const scaledCellHeight = Math.max(1, Math.round(cellSize * scale));
+
+    // Canvas size is the actual user-specified dimensions (scaled)
+    const scaledCanvasWidth = Math.round(canvasWidth * scale);
+    const scaledCanvasHeight = Math.round(canvasHeight * scale);
+    canvas.width = scaledCanvasWidth;
+    canvas.height = scaledCanvasHeight;
+
+    // Fill background for the entire canvas
+    ctx.fillStyle = displayBackground;
+    ctx.fillRect(0, 0, scaledCanvasWidth, scaledCanvasHeight);
+
+    // Draw cells - with cropping, the last row/column may be partial
     for (let y = 0; y < Math.min(rows, grid.length); y++) {
       for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
-        ctx.fillStyle = grid[y][x] ? displayForeground : displayBackground;
+        // Only draw foreground cells (background is already filled)
+        if (!grid[y][x]) continue;
+
+        let rectWidth = scaledCellWidth;
+        let rectHeight = scaledCellHeight;
+
+        if (allowCropping) {
+          // Calculate partial cell dimensions at edges
+          if (cropDirection === 'width' && x === cols - 1) {
+            const remainingWidth = scaledCanvasWidth - x * scaledCellWidth;
+            rectWidth = Math.min(scaledCellWidth, remainingWidth);
+          }
+          if (cropDirection === 'height' && y === rows - 1) {
+            const remainingHeight = scaledCanvasHeight - y * scaledCellHeight;
+            rectHeight = Math.min(scaledCellHeight, remainingHeight);
+          }
+        }
+
+        if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+        ctx.fillStyle = displayForeground;
         ctx.fillRect(
           x * scaledCellWidth,
           y * scaledCellHeight,
-          scaledCellWidth,
-          scaledCellHeight
+          rectWidth,
+          rectHeight
         );
       }
     }
-  }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions]);
+  }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection]);
 
   // Generate grid when parameters change
   useEffect(() => {

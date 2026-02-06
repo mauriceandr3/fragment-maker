@@ -10,6 +10,7 @@ import {
   type SeedableParam,
   type CanvasSize,
   type FillType,
+  type CropDirection,
   CANVAS_SIZES,
   PARAM_RANGES,
   generateGrid,
@@ -17,7 +18,7 @@ import {
 } from './generateFragmentSvg';
 
 // Re-export types that the tool needs
-export type { FragmentConfig, SeedableParam, CanvasSize, FillType };
+export type { FragmentConfig, SeedableParam, CanvasSize, FillType, CropDirection };
 export { CANVAS_SIZES, PARAM_RANGES };
 
 /**
@@ -101,6 +102,8 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
     canvasSize,
     canvasWidth: explicitWidth,
     canvasHeight: explicitHeight,
+    allowCropping = false,
+    cropDirection = 'height',
   } = config;
 
   // Use explicit dimensions if provided, otherwise fall back to canvasSize preset
@@ -119,8 +122,23 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
     height = CANVAS_SIZES['1K'].height;
   }
 
-  const cols = Math.floor(width / cellSize);
-  const rows = Math.floor(height / cellSize);
+  // Calculate cols/rows based on cropping mode
+  // Crop width: ceil cols (partial last column), floor rows (full rows only)
+  // Crop height: floor cols (full columns only), ceil rows (partial last row)
+  let cols: number;
+  let rows: number;
+  if (allowCropping) {
+    if (cropDirection === 'width') {
+      cols = Math.ceil(width / cellSize);
+      rows = Math.floor(height / cellSize);
+    } else {
+      cols = Math.floor(width / cellSize);
+      rows = Math.ceil(height / cellSize);
+    }
+  } else {
+    cols = Math.floor(width / cellSize);
+    rows = Math.floor(height / cellSize);
+  }
 
   if (cols <= 0 || rows <= 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
@@ -141,5 +159,5 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
     directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height);
+  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height, { allowCropping, cropDirection });
 }

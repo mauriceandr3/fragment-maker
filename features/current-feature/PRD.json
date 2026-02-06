@@ -206,7 +206,7 @@
       "Inspect the grid: cols = ceil(500/37) = 14 columns, last column is 500 - 13*37 = 19px wide (cropped).",
       "Inspect the grid: rows = floor(500/37) = 13 full rows, bottom 19px is empty (no partial rows)."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-017",
@@ -219,7 +219,7 @@
       "Inspect the grid: rows = ceil(500/37) = 14 rows, last row is 500 - 13*37 = 19px tall (cropped).",
       "Inspect the grid: cols = floor(500/37) = 13 full columns, right 19px is empty (no partial columns)."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-018",
