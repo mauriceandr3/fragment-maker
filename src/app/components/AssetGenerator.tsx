@@ -17,6 +17,10 @@ import {
   getValidCellSizesForButtons,
   findNearestValidCellSize,
 } from "../../lib/dimensionUtils";
+import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "../../lib/urlState";
+
+// Parse URL params once at module load time (before any React renders)
+const initialUrlState = parseUrlToState();
 
 // Debounce delay for settings changes (100ms per PRD-017)
 const DEBOUNCE_DELAY = 100;
@@ -195,26 +199,29 @@ const GridItem = memo(function GridItem({
 });
 
 export function AssetGenerator() {
-  const [foregroundColor, setForegroundColor] = useState("#FCFCFC");
-  const [backgroundColor, setBackgroundColor] = useState("#000000");
-  const [customPreset, setCustomPreset] = useState({ background: "#000000", foreground: "#FCFCFC" });
-  const [cellSize, setCellSize] = useState(DEFAULT_CELL_SIZE);
+  const [foregroundColor, setForegroundColor] = useState(initialUrlState.foregroundColor ?? "#FCFCFC");
+  const [backgroundColor, setBackgroundColor] = useState(initialUrlState.backgroundColor ?? "#000000");
+  const [customPreset, setCustomPreset] = useState({
+    background: initialUrlState.backgroundColor ?? "#000000",
+    foreground: initialUrlState.foregroundColor ?? "#FCFCFC",
+  });
+  const [cellSize, setCellSize] = useState(initialUrlState.cellSize ?? DEFAULT_CELL_SIZE);
 
   // Canvas dimensions state (width and height are now independent)
-  const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
-  const [canvasHeight, setCanvasHeight] = useState(DEFAULT_HEIGHT);
+  const [canvasWidth, setCanvasWidth] = useState(initialUrlState.canvasWidth ?? DEFAULT_WIDTH);
+  const [canvasHeight, setCanvasHeight] = useState(initialUrlState.canvasHeight ?? DEFAULT_HEIGHT);
 
   // Input validation state - track string input values and errors
-  const [widthInputValue, setWidthInputValue] = useState<string>(String(DEFAULT_WIDTH));
+  const [widthInputValue, setWidthInputValue] = useState<string>(String(initialUrlState.canvasWidth ?? DEFAULT_WIDTH));
   const [widthInputError, setWidthInputError] = useState<string | null>(null);
-  const [heightInputValue, setHeightInputValue] = useState<string>(String(DEFAULT_HEIGHT));
+  const [heightInputValue, setHeightInputValue] = useState<string>(String(initialUrlState.canvasHeight ?? DEFAULT_HEIGHT));
   const [heightInputError, setHeightInputError] = useState<string | null>(null);
 
   // Allow cropping mode (PRD-012)
-  const [allowCropping, setAllowCropping] = useState(false);
+  const [allowCropping, setAllowCropping] = useState(initialUrlState.allowCropping ?? false);
 
   // Crop direction: which axis will have partial cells (PRD-015)
-  const [cropDirection, setCropDirection] = useState<'width' | 'height'>('height');
+  const [cropDirection, setCropDirection] = useState<'width' | 'height'>(initialUrlState.cropDirection ?? 'height');
 
   // Calculate valid cell sizes based on current dimensions (PRD-007)
   const validCellSizes = useMemo(() => {
@@ -252,19 +259,19 @@ export function AssetGenerator() {
     setHeightInputError(null);
   }, [canvasHeight]);
 
-  const [invertColors, setInvertColors] = useState(false);
+  const [invertColors, setInvertColors] = useState(initialUrlState.invertColors ?? false);
   const [params, setParams] = useState<GeneratorParams>({
-    threshold: 0.5,
-    gamma: 1.0,
-    scale: 0.5,
-    frequency: 0.1,
-    contrast: 1.0,
-    seed: Math.random(),
-    directionalNeighbors: 8,
-    directionDensity: 50,
-    fillAmount: 50,
-    fillType: 'linear',
-    invertFill: false,
+    threshold: initialUrlState.threshold ?? 0.5,
+    gamma: initialUrlState.gamma ?? 1.0,
+    scale: initialUrlState.scale ?? 0.5,
+    frequency: initialUrlState.frequency ?? 0.1,
+    contrast: initialUrlState.contrast ?? 1.0,
+    seed: initialUrlState.seed ?? Math.random(),
+    directionalNeighbors: initialUrlState.directionalNeighbors ?? 8,
+    directionDensity: initialUrlState.directionDensity ?? 50,
+    fillAmount: initialUrlState.fillAmount ?? 50,
+    fillType: initialUrlState.fillType ?? 'linear',
+    invertFill: initialUrlState.invertFill ?? false,
   });
   const [grid, setGrid] = useState<boolean[][]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -335,7 +342,41 @@ export function AssetGenerator() {
     return () => clearTimeout(timer);
   }, [allowCropping, cropDirection]);
 
-
+  // Sync debounced state to URL query params
+  useEffect(() => {
+    const state: UrlSerializableState = {
+      threshold: debouncedParams.threshold,
+      gamma: debouncedParams.gamma,
+      scale: debouncedParams.scale,
+      frequency: debouncedParams.frequency,
+      contrast: debouncedParams.contrast,
+      seed: debouncedParams.seed,
+      directionalNeighbors: debouncedParams.directionalNeighbors,
+      directionDensity: debouncedParams.directionDensity,
+      fillAmount: debouncedParams.fillAmount,
+      fillType: debouncedParams.fillType,
+      invertFill: debouncedParams.invertFill,
+      canvasWidth: debouncedCanvasWidth,
+      canvasHeight: debouncedCanvasHeight,
+      cellSize: debouncedCellSize,
+      allowCropping: debouncedAllowCropping,
+      cropDirection: debouncedCropDirection,
+      foregroundColor: debouncedForeground,
+      backgroundColor: debouncedBackground,
+      invertColors: debouncedInvertColors,
+    };
+    updateUrlFromState(state);
+  }, [
+    debouncedParams,
+    debouncedCanvasWidth,
+    debouncedCanvasHeight,
+    debouncedCellSize,
+    debouncedAllowCropping,
+    debouncedCropDirection,
+    debouncedForeground,
+    debouncedBackground,
+    debouncedInvertColors,
+  ]);
 
   // Memoize grid dimensions - account for cropping mode
   const gridDimensions = useMemo(() => {
@@ -756,6 +797,7 @@ export function AssetGenerator() {
       fillType: 'linear',
       invertFill: false,
     });
+    clearUrlParams();
   };
 
   const exportToSVG = () => {
