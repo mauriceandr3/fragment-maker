@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, memo } from "react";
-import { Shuffle, ChevronRight, ChevronLeft, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid, Info } from "lucide-react";
+import { Shuffle, ChevronRight, ChevronLeft, Download, Copy, RotateCcw, FileJson, Square, LayoutGrid, Info, Upload } from "lucide-react";
 import {
   type FillType,
   type SeedableParam,
@@ -20,6 +20,29 @@ import {
 
 // Debounce delay for settings changes (100ms per PRD-017)
 const DEBOUNCE_DELAY = 100;
+
+// Color alpha helpers — transparency is encoded in the color string itself (#RRGGBB or #RRGGBBAA)
+function getColorRgb(color: string): string {
+  return color.slice(0, 7);
+}
+
+function getColorAlpha(color: string): number {
+  if (color.length === 9) {
+    return parseInt(color.slice(7, 9), 16) / 255;
+  }
+  return 1;
+}
+
+function isTransparent(color: string): boolean {
+  return getColorAlpha(color) === 0;
+}
+
+function setColorAlpha(color: string, alpha: number): string {
+  const rgb = getColorRgb(color);
+  if (alpha >= 1) return rgb;
+  const hex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+  return rgb + hex;
+}
 
 const COLOR_PRESETS = [
   { name: "Horizon White", background: "#000000", foreground: "#FCFCFC" },
@@ -73,6 +96,7 @@ interface GridItemProps {
   varyingParam: SeedableParam;
   paramValue: number | string;
   aspectRatio: number; // width / height
+  hasTransparency: boolean;
 }
 
 const GridItem = memo(function GridItem({
@@ -81,6 +105,7 @@ const GridItem = memo(function GridItem({
   varyingParam,
   paramValue,
   aspectRatio,
+  hasTransparency,
 }: GridItemProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,6 +177,10 @@ const GridItem = memo(function GridItem({
       {/* SVG Container - fills the container with proper aspect ratio */}
       <div
         className="absolute inset-0 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+        style={hasTransparency ? {
+          backgroundImage: 'repeating-conic-gradient(#999 0% 25%, #ccc 0% 50%)',
+          backgroundSize: '16px 16px',
+        } : undefined}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
 
@@ -242,6 +271,7 @@ export function AssetGenerator() {
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
   const [hasGeneratedGrid, setHasGeneratedGrid] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounced state for grid generation (prevents regenerating on every slider tick)
   const [debouncedParams, setDebouncedParams] = useState(params);
@@ -304,6 +334,8 @@ export function AssetGenerator() {
     }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
   }, [allowCropping, cropDirection]);
+
+
 
   // Memoize grid dimensions - account for cropping mode
   const gridDimensions = useMemo(() => {
@@ -621,9 +653,27 @@ export function AssetGenerator() {
     canvas.width = scaledCanvasWidth;
     canvas.height = scaledCanvasHeight;
 
-    // Fill background for the entire canvas
-    ctx.fillStyle = displayBackground;
-    ctx.fillRect(0, 0, scaledCanvasWidth, scaledCanvasHeight);
+    // Helper: draw checkerboard to indicate transparency
+    const drawCheckerboard = (x0: number, y0: number, w: number, h: number, squareSize = 8) => {
+      const saved = ctx.fillStyle;
+      for (let cy = y0; cy < y0 + h; cy += squareSize) {
+        for (let cx = x0; cx < x0 + w; cx += squareSize) {
+          const col = Math.floor((cx - x0) / squareSize);
+          const row = Math.floor((cy - y0) / squareSize);
+          ctx.fillStyle = (col + row) % 2 === 0 ? '#cccccc' : '#999999';
+          ctx.fillRect(cx, cy, Math.min(squareSize, x0 + w - cx), Math.min(squareSize, y0 + h - cy));
+        }
+      }
+      ctx.fillStyle = saved;
+    };
+
+    // Fill background (checkerboard if transparent, solid color otherwise)
+    if (isTransparent(displayBackground)) {
+      drawCheckerboard(0, 0, scaledCanvasWidth, scaledCanvasHeight);
+    } else {
+      ctx.fillStyle = displayBackground;
+      ctx.fillRect(0, 0, scaledCanvasWidth, scaledCanvasHeight);
+    }
 
     // Draw cells - compute positions from fractional cell size to avoid
     // rounding accumulation that shifts the grid off-center
@@ -651,11 +701,15 @@ export function AssetGenerator() {
 
         if (rectWidth <= 0 || rectHeight <= 0) continue;
 
-        ctx.fillStyle = displayForeground;
-        ctx.fillRect(cellX, cellY, rectWidth, rectHeight);
+        if (isTransparent(displayForeground)) {
+          drawCheckerboard(cellX, cellY, rectWidth, rectHeight);
+        } else {
+          ctx.fillStyle = displayForeground;
+          ctx.fillRect(cellX, cellY, rectWidth, rectHeight);
+        }
       }
     }
-  }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection]);
+  }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode]);
 
   // Generate grid when parameters change
   useEffect(() => {
@@ -799,6 +853,112 @@ export function AssetGenerator() {
     URL.revokeObjectURL(url);
   };
 
+  const importSettingsFromJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          alert('Failed to read file.');
+          return;
+        }
+
+        const data = JSON.parse(text);
+
+        if (!data || typeof data !== 'object' || !data.version || typeof data.version !== 'string') {
+          alert('Invalid settings file: missing version field.');
+          return;
+        }
+
+        if (!data.version.startsWith('2.')) {
+          alert(`Unsupported settings version: ${data.version}. Expected version 2.x.x.`);
+          return;
+        }
+
+        const config = data.config;
+        if (!config || typeof config !== 'object') {
+          alert('Invalid settings file: missing config object.');
+          return;
+        }
+
+        const clamp = (val: unknown, min: number, max: number, fallback: number): number => {
+          const n = Number(val);
+          if (isNaN(n) || !isFinite(n)) return fallback;
+          return Math.max(min, Math.min(max, n));
+        };
+
+        const hexRegex = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
+        const validFillTypes: FillType[] = ['linear', 'radial', 'angular', 'diamond', 'square', 'box'];
+
+        // Canvas dimensions
+        const newWidth = Math.round(clamp(config.canvasWidth, MIN_CANVAS_DIMENSION, MAX_CANVAS_DIMENSION, DEFAULT_WIDTH));
+        const newHeight = Math.round(clamp(config.canvasHeight, MIN_CANVAS_DIMENSION, MAX_CANVAS_DIMENSION, DEFAULT_HEIGHT));
+
+        // Colors (supports #RRGGBB and #RRGGBBAA)
+        const newForeground = typeof config.foregroundColor === 'string' && hexRegex.test(config.foregroundColor)
+          ? config.foregroundColor : '#FCFCFC';
+        const newBackground = typeof config.backgroundColor === 'string' && hexRegex.test(config.backgroundColor)
+          ? config.backgroundColor : '#000000';
+
+        // Cropping
+        const newAllowCropping = typeof config.allowCropping === 'boolean' ? config.allowCropping : false;
+        const newCropDirection: 'width' | 'height' = config.cropDirection === 'width' ? 'width' : 'height';
+
+        // Cell size
+        const dynamicMin = getDynamicMinCellSize(newWidth, newHeight);
+        let newCellSize = Math.round(clamp(config.cellSize, dynamicMin, MAX_CELL_SIZE, DEFAULT_CELL_SIZE));
+
+        // If cropping is off, ensure cell size is valid for these dimensions
+        let finalAllowCropping = newAllowCropping;
+        if (!finalAllowCropping) {
+          const validSizes = getValidCellSizesForButtons(newWidth, newHeight);
+          if (!validSizes.includes(newCellSize)) {
+            const nearest = findNearestValidCellSize(validSizes, newCellSize);
+            if (nearest !== null) {
+              newCellSize = nearest;
+            } else {
+              finalAllowCropping = true;
+            }
+          }
+        }
+
+        // Apply all state
+        setCanvasWidth(newWidth);
+        setCanvasHeight(newHeight);
+        setCellSize(newCellSize);
+        setAllowCropping(finalAllowCropping);
+        setCropDirection(newCropDirection);
+        setForegroundColor(newForeground);
+        setBackgroundColor(newBackground);
+        setCustomPreset({ background: getColorRgb(newBackground), foreground: getColorRgb(newForeground) });
+
+        setParams((prev) => ({
+          ...prev,
+          threshold: clamp(config.threshold, 0, 1, 0.5),
+          gamma: clamp(config.gamma, 0.1, 3, 1.0),
+          frequency: clamp(config.frequency, 0.01, 0.5, 0.1),
+          contrast: clamp(config.contrast, 0.1, 3, 1.0),
+          seed: clamp(config.seed, 0, 1, Math.random()),
+          directionalNeighbors: Math.floor(clamp(config.directionalNeighbors, 0, 999, 8)),
+          directionDensity: Math.floor(clamp(config.directionDensity, 0, 999, 50)),
+          fillAmount: Math.floor(clamp(config.fillAmount, 0, 100, 50)),
+          fillType: validFillTypes.includes(config.fillType) ? config.fillType : 'linear',
+          invertFill: typeof config.invertFill === 'boolean' ? config.invertFill : false,
+        }));
+
+      } catch {
+        alert('Failed to parse settings file. Please ensure it is valid JSON.');
+      }
+    };
+
+    reader.readAsText(file);
+    // Reset so the same file can be re-imported
+    event.target.value = '';
+  };
+
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">
       <div className="flex-1 flex overflow-hidden">
@@ -883,6 +1043,7 @@ export function AssetGenerator() {
                         varyingParam="frequency"
                         paramValue={config.frequency}
                         aspectRatio={debouncedCanvasWidth / debouncedCanvasHeight}
+                        hasTransparency={isTransparent(debouncedForeground) || isTransparent(debouncedBackground)}
                       />
                     );
                   })
@@ -1180,8 +1341,9 @@ export function AssetGenerator() {
                 <label className="block text-sm text-white/60 mb-3">Presets</label>
                 <div className="grid grid-cols-2 gap-2">
                   {COLOR_PRESETS.map((preset) => {
-                    const isActive = foregroundColor.toUpperCase() === preset.foreground.toUpperCase() && 
-                                    backgroundColor.toUpperCase() === preset.background.toUpperCase();
+                    const isActive = getColorRgb(foregroundColor).toUpperCase() === preset.foreground.toUpperCase() &&
+                                    getColorRgb(backgroundColor).toUpperCase() === preset.background.toUpperCase() &&
+                                    !isTransparent(foregroundColor) && !isTransparent(backgroundColor);
                     return (
                       <button
                         key={preset.name}
@@ -1209,8 +1371,9 @@ export function AssetGenerator() {
                   
                   {/* Custom Preset Button */}
                   {(() => {
-                    const isCustomActive = foregroundColor.toUpperCase() === customPreset.foreground.toUpperCase() && 
-                                          backgroundColor.toUpperCase() === customPreset.background.toUpperCase();
+                    const isCustomActive = getColorRgb(foregroundColor).toUpperCase() === customPreset.foreground.toUpperCase() &&
+                                          getColorRgb(backgroundColor).toUpperCase() === customPreset.background.toUpperCase() &&
+                                          !isTransparent(foregroundColor) && !isTransparent(backgroundColor);
                     return (
                       <button
                         onClick={() => {
@@ -1239,11 +1402,22 @@ export function AssetGenerator() {
               <div className="border-t border-white/10 my-4"></div>
               
               <div>
-                <label className="block text-sm text-white/60 mb-2">Foreground</label>
-                <div className="flex gap-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-white/60">Foreground</label>
+                  <label className="flex items-center gap-1.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={isTransparent(foregroundColor)}
+                      onChange={(e) => setForegroundColor(setColorAlpha(foregroundColor, e.target.checked ? 0 : 1))}
+                      className="w-4 h-4 rounded cursor-pointer accent-white"
+                    />
+                    <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">Transparent</span>
+                  </label>
+                </div>
+                <div className={`flex gap-2 ${isTransparent(foregroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
                   <input
                     type="color"
-                    value={foregroundColor}
+                    value={getColorRgb(foregroundColor)}
                     onChange={(e) => {
                       setForegroundColor(e.target.value);
                       setCustomPreset({ ...customPreset, foreground: e.target.value });
@@ -1255,20 +1429,31 @@ export function AssetGenerator() {
                     value={foregroundColor}
                     onChange={(e) => {
                       setForegroundColor(e.target.value);
-                      setCustomPreset({ ...customPreset, foreground: e.target.value });
+                      setCustomPreset({ ...customPreset, foreground: getColorRgb(e.target.value) });
                     }}
                     className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
                     placeholder="#FCFCFC"
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm text-white/60 mb-2">Background</label>
-                <div className="flex gap-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-white/60">Background</label>
+                  <label className="flex items-center gap-1.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={isTransparent(backgroundColor)}
+                      onChange={(e) => setBackgroundColor(setColorAlpha(backgroundColor, e.target.checked ? 0 : 1))}
+                      className="w-4 h-4 rounded cursor-pointer accent-white"
+                    />
+                    <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">Transparent</span>
+                  </label>
+                </div>
+                <div className={`flex gap-2 ${isTransparent(backgroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
                   <input
                     type="color"
-                    value={backgroundColor}
+                    value={getColorRgb(backgroundColor)}
                     onChange={(e) => {
                       setBackgroundColor(e.target.value);
                       setCustomPreset({ ...customPreset, background: e.target.value });
@@ -1280,7 +1465,7 @@ export function AssetGenerator() {
                     value={backgroundColor}
                     onChange={(e) => {
                       setBackgroundColor(e.target.value);
-                      setCustomPreset({ ...customPreset, background: e.target.value });
+                      setCustomPreset({ ...customPreset, background: getColorRgb(e.target.value) });
                     }}
                     className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
                     placeholder="#000000"
@@ -1522,6 +1707,24 @@ export function AssetGenerator() {
             >
               <RotateCcw className="w-4 h-4" />
               <span className="text-sm">Reset to Default Settings</span>
+            </button>
+
+            {/* Hidden file input for JSON import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={importSettingsFromJson}
+              className="hidden"
+            />
+
+            {/* Import Settings from JSON */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="group relative w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl mt-3"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="text-sm">Import Settings from JSON</span>
             </button>
 
             {/* Export Settings as JSON */}

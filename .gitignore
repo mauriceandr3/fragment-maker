@@ -5,3 +5,5 @@ dist
 
 # Ignore AI directory except current-feature
 AI
+
+.playwright-mcp

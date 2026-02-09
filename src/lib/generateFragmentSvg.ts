@@ -344,6 +344,18 @@ export interface GridToSvgOptions {
   cropDirection?: CropDirection;
 }
 
+// Color alpha helpers
+function getColorRgb(color: string): string {
+  return color.slice(0, 7);
+}
+
+function getColorAlpha(color: string): number {
+  if (color.length === 9) {
+    return parseInt(color.slice(7, 9), 16) / 255;
+  }
+  return 1;
+}
+
 /**
  * @internal Converts a boolean grid to SVG. Exported for tool use only.
  */
@@ -398,6 +410,11 @@ export function gridToSvg(
 
   const { allowCropping = false, cropDirection = 'height' } = croppingOptions;
 
+  const bgAlpha = getColorAlpha(backgroundColor);
+  const fgAlpha = getColorAlpha(foregroundColor);
+  const bgRgb = getColorRgb(backgroundColor);
+  const fgRgb = getColorRgb(foregroundColor);
+
   // viewBox is always the exact canvas dimensions (not grid * cellSize)
   // This ensures the SVG output matches the user's specified dimensions
   const viewBoxWidth = outputWidth;
@@ -405,36 +422,37 @@ export function gridToSvg(
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputWidth}" height="${outputHeight}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" shape-rendering="crispEdges">`;
 
-  // Background rect to fill the entire canvas
-  svg += `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${backgroundColor}"/>`;
+  // Background rect (skip if fully transparent)
+  if (bgAlpha > 0) {
+    const bgOpacityAttr = bgAlpha < 1 ? ` fill-opacity="${bgAlpha}"` : '';
+    svg += `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${bgRgb}"${bgOpacityAttr}/>`;
+  }
 
-  // Render cells - with cropping, the last row/column may be partial
-  for (let y = 0; y < Math.min(rows, grid.length); y++) {
-    for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
-      // Only render foreground cells (background is already filled)
-      if (!grid[y][x]) continue;
+  // Foreground cells (skip if fully transparent)
+  if (fgAlpha > 0) {
+    const fgOpacityAttr = fgAlpha < 1 ? ` fill-opacity="${fgAlpha}"` : '';
+    for (let y = 0; y < Math.min(rows, grid.length); y++) {
+      for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
+        if (!grid[y][x]) continue;
 
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
+        let rectWidth = cellSize;
+        let rectHeight = cellSize;
 
-      if (allowCropping) {
-        // Calculate partial cell dimensions at edges
-        if (cropDirection === 'width' && x === cols - 1) {
-          // Last column may be narrower
-          const remainingWidth = outputWidth - x * cellSize;
-          rectWidth = Math.min(cellSize, remainingWidth);
+        if (allowCropping) {
+          if (cropDirection === 'width' && x === cols - 1) {
+            const remainingWidth = outputWidth - x * cellSize;
+            rectWidth = Math.min(cellSize, remainingWidth);
+          }
+          if (cropDirection === 'height' && y === rows - 1) {
+            const remainingHeight = outputHeight - y * cellSize;
+            rectHeight = Math.min(cellSize, remainingHeight);
+          }
         }
-        if (cropDirection === 'height' && y === rows - 1) {
-          // Last row may be shorter
-          const remainingHeight = outputHeight - y * cellSize;
-          rectHeight = Math.min(cellSize, remainingHeight);
-        }
+
+        if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+        svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${fgRgb}"${fgOpacityAttr}/>`;
       }
-
-      // Skip cells that would be completely outside the canvas
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
     }
   }
 
