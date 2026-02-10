@@ -10,6 +10,10 @@ Fragment Maker generates SVGs where each "pixel" is a **fragment** - a colored r
 - User avatars based on principal IDs
 - Consistent visual branding with controlled variation
 
+## Live Demo
+
+The app is deployed to GitHub Pages at **https://dfinity.github.io/fragment-maker/**. It deploys automatically on every push to `main`.
+
 ## Quick Start
 
 ```bash
@@ -17,7 +21,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 to use the interactive tool.
+Open http://localhost:5173 to use the interactive tool locally.
 
 ## Features
 
