@@ -39,9 +39,16 @@ Open http://localhost:5173 to use the interactive tool.
 | `directionalNeighbors` | 0-999 | Boundary fragment extent |
 | `directionDensity` | 0-999 | Number of boundary fragments |
 | `fillAmount` | 0-100 | Fill percentage |
-| `fillType` | linear, radial, angular, diamond, square | Fill gradient type |
+| `fillType` | linear, radial, angular, diamond, square, box | Fill gradient type |
+| `invertFill` | boolean | Invert fill direction |
+| `foregroundColor` | hex string | Foreground color (supports alpha, e.g. `#ff000080`) |
+| `backgroundColor` | hex string | Background color (supports alpha) |
 | `cellSize` | 12-96 | Size of each fragment in pixels |
 | `canvasSize` | 1K, 2K, 4K | Canvas preset (1056px, 2112px, 4224px) |
+| `canvasWidth` | number | Explicit canvas width in pixels (alternative to `canvasSize`) |
+| `canvasHeight` | number | Explicit canvas height in pixels (alternative to `canvasSize`) |
+| `allowCropping` | boolean | Enable partial cells at edges |
+| `cropDirection` | width, height | Which axis to crop |
 
 ## Website Integration
 
@@ -60,24 +67,34 @@ import { generateFragmentSvg, type FragmentConfig } from './generateFragmentSvg'
 const fragmentConfig = await fetch('/fragment-config.json').then(r => r.json());
 
 // Generate SVG from a seed string
-const svg = generateFragmentSvg(
-  article.title,           // Seed string - same string = same SVG
-  fragmentConfig.config,   // Configuration object
-  72                       // Optional: output height in pixels
-);
+const svg = generateFragmentSvg({
+  seed: article.title,       // Seed string - same string = same SVG
+  config: fragmentConfig.config,
+});
 
 // Use it
 document.getElementById('thumbnail').innerHTML = svg;
+
+// With output sizing
+const thumbnail = generateFragmentSvg({
+  seed: article.title,
+  config: fragmentConfig.config,
+  width: 400,
+  height: 200,
+  maintainProportions: true,  // Scale cell size to preserve visual pattern
+});
 ```
 
 ### Function Signature
 
 ```typescript
-function generateFragmentSvg(
-  seedString: string,        // Any string (article title, user ID, etc.)
-  config: FragmentConfig,    // Configuration from exported JSON
-  outputHeight?: number      // Optional pixel height (width scales proportionally)
-): string                    // Returns SVG markup
+function generateFragmentSvg(options: {
+  seed?: string;              // Any string (article title, user ID, etc.). If omitted, uses config.seed directly.
+  config: FragmentConfig;     // Configuration from exported JSON
+  width?: number;             // Optional output width in pixels
+  height?: number;            // Optional output height in pixels (defaults to width if only width is set)
+  maintainProportions?: boolean; // Scale cell size proportionally to preserve visual pattern
+}): string                    // Returns SVG markup
 ```
 
 ### How Seeding Works
@@ -106,7 +123,9 @@ Available seedable parameters: `threshold`, `gamma`, `frequency`, `contrast`, `d
 src/
 ├── lib/
 │   ├── generateFragmentSvg.ts      # Core generator (copy this to your website)
-│   └── generateFragmentSvgGrid.ts  # Grid variation utilities
+│   ├── generateFragmentSvgGrid.ts  # Grid variation utilities
+│   ├── dimensionUtils.ts           # Canvas dimension helpers
+│   └── urlState.ts                 # URL state management
 ├── app/
 │   └── components/
 │       └── AssetGenerator.tsx      # Main UI component
