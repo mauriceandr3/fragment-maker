@@ -97,5 +97,25 @@
 - PRD-007 (Initialization) - verify toParams init when animation first enabled
 - PRD-010 (Hover Behavior) - verify hover works with dual-config SVG
 - PRD-014 (Per-panel Randomize) - needs implementation
-- PRD-016 (Sidebar Layout) - needs implementation
+- PRD-007 (Initialization) - verify toParams init when animation first enabled
+- PRD-010 (Hover Behavior) - verify hover works with dual-config SVG
+- PRD-014 (Per-panel Randomize) - needs implementation
 - VM cannot run build/typecheck - needs manual verification on host machine
+
+## PRD-016 + PRD-002 + PRD-005 - Sidebar Layout & Shared Sections [DONE]
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx - wider sidebar + grid layout for From/To panels
+
+**Key decisions:**
+- Sidebar width: 400px (default) → 750px (animation enabled) with smooth transition
+- From/To panels in `grid grid-cols-2 gap-4` when animation enabled
+- Shared sections (CanvasSettingsPanel, AnimationPanel, ColorsPanel) always full-width above panels
+- Colors panel already above From/To panels → PRD-002 satisfied
+- Canvas settings already single instance → PRD-005 satisfied
+
+**Implementation:**
+- Dynamic class: `${state.animationEnabled ? 'w-[750px]' : 'w-[400px]'}`
+- Transition: `transition-all duration-300` for smooth width change
+- Grid container wraps From/To panels only when animation enabled
+- Single ParametersPanel shown when animation disabled

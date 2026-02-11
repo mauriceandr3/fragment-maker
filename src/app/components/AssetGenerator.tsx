@@ -62,7 +62,11 @@ export function AssetGenerator() {
             <ChevronLeft className="w-5 h-5" />
           </button>
         ) : (
-          <div className="w-[400px] flex-shrink-0 bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden">
+          <div
+            className={`flex-shrink-0 bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden transition-all duration-300 ${
+              state.animationEnabled ? 'w-[750px]' : 'w-[400px]'
+            }`}
+          >
             <div
               className="h-full overflow-y-auto space-y-6 p-6 pb-12"
               style={{
@@ -82,29 +86,39 @@ export function AssetGenerator() {
                 </button>
               </div>
 
-              <>
-                <CanvasSettingsPanel state={state} />
-                <AnimationPanel state={state} />
-                <ColorsPanel state={state} />
-                <ParametersPanel
-                  params={state.params}
-                  setParams={state.setParams}
-                  title={state.animationEnabled ? "From" : "Parameters"}
-                />
-                {state.animationEnabled && state.toParams && (
+              {/* Shared sections - always full width */}
+              <CanvasSettingsPanel state={state} />
+              <AnimationPanel state={state} />
+              <ColorsPanel state={state} />
+
+              {/* Parameters panels - side-by-side when animation enabled */}
+              {state.animationEnabled && state.toParams ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <ParametersPanel
+                    params={state.params}
+                    setParams={state.setParams}
+                    title="From"
+                  />
                   <ParametersPanel
                     params={state.toParams}
                     setParams={state.setToParams}
                     title="To"
                   />
-                )}
-                <ActionButtons
-                  actions={actions}
-                  allowCropping={state.allowCropping}
-                  validCellSizes={state.validCellSizes}
-                  fileInputRef={fileInputRef}
+                </div>
+              ) : (
+                <ParametersPanel
+                  params={state.params}
+                  setParams={state.setParams}
+                  title="Parameters"
                 />
-              </>
+              )}
+
+              <ActionButtons
+                actions={actions}
+                allowCropping={state.allowCropping}
+                validCellSizes={state.validCellSizes}
+                fileInputRef={fileInputRef}
+              />
             </div>
 
             {/* Fade Mask at Bottom */}

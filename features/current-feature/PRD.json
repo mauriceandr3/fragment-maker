@@ -20,7 +20,7 @@
       "Confirm Colors is NOT duplicated inside the From or To panels",
       "Confirm color changes affect both the From and To pattern preview"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-003",
@@ -55,7 +55,7 @@
       "Confirm canvas settings appear only once (not in From or To panels)",
       "Change canvas width — confirm both From and To patterns reflect the new dimensions"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-006",
@@ -197,6 +197,6 @@
       "Confirm shared sections (Canvas Settings, Colors) span the full sidebar width above the From/To columns",
       "Disable animation — confirm the sidebar returns to its normal width"
     ],
-    "passes": false
+    "passes": true
   }
 ]
