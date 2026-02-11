@@ -24,8 +24,6 @@
 
 export type FillType = 'linear' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
 
-export type CanvasSize = '1K' | '2K' | '4K';
-
 export type SeedableParam =
   | 'threshold'
   | 'gamma'
@@ -64,8 +62,6 @@ export interface FragmentConfig {
   backgroundColor: string;
   /** Cell size in pixels */
   cellSize: number;
-  /** Canvas size preset (deprecated, use canvasWidth/canvasHeight) */
-  canvasSize?: CanvasSize;
   /** Canvas width in pixels */
   canvasWidth?: number;
   /** Canvas height in pixels */
@@ -83,23 +79,11 @@ export interface GenerateFragmentSvgOptions {
   seed?: string;
   /** The fragment configuration object */
   config: FragmentConfig;
-  /** Optional output width in pixels. If provided without height, output is square. */
-  width?: number;
-  /** Optional output height in pixels. */
-  height?: number;
-  /** Scale cell size proportionally to maintain the same visual pattern at different dimensions. */
-  maintainProportions?: boolean;
 }
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-export const CANVAS_SIZES: Record<CanvasSize, { width: number; height: number }> = {
-  '1K': { width: 1056, height: 1056 },
-  '2K': { width: 2112, height: 2112 },
-  '4K': { width: 4224, height: 4224 },
-};
 
 export const PARAM_RANGES: Record<SeedableParam, { min: number; max: number; step: number }> = {
   threshold: { min: 0, max: 1, step: 0.01 },
@@ -344,18 +328,6 @@ export interface GridToSvgOptions {
   cropDirection?: CropDirection;
 }
 
-// Color alpha helpers
-function getColorRgb(color: string): string {
-  return color.slice(0, 7);
-}
-
-function getColorAlpha(color: string): number {
-  if (color.length === 9) {
-    return parseInt(color.slice(7, 9), 16) / 255;
-  }
-  return 1;
-}
-
 /**
  * @internal Converts a boolean grid to SVG. Exported for tool use only.
  */
@@ -364,56 +336,15 @@ export function gridToSvg(
   cols: number,
   rows: number,
   cellSize: number,
-  canvasSizeOrWidth: CanvasSize | number,
+  width: number,
   foregroundColor: string,
   backgroundColor: string,
-  outputHeightOrCanvasHeight?: number,
-  canvasHeightOrOptions?: number | GridToSvgOptions,
+  height: number,
   options?: GridToSvgOptions
 ): string {
-  // Support both old (canvasSize) and new (width, height) signatures
-  let outputWidth: number;
-  let outputHeight: number;
-  let croppingOptions: GridToSvgOptions = {};
-
-  if (typeof canvasSizeOrWidth === 'string') {
-    // Legacy: canvasSize preset
-    const canvasDimensions = CANVAS_SIZES[canvasSizeOrWidth];
-    outputWidth = canvasDimensions.width;
-    outputHeight = canvasDimensions.height;
-    if (outputHeightOrCanvasHeight !== undefined) {
-      // outputHeightOrCanvasHeight is the desired output height for scaling
-      const aspectRatio = outputWidth / outputHeight;
-      outputHeight = outputHeightOrCanvasHeight;
-      outputWidth = Math.round(outputHeightOrCanvasHeight * aspectRatio);
-    }
-    // Options could be in canvasHeightOrOptions
-    if (typeof canvasHeightOrOptions === 'object') {
-      croppingOptions = canvasHeightOrOptions;
-    }
-  } else {
-    // New: explicit width/height
-    outputWidth = canvasSizeOrWidth;
-    outputHeight = outputHeightOrCanvasHeight ?? canvasSizeOrWidth;
-    if (typeof canvasHeightOrOptions === 'number') {
-      // canvasHeightOrOptions is the desired output height for scaling
-      const aspectRatio = outputWidth / outputHeight;
-      outputHeight = canvasHeightOrOptions;
-      outputWidth = Math.round(canvasHeightOrOptions * aspectRatio);
-      if (options) {
-        croppingOptions = options;
-      }
-    } else if (typeof canvasHeightOrOptions === 'object') {
-      croppingOptions = canvasHeightOrOptions;
-    }
-  }
-
-  const { allowCropping = false, cropDirection = 'height' } = croppingOptions;
-
-  const bgAlpha = getColorAlpha(backgroundColor);
-  const fgAlpha = getColorAlpha(foregroundColor);
-  const bgRgb = getColorRgb(backgroundColor);
-  const fgRgb = getColorRgb(foregroundColor);
+  const outputWidth = width;
+  const outputHeight = height;
+  const { allowCropping = false, cropDirection = 'height' } = options ?? {};
 
   // viewBox is always the exact canvas dimensions (not grid * cellSize)
   // This ensures the SVG output matches the user's specified dimensions
@@ -422,37 +353,36 @@ export function gridToSvg(
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputWidth}" height="${outputHeight}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" shape-rendering="crispEdges">`;
 
-  // Background rect (skip if fully transparent)
-  if (bgAlpha > 0) {
-    const bgOpacityAttr = bgAlpha < 1 ? ` fill-opacity="${bgAlpha}"` : '';
-    svg += `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${bgRgb}"${bgOpacityAttr}/>`;
-  }
+  // Background rect to fill the entire canvas
+  svg += `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${backgroundColor}"/>`;
 
-  // Foreground cells (skip if fully transparent)
-  if (fgAlpha > 0) {
-    const fgOpacityAttr = fgAlpha < 1 ? ` fill-opacity="${fgAlpha}"` : '';
-    for (let y = 0; y < Math.min(rows, grid.length); y++) {
-      for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
-        if (!grid[y][x]) continue;
+  // Render cells - with cropping, the last row/column may be partial
+  for (let y = 0; y < Math.min(rows, grid.length); y++) {
+    for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
+      // Only render foreground cells (background is already filled)
+      if (!grid[y][x]) continue;
 
-        let rectWidth = cellSize;
-        let rectHeight = cellSize;
+      let rectWidth = cellSize;
+      let rectHeight = cellSize;
 
-        if (allowCropping) {
-          if (cropDirection === 'width' && x === cols - 1) {
-            const remainingWidth = outputWidth - x * cellSize;
-            rectWidth = Math.min(cellSize, remainingWidth);
-          }
-          if (cropDirection === 'height' && y === rows - 1) {
-            const remainingHeight = outputHeight - y * cellSize;
-            rectHeight = Math.min(cellSize, remainingHeight);
-          }
+      if (allowCropping) {
+        // Calculate partial cell dimensions at edges
+        if (cropDirection === 'width' && x === cols - 1) {
+          // Last column may be narrower
+          const remainingWidth = outputWidth - x * cellSize;
+          rectWidth = Math.min(cellSize, remainingWidth);
         }
-
-        if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-        svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${fgRgb}"${fgOpacityAttr}/>`;
+        if (cropDirection === 'height' && y === rows - 1) {
+          // Last row may be shorter
+          const remainingHeight = outputHeight - y * cellSize;
+          rectHeight = Math.min(cellSize, remainingHeight);
+        }
       }
+
+      // Skip cells that would be completely outside the canvas
+      if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+      svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
     }
   }
 
@@ -466,21 +396,13 @@ export function gridToSvg(
 
 interface RenderParams {
   config: Omit<FragmentConfig, 'seedParam'>;
-  outputWidth?: number;
-  outputHeight?: number;
-  maintainProportions?: boolean;
 }
 
 /**
  * @internal Shared dimension→grid→svg pipeline used by both generateFragmentSvg and generateFragmentSvgDirect.
  */
 function renderConfigToSvg(params: RenderParams): string {
-  const {
-    config,
-    outputWidth,
-    outputHeight,
-    maintainProportions = false,
-  } = params;
+  const { config } = params;
 
   const {
     threshold,
@@ -496,41 +418,14 @@ function renderConfigToSvg(params: RenderParams): string {
     foregroundColor,
     backgroundColor,
     cellSize,
-    canvasSize,
-    canvasWidth: explicitWidth,
-    canvasHeight: explicitHeight,
+    canvasWidth = 1056,
+    canvasHeight = 1056,
     allowCropping = false,
     cropDirection = 'height',
   } = config;
 
-  // Use explicit dimensions if provided, otherwise fall back to canvasSize preset
-  let width: number;
-  let height: number;
-  if (explicitWidth !== undefined && explicitHeight !== undefined) {
-    width = explicitWidth;
-    height = explicitHeight;
-  } else if (canvasSize) {
-    const canvasDimensions = CANVAS_SIZES[canvasSize];
-    width = canvasDimensions.width;
-    height = canvasDimensions.height;
-  } else {
-    // Default to 1K if nothing specified
-    width = CANVAS_SIZES['1K'].width;
-    height = CANVAS_SIZES['1K'].height;
-  }
-
-  // Override dimensions if output params provided
-  let effectiveCellSize = cellSize;
-  if (outputWidth !== undefined) {
-    const origMaxAxis = Math.max(width, height);
-    width = outputWidth;
-    height = outputHeight !== undefined ? outputHeight : outputWidth;
-
-    if (maintainProportions) {
-      const cellRatio = cellSize / origMaxAxis;
-      effectiveCellSize = cellRatio * Math.max(width, height);
-    }
-  }
+  const width = canvasWidth;
+  const height = canvasHeight;
 
   // Calculate cols/rows based on cropping mode
   // Crop width: ceil cols (partial last column), floor rows (full rows only)
@@ -539,15 +434,15 @@ function renderConfigToSvg(params: RenderParams): string {
   let rows: number;
   if (allowCropping) {
     if (cropDirection === 'width') {
-      cols = Math.ceil(width / effectiveCellSize);
-      rows = Math.floor(height / effectiveCellSize);
+      cols = Math.ceil(width / cellSize);
+      rows = Math.floor(height / cellSize);
     } else {
-      cols = Math.floor(width / effectiveCellSize);
-      rows = Math.ceil(height / effectiveCellSize);
+      cols = Math.floor(width / cellSize);
+      rows = Math.ceil(height / cellSize);
     }
   } else {
-    cols = Math.floor(width / effectiveCellSize);
-    rows = Math.floor(height / effectiveCellSize);
+    cols = Math.floor(width / cellSize);
+    rows = Math.floor(height / cellSize);
   }
 
   if (cols <= 0 || rows <= 0) {
@@ -569,7 +464,7 @@ function renderConfigToSvg(params: RenderParams): string {
     directionDensity
   );
 
-  return gridToSvg(grid, cols, rows, effectiveCellSize, width, foregroundColor, backgroundColor, height, { allowCropping, cropDirection });
+  return gridToSvg(grid, cols, rows, cellSize, width, foregroundColor, backgroundColor, height, { allowCropping, cropDirection });
 }
 
 // ============================================================================
@@ -596,18 +491,15 @@ export function generateFragmentSvgDirect(config: Omit<FragmentConfig, 'seedPara
  * @param options - Generation options
  * @param options.seed - Any string to use as seed (e.g., principal ID, username)
  * @param options.config - The fragment configuration object
- * @param options.width - Optional output width in pixels. If provided without height, output is square.
- * @param options.height - Optional output height in pixels.
- * @param options.maintainProportions - Scale cell size proportionally to preserve visual pattern at different dimensions.
  * @returns SVG string
  */
 export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string {
-  const { seed: seedString, config, width: outputWidth, height: outputHeight, maintainProportions = false } = options;
+  const { seed: seedString, config } = options;
 
   const { seedParam = 'frequency', ...rest } = config;
 
   if (seedString === undefined) {
-    return renderConfigToSvg({ config: rest, outputWidth, outputHeight, maintainProportions });
+    return renderConfigToSvg({ config: rest });
   }
 
   const hash = djb2Hash(seedString as string);
@@ -626,5 +518,5 @@ export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string
     [seedParam]: roundedSeededValue,
   };
 
-  return renderConfigToSvg({ config: seededConfig, outputWidth, outputHeight, maintainProportions });
+  return renderConfigToSvg({ config: seededConfig });
 }

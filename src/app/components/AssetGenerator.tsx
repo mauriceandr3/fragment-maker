@@ -759,12 +759,12 @@ export function AssetGenerator() {
 
   const randomizeParams = () => {
     setParams({
-      threshold: Math.random(),
-      gamma: 0.5 + Math.random() * 2.5,
+      threshold: Math.round(Math.random() * 100) / 100,
+      gamma: Math.round((0.5 + Math.random() * 2.5) * 10) / 10,
       scale: 1.0,
-      frequency: 0.05 + Math.random() * 0.3,
-      contrast: 0.5 + Math.random() * 2,
-      seed: Math.random(),
+      frequency: Math.round((0.05 + Math.random() * 0.3) * 100) / 100,
+      contrast: Math.round((0.5 + Math.random() * 2) * 10) / 10,
+      seed: Math.round(Math.random() * 10000) / 10000,
       directionalNeighbors: Math.floor(Math.random() * 89),
       directionDensity: Math.floor(20 + Math.random() * 80),
       fillAmount: Math.floor(10 + Math.random() * 80),
