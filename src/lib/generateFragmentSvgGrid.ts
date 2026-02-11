@@ -10,13 +10,15 @@ import {
   type SeedableParam,
   type FillType,
   type CropDirection,
+  type GenerateFragmentDiffSvgOptions,
   PARAM_RANGES,
   generateFragmentSvgDirect,
+  generateFragmentDiffSvg,
 } from './generateFragmentSvg';
 
 // Re-export types that the tool needs
-export type { FragmentConfig, SeedableParam, FillType, CropDirection };
-export { PARAM_RANGES, generateFragmentSvgDirect };
+export type { FragmentConfig, SeedableParam, FillType, CropDirection, GenerateFragmentDiffSvgOptions };
+export { PARAM_RANGES, generateFragmentSvgDirect, generateFragmentDiffSvg };
 
 /**
  * Generates an array of configurations with one parameter varying across its range.

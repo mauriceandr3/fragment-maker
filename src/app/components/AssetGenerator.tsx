@@ -5,7 +5,9 @@ import {
   type SeedableParam,
   generateGridVariations,
   generateFragmentSvgDirect,
+  generateFragmentDiffSvg,
 } from "../../lib/generateFragmentSvgGrid";
+import { useFragmentReveal } from "../../hooks/useFragmentReveal";
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -266,7 +268,7 @@ export function AssetGenerator() {
     scale: initialUrlState.scale ?? 0.5,
     frequency: initialUrlState.frequency ?? 0.1,
     contrast: initialUrlState.contrast ?? 1.0,
-    seed: initialUrlState.seed ?? Math.random(),
+    seed: initialUrlState.seed ?? Math.round(Math.random() * 10000) / 10000,
     directionalNeighbors: initialUrlState.directionalNeighbors ?? 8,
     directionDensity: initialUrlState.directionDensity ?? 50,
     fillAmount: initialUrlState.fillAmount ?? 50,
@@ -279,6 +281,12 @@ export function AssetGenerator() {
   const [hasGeneratedGrid, setHasGeneratedGrid] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const animationContainerRef = useRef<HTMLDivElement>(null);
+
+  // Animation preview state
+  const [animationEnabled, setAnimationEnabled] = useState(initialUrlState.animationEnabled ?? false);
+  const [animationSeedA, setAnimationSeedA] = useState(initialUrlState.animationSeedA ?? '');
+  const [animationSeedB, setAnimationSeedB] = useState(initialUrlState.animationSeedB ?? '');
 
   // Debounced state for grid generation (prevents regenerating on every slider tick)
   const [debouncedParams, setDebouncedParams] = useState(params);
@@ -342,6 +350,28 @@ export function AssetGenerator() {
     return () => clearTimeout(timer);
   }, [allowCropping, cropDirection]);
 
+  // Auto-generate random seeds when animation is first enabled
+  useEffect(() => {
+    if (animationEnabled) {
+      if (!animationSeedA) setAnimationSeedA(`seed-${Math.random().toString(36).slice(2, 8)}`);
+      if (!animationSeedB) setAnimationSeedB(`seed-${Math.random().toString(36).slice(2, 8)}`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationEnabled]);
+
+  // Debounce effect for animation state
+  const [debouncedAnimationEnabled, setDebouncedAnimationEnabled] = useState(animationEnabled);
+  const [debouncedAnimationSeedA, setDebouncedAnimationSeedA] = useState(animationSeedA);
+  const [debouncedAnimationSeedB, setDebouncedAnimationSeedB] = useState(animationSeedB);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAnimationEnabled(animationEnabled);
+      setDebouncedAnimationSeedA(animationSeedA);
+      setDebouncedAnimationSeedB(animationSeedB);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [animationEnabled, animationSeedA, animationSeedB]);
+
   // Sync debounced state to URL query params
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -364,6 +394,9 @@ export function AssetGenerator() {
       foregroundColor: debouncedForeground,
       backgroundColor: debouncedBackground,
       invertColors: debouncedInvertColors,
+      animationEnabled: debouncedAnimationEnabled,
+      animationSeedA: debouncedAnimationSeedA,
+      animationSeedB: debouncedAnimationSeedB,
     };
     updateUrlFromState(state);
   }, [
@@ -376,6 +409,9 @@ export function AssetGenerator() {
     debouncedForeground,
     debouncedBackground,
     debouncedInvertColors,
+    debouncedAnimationEnabled,
+    debouncedAnimationSeedA,
+    debouncedAnimationSeedB,
   ]);
 
   // Memoize grid dimensions - account for cropping mode
@@ -675,8 +711,43 @@ export function AssetGenerator() {
     return generateFragmentSvgDirect(config);
   }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection]);
 
+  // Generate diff SVG for animation preview
+  const diffSvg = useMemo(() => {
+    if (!debouncedAnimationEnabled || !debouncedAnimationSeedA || !debouncedAnimationSeedB) return '';
+    return generateFragmentDiffSvg({
+      seedA: debouncedAnimationSeedA,
+      seedB: debouncedAnimationSeedB,
+      config: {
+        threshold: debouncedParams.threshold,
+        gamma: debouncedParams.gamma,
+        frequency: debouncedParams.frequency,
+        contrast: debouncedParams.contrast,
+        seed: debouncedParams.seed,
+        directionalNeighbors: debouncedParams.directionalNeighbors,
+        directionDensity: debouncedParams.directionDensity,
+        fillAmount: debouncedParams.fillAmount,
+        fillType: debouncedParams.fillType,
+        invertFill: debouncedParams.invertFill,
+        foregroundColor: displayForeground,
+        backgroundColor: displayBackground,
+        cellSize: debouncedCellSize,
+        canvasWidth: debouncedCanvasWidth,
+        canvasHeight: debouncedCanvasHeight,
+        allowCropping: debouncedAllowCropping,
+        cropDirection: debouncedCropDirection,
+      },
+    });
+  }, [debouncedAnimationEnabled, debouncedAnimationSeedA, debouncedAnimationSeedB,
+      debouncedParams, displayForeground, displayBackground,
+      debouncedCellSize, debouncedCanvasWidth, debouncedCanvasHeight,
+      debouncedAllowCropping, debouncedCropDirection]);
+
+  // Invalidate cached rects when diff SVG changes
+  const { onMouseEnter: animationMouseEnter, onMouseLeave: animationMouseLeave } = useFragmentReveal(animationContainerRef, animationEnabled);
+
   // Draw grid to canvas - handles cropping mode for preview
   useEffect(() => {
+    if (animationEnabled && viewMode === 'single') return;
     if (!canvasRef.current || !grid || grid.length === 0 || !grid[0]) return;
 
     const canvas = canvasRef.current;
@@ -750,7 +821,7 @@ export function AssetGenerator() {
         }
       }
     }
-  }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode]);
+  }, [grid, displayForeground, displayBackground, params.scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled]);
 
   // Generate grid when parameters change
   useEffect(() => {
@@ -790,13 +861,16 @@ export function AssetGenerator() {
       scale: 0.5,
       frequency: 0.1,
       contrast: 1.0,
-      seed: Math.random(),
+      seed: Math.round(Math.random() * 10000) / 10000,
       directionalNeighbors: 8,
       directionDensity: 50,
       fillAmount: 50,
       fillType: 'linear',
       invertFill: false,
     });
+    setAnimationEnabled(false);
+    setAnimationSeedA('');
+    setAnimationSeedB('');
     clearUrlParams();
   };
 
@@ -860,6 +934,9 @@ export function AssetGenerator() {
         canvasHeight: number;
         allowCropping: boolean;
         cropDirection?: 'width' | 'height';
+        animationEnabled?: boolean;
+        animationSeedA?: string;
+        animationSeedB?: string;
       };
     } = {
       version: '2.0.0',
@@ -882,6 +959,7 @@ export function AssetGenerator() {
         canvasHeight,
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
+        ...(animationEnabled ? { animationEnabled, animationSeedA, animationSeedB } : {}),
       },
     };
 
@@ -983,13 +1061,24 @@ export function AssetGenerator() {
           gamma: clamp(config.gamma, 0.1, 3, 1.0),
           frequency: clamp(config.frequency, 0.01, 0.5, 0.1),
           contrast: clamp(config.contrast, 0.1, 3, 1.0),
-          seed: clamp(config.seed, 0, 1, Math.random()),
+          seed: clamp(config.seed, 0, 1, Math.round(Math.random() * 10000) / 10000),
           directionalNeighbors: Math.floor(clamp(config.directionalNeighbors, 0, 999, 8)),
           directionDensity: Math.floor(clamp(config.directionDensity, 0, 999, 50)),
           fillAmount: Math.floor(clamp(config.fillAmount, 0, 100, 50)),
           fillType: validFillTypes.includes(config.fillType) ? config.fillType : 'linear',
           invertFill: typeof config.invertFill === 'boolean' ? config.invertFill : false,
         }));
+
+        // Animation settings
+        if (typeof config.animationEnabled === 'boolean') {
+          setAnimationEnabled(config.animationEnabled);
+        }
+        if (typeof config.animationSeedA === 'string') {
+          setAnimationSeedA(config.animationSeedA);
+        }
+        if (typeof config.animationSeedB === 'string') {
+          setAnimationSeedB(config.animationSeedB);
+        }
 
       } catch {
         alert('Failed to parse settings file. Please ensure it is valid JSON.');
@@ -1046,11 +1135,27 @@ export function AssetGenerator() {
             </div>
           )}
           {(allowCropping || validCellSizes.length > 0) && viewMode === 'single' && (
-            <canvas
-              ref={canvasRef}
-              className="border border-white/10 shadow-2xl"
-              style={{ imageRendering: 'pixelated' }}
-            />
+            animationEnabled && diffSvg ? (
+              <div
+                ref={animationContainerRef}
+                onMouseEnter={animationMouseEnter}
+                onMouseLeave={animationMouseLeave}
+                className="border border-white/10 shadow-2xl"
+                style={{
+                  transform: `scale(${params.scale})`,
+                  transformOrigin: 'top left',
+                  width: canvasWidth,
+                  height: canvasHeight,
+                }}
+                dangerouslySetInnerHTML={{ __html: diffSvg }}
+              />
+            ) : (
+              <canvas
+                ref={canvasRef}
+                className="border border-white/10 shadow-2xl"
+                style={{ imageRendering: 'pixelated' }}
+              />
+            )
           )}
           {(allowCropping || validCellSizes.length > 0) && viewMode === 'grid' && (
             <div className="w-full h-full overflow-auto p-4">
@@ -1373,7 +1478,62 @@ export function AssetGenerator() {
                 ))}
               </div>
             </div>
-              
+
+            {/* Animation Preview */}
+            <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
+              <h2 className="text-xl font-semibold mb-4 text-white">Animation Preview</h2>
+
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={animationEnabled}
+                  onChange={(e) => setAnimationEnabled(e.target.checked)}
+                  className="w-5 h-5 rounded cursor-pointer accent-white"
+                />
+                <span className="text-sm text-white/60 group-hover:text-white transition-colors">
+                  Preview animation on hover
+                </span>
+              </label>
+
+              {animationEnabled && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">Seed A</label>
+                    <input
+                      type="text"
+                      value={animationSeedA}
+                      onChange={(e) => setAnimationSeedA(e.target.value)}
+                      placeholder="e.g. user-123"
+                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">Seed B</label>
+                    <input
+                      type="text"
+                      value={animationSeedB}
+                      onChange={(e) => setAnimationSeedB(e.target.value)}
+                      placeholder="e.g. user-456"
+                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      setAnimationSeedA(`seed-${Math.random().toString(36).slice(2, 8)}`);
+                      setAnimationSeedB(`seed-${Math.random().toString(36).slice(2, 8)}`);
+                    }}
+                    className="w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <Shuffle className="w-4 h-4" />
+                    <span className="text-sm">Randomize Seeds</span>
+                  </button>
+                  <p className="text-xs text-white/40">
+                    Hover over the preview to animate between patterns A and B.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Color Inputs */}
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
               <h2 className="text-xl font-semibold mb-4 text-white">Colors</h2>

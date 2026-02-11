@@ -28,6 +28,9 @@ export interface UrlSerializableState {
   foregroundColor: string;
   backgroundColor: string;
   invertColors: boolean;
+  animationEnabled: boolean;
+  animationSeedA: string;
+  animationSeedB: string;
 }
 
 // Short URL keys for each state field
@@ -51,6 +54,9 @@ const PARAM_KEYS = {
   foregroundColor: 'fg',
   backgroundColor: 'bg',
   invertColors: 'ic',
+  animationEnabled: 'ae',
+  animationSeedA: 'sa',
+  animationSeedB: 'sb',
 } as const;
 
 // Defaults (seed excluded — it's random by nature)
@@ -73,6 +79,9 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   foregroundColor: '#FCFCFC',
   backgroundColor: '#000000',
   invertColors: false,
+  animationEnabled: false,
+  animationSeedA: '',
+  animationSeedB: '',
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -110,6 +119,13 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   // Colors: strip '#'
   addIfChanged(PARAM_KEYS.foregroundColor, state.foregroundColor.replace('#', ''), DEFAULTS.foregroundColor.replace('#', ''));
   addIfChanged(PARAM_KEYS.backgroundColor, state.backgroundColor.replace('#', ''), DEFAULTS.backgroundColor.replace('#', ''));
+
+  // Animation
+  addIfChanged(PARAM_KEYS.animationEnabled, state.animationEnabled ? '1' : '0', DEFAULTS.animationEnabled ? '1' : '0');
+  if (state.animationEnabled) {
+    addIfChanged(PARAM_KEYS.animationSeedA, state.animationSeedA, DEFAULTS.animationSeedA);
+    addIfChanged(PARAM_KEYS.animationSeedB, state.animationSeedB, DEFAULTS.animationSeedB);
+  }
 
   return params.toString();
 }
@@ -201,6 +217,16 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   if (bg !== null && HEX_COLOR_REGEX.test(bg)) {
     result.backgroundColor = '#' + bg.toUpperCase();
   }
+
+  // Animation
+  const ae = parseBool(sp.get('ae'));
+  if (ae !== undefined) result.animationEnabled = ae;
+
+  const sa = sp.get('sa');
+  if (sa !== null) result.animationSeedA = sa;
+
+  const sb = sp.get('sb');
+  if (sb !== null) result.animationSeedB = sb;
 
   return result;
 }

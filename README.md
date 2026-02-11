@@ -79,13 +79,10 @@ const svg = generateFragmentSvg({
 // Use it
 document.getElementById('thumbnail').innerHTML = svg;
 
-// With output sizing
+// With custom dimensions
 const thumbnail = generateFragmentSvg({
   seed: article.title,
-  config: fragmentConfig.config,
-  width: 400,
-  height: 200,
-  maintainProportions: true,  // Scale cell size to preserve visual pattern
+  config: { ...fragmentConfig.config, canvasWidth: 400, canvasHeight: 200 },
 });
 ```
 
@@ -94,10 +91,7 @@ const thumbnail = generateFragmentSvg({
 ```typescript
 function generateFragmentSvg(options: {
   seed?: string;              // Any string (article title, user ID, etc.). If omitted, uses config.seed directly.
-  config: FragmentConfig;     // Configuration from exported JSON
-  width?: number;             // Optional output width in pixels
-  height?: number;            // Optional output height in pixels (defaults to width if only width is set)
-  maintainProportions?: boolean; // Scale cell size proportionally to preserve visual pattern
+  config: FragmentConfig;     // Configuration from exported JSON (set canvasWidth/canvasHeight for sizing)
 }): string                    // Returns SVG markup
 ```
 
@@ -121,6 +115,81 @@ You can change which parameter varies by setting `seedParam` in your config:
 
 Available seedable parameters: `threshold`, `gamma`, `frequency`, `contrast`, `directionalNeighbors`, `directionDensity`, `fillAmount`
 
+### Hover Animation (Diff Transition)
+
+You can animate between two seeded patterns on hover — pattern A morphs into pattern B by toggling individual cells. This uses a single SVG with `data-g` attributes, so there's no stacking or opacity conflicts with opaque backgrounds.
+
+#### Files to Copy
+
+1. `src/lib/generateFragmentSvg.ts` — Core generator (you already need this)
+2. `src/hooks/useFragmentReveal.ts` — Animation hook (React)
+3. `src/hooks/useReducedMotion.ts` — Dependency of the above
+
+#### Usage (React)
+
+```tsx
+import { useRef, useMemo } from 'react';
+import { generateFragmentDiffSvg, type FragmentConfig } from './generateFragmentSvg';
+import { useFragmentReveal } from './hooks/useFragmentReveal';
+
+// Your exported config
+const config: FragmentConfig = { /* ... from your JSON export ... */ };
+
+function FragmentCard({ seedA, seedB }: { seedA: string; seedB: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const svg = useMemo(
+    () => generateFragmentDiffSvg({ seedA, seedB, config }),
+    [seedA, seedB]
+  );
+
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, true);
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+```
+
+#### How It Works
+
+1. `generateFragmentDiffSvg` computes two grids (one per seed) and renders a single SVG:
+   - Cells in **both** grids → always visible (no attribute)
+   - Cells only in grid **A** → `data-g="a"` (visible initially)
+   - Cells only in grid **B** → `data-g="b"` (hidden initially, `opacity: 0`)
+2. `useFragmentReveal` queries these rects from the DOM
+3. On **mouseEnter**: A-rects fade off and B-rects fade on in shuffled batches (~20 animation frames)
+4. On **mouseLeave**: reverses the animation
+5. Respects `prefers-reduced-motion` (instant swap instead of animation)
+
+#### Without React
+
+The diff SVG generation is framework-agnostic. For vanilla JS, generate the SVG and manipulate the `data-g` rects yourself:
+
+```js
+import { generateFragmentDiffSvg } from './generateFragmentSvg';
+
+const svg = generateFragmentDiffSvg({ seedA: 'user-123', seedB: 'user-456', config });
+container.innerHTML = svg;
+
+const svgEl = container.querySelector('svg');
+const aRects = svgEl.querySelectorAll('rect[data-g="a"]');
+const bRects = svgEl.querySelectorAll('rect[data-g="b"]');
+
+// On hover: hide A, show B
+aRects.forEach(r => r.style.opacity = '0');
+bRects.forEach(r => r.style.opacity = '1');
+
+// On leave: show A, hide B
+aRects.forEach(r => r.style.opacity = '');
+bRects.forEach(r => r.style.opacity = '0');
+```
+
 ## Project Structure
 
 ```
@@ -130,6 +199,9 @@ src/
 │   ├── generateFragmentSvgGrid.ts  # Grid variation utilities
 │   ├── dimensionUtils.ts           # Canvas dimension helpers
 │   └── urlState.ts                 # URL state management
+├── hooks/
+│   ├── useFragmentReveal.ts        # Hover animation hook (copy this for React projects)
+│   └── useReducedMotion.ts         # Reduced motion media query hook
 ├── app/
 │   └── components/
 │       └── AssetGenerator.tsx      # Main UI component
