@@ -98,11 +98,13 @@ export function AssetGenerator() {
                     params={state.params}
                     setParams={state.setParams}
                     title="From"
+                    onRandomize={actions.randomizeParams}
                   />
                   <ParametersPanel
                     params={state.toParams}
                     setParams={state.setToParams}
                     title="To"
+                    onRandomize={actions.randomizeToParams}
                   />
                 </div>
               ) : (
@@ -118,6 +120,7 @@ export function AssetGenerator() {
                 allowCropping={state.allowCropping}
                 validCellSizes={state.validCellSizes}
                 fileInputRef={fileInputRef}
+                animationEnabled={state.animationEnabled}
               />
             </div>
 

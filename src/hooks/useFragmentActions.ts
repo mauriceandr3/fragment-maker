@@ -32,20 +32,26 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
 
   const { generateSVG } = generation;
 
+  const generateRandomParams = () => ({
+    threshold: Math.round(Math.random() * 100) / 100,
+    gamma: Math.round((0.5 + Math.random() * 2.5) * 10) / 10,
+    scale: 1.0,
+    frequency: Math.round((0.05 + Math.random() * 0.3) * 100) / 100,
+    contrast: Math.round((0.5 + Math.random() * 2) * 10) / 10,
+    seed: Math.round(Math.random() * 10000) / 10000,
+    directionalNeighbors: Math.floor(Math.random() * 89),
+    directionDensity: Math.floor(20 + Math.random() * 80),
+    fillAmount: Math.floor(10 + Math.random() * 80),
+    fillType: 'linear' as const,
+    invertFill: Math.random() > 0.5,
+  });
+
   const randomizeParams = () => {
-    setParams({
-      threshold: Math.round(Math.random() * 100) / 100,
-      gamma: Math.round((0.5 + Math.random() * 2.5) * 10) / 10,
-      scale: 1.0,
-      frequency: Math.round((0.05 + Math.random() * 0.3) * 100) / 100,
-      contrast: Math.round((0.5 + Math.random() * 2) * 10) / 10,
-      seed: Math.round(Math.random() * 10000) / 10000,
-      directionalNeighbors: Math.floor(Math.random() * 89),
-      directionDensity: Math.floor(20 + Math.random() * 80),
-      fillAmount: Math.floor(10 + Math.random() * 80),
-      fillType: 'linear',
-      invertFill: Math.random() > 0.5,
-    });
+    setParams(generateRandomParams());
+  };
+
+  const randomizeToParams = () => {
+    setToParams(generateRandomParams());
   };
 
   const resetToDefaults = () => {
@@ -338,6 +344,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
 
   return {
     randomizeParams,
+    randomizeToParams,
     resetToDefaults,
     exportToSVG,
     copyToClipboard,

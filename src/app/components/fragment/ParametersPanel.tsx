@@ -1,3 +1,4 @@
+import { Shuffle } from "lucide-react";
 import type { GeneratorParams } from "./types";
 
 type ParamsSetter = (params: GeneratorParams) => void;
@@ -6,6 +7,7 @@ interface ParametersPanelProps {
   params: GeneratorParams;
   setParams: ParamsSetter;
   title?: string;
+  onRandomize?: () => void;
 }
 
 function ParamSlider({ label, value, min, max, step, onChange }: {
@@ -36,10 +38,21 @@ function ParamSlider({ label, value, min, max, step, onChange }: {
   );
 }
 
-export function ParametersPanel({ params, setParams, title = "Parameters" }: ParametersPanelProps) {
+export function ParametersPanel({ params, setParams, title = "Parameters", onRandomize }: ParametersPanelProps) {
   return (
     <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">{title}</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
+        {onRandomize && (
+          <button
+            onClick={onRandomize}
+            className="group relative bg-black/40 hover:bg-white backdrop-blur-md border border-white/30 text-white hover:text-black p-2 rounded-lg flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
+            title="Randomize"
+          >
+            <Shuffle className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
       <ParamSlider
         label={`Density: ${params.threshold.toFixed(2)}`}

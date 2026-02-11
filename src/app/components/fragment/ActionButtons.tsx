@@ -7,24 +7,28 @@ interface ActionButtonsProps {
   allowCropping: boolean;
   validCellSizes: number[];
   fileInputRef: RefObject<HTMLInputElement | null>;
+  animationEnabled?: boolean;
 }
 
-export function ActionButtons({ actions, allowCropping, validCellSizes, fileInputRef }: ActionButtonsProps) {
+export function ActionButtons({ actions, allowCropping, validCellSizes, fileInputRef, animationEnabled }: ActionButtonsProps) {
   const isBlocked = !allowCropping && validCellSizes.length === 0;
 
   return (
     <>
       {/* Action Buttons */}
       <div className="flex gap-3">
-        <button
-          onClick={actions.randomizeParams}
-          className="group relative flex-1 bg-black/40 hover:bg-white backdrop-blur-md border border-white/30 text-white hover:text-black py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
-        >
-          <Shuffle className="w-5 h-5" />
-          <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity delay-500">
-            Generate Random
-          </span>
-        </button>
+        {/* Global Randomize button - hidden when animation enabled (per-panel buttons used instead) */}
+        {!animationEnabled && (
+          <button
+            onClick={actions.randomizeParams}
+            className="group relative flex-1 bg-black/40 hover:bg-white backdrop-blur-md border border-white/30 text-white hover:text-black py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
+          >
+            <Shuffle className="w-5 h-5" />
+            <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-white/20 text-white text-sm rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity delay-500">
+              Generate Random
+            </span>
+          </button>
+        )}
 
         <button
           onClick={actions.exportToSVG}

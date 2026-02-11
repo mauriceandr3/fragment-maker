@@ -119,3 +119,22 @@
 - Transition: `transition-all duration-300` for smooth width change
 - Grid container wraps From/To panels only when animation enabled
 - Single ParametersPanel shown when animation disabled
+
+## PRD-014 - Actions - Randomize [DONE]
+
+**Files changed:**
+- src/hooks/useFragmentActions.ts - extracted generateRandomParams(), added randomizeToParams action
+- src/app/components/fragment/ParametersPanel.tsx - added onRandomize prop, renders Shuffle button in header when provided
+- src/app/components/fragment/ActionButtons.tsx - added animationEnabled prop, conditionally hides global Randomize button
+- src/app/components/AssetGenerator.tsx - passes onRandomize to From/To panels, passes animationEnabled to ActionButtons
+
+**Key decisions:**
+- Extracted param generation to shared generateRandomParams() function (DRY)
+- Per-panel Randomize buttons appear in panel header next to title
+- Global Randomize button hidden via `{!animationEnabled && (...)}` conditional
+- When animation disabled, no onRandomize passed to ParametersPanel → no button shown
+
+**Notes for next iteration:**
+- PRD-007 (Initialization) - needs verification
+- PRD-010 (Hover Behavior) - needs verification
+- VM cannot run build/typecheck - needs manual verification on host machine

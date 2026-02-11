@@ -172,7 +172,7 @@
       "Click To Randomize — confirm only To params change, From params are preserved",
       "Disable animation — confirm the single global Randomize button returns"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-015",
