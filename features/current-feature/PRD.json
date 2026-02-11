@@ -44,7 +44,7 @@
       "Confirm adjusting any 'To' param updates the animation diff preview",
       "Confirm the 'To' panel is not visible when animation is disabled"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-005",

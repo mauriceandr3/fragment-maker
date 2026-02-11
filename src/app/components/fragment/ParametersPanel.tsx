@@ -1,8 +1,10 @@
 import type { GeneratorParams } from "./types";
 
+type ParamsSetter = (params: GeneratorParams) => void;
+
 interface ParametersPanelProps {
   params: GeneratorParams;
-  setParams: React.Dispatch<React.SetStateAction<GeneratorParams>>;
+  setParams: ParamsSetter;
   title?: string;
 }
 

@@ -91,6 +91,13 @@ export function AssetGenerator() {
                   setParams={state.setParams}
                   title={state.animationEnabled ? "From" : "Parameters"}
                 />
+                {state.animationEnabled && state.toParams && (
+                  <ParametersPanel
+                    params={state.toParams}
+                    setParams={state.setToParams}
+                    title="To"
+                  />
+                )}
                 <ActionButtons
                   actions={actions}
                   allowCropping={state.allowCropping}

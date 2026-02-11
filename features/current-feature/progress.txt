@@ -31,3 +31,19 @@
 **Notes for next iteration:**
 - PRD-004 (To Panel) is next - reuse ParametersPanel with title="To" and toParams state
 - PRD-002 (Colors position) already satisfied - Colors already above parameters in current layout
+
+## PRD-004 - UI - To Panel [DONE]
+
+**Files changed:**
+- src/app/components/AssetGenerator.tsx - added conditional render of second ParametersPanel for To params
+- src/app/components/fragment/ParametersPanel.tsx - changed setParams type to simple callback for compatibility with nullable state setter
+
+**Key decisions:**
+- Reuse existing ParametersPanel component with title="To"
+- Panel only renders when both animationEnabled and toParams are truthy
+- Changed ParametersPanelProps.setParams from Dispatch<SetStateAction<GeneratorParams>> to simple callback type (params: GeneratorParams) => void for compatibility with setToParams which handles nullable type
+
+**Notes for next iteration:**
+- PRD-007 (Initialization) logic already exists in useFragmentState - should verify behavior via UI
+- PRD-009 (SVG Generation) needed to actually see diff preview update
+- PRD-002 (Colors position) appears satisfied - Colors already above From/To panels in current layout
