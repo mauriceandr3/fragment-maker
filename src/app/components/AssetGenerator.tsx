@@ -86,7 +86,11 @@ export function AssetGenerator() {
                 <CanvasSettingsPanel state={state} />
                 <AnimationPanel state={state} />
                 <ColorsPanel state={state} />
-                <ParametersPanel params={state.params} setParams={state.setParams} />
+                <ParametersPanel
+                  params={state.params}
+                  setParams={state.setParams}
+                  title={state.animationEnabled ? "From" : "Parameters"}
+                />
                 <ActionButtons
                   actions={actions}
                   allowCropping={state.allowCropping}

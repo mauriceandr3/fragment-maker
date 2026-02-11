@@ -1,0 +1,33 @@
+# Animation Feature Progress
+
+## PRD-006 - State - To Generator Params [DONE]
+
+**Files changed:**
+- src/hooks/useFragmentState.ts - added toParams/setToParams state + debouncedToParams + initialization effect
+- src/lib/urlState.ts - added GeneratorParamsUrl type, to_* URL keys, serialization/deserialization
+
+**Key decisions:**
+- toParams type is GeneratorParams | null (null = uninitialized)
+- URL uses to_* prefix for all To param keys (e.g. to_t, to_f, to_s)
+- Initialization: copies from params, sets random frequency (0.01-0.50)
+- toParams persists across animation enable/disable (null only on first init)
+
+**Notes for next iteration:**
+- PRD-007 (Initialization) is partially done via the init effect, but UI needs To panel first
+- PRD-008 (Remove old seeds) should wait until new system fully working
+- Start with UI changes (PRD-003/004 for From/To panels) since state is ready
+
+## PRD-003 - UI - From Panel [DONE]
+
+**Files changed:**
+- src/app/components/fragment/ParametersPanel.tsx - added optional `title` prop, defaults to "Parameters"
+- src/app/components/AssetGenerator.tsx - pass title="From" when animationEnabled, else "Parameters"
+
+**Key decisions:**
+- Minimal change: just add title prop rather than creating separate FromPanel component
+- Title changes dynamically based on state.animationEnabled
+- All existing param controls remain unchanged (already has density, fill, gamma, frequency, contrast, directional neighbors, direction density)
+
+**Notes for next iteration:**
+- PRD-004 (To Panel) is next - reuse ParametersPanel with title="To" and toParams state
+- PRD-002 (Colors position) already satisfied - Colors already above parameters in current layout

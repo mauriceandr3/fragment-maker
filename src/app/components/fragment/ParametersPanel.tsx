@@ -3,6 +3,7 @@ import type { GeneratorParams } from "./types";
 interface ParametersPanelProps {
   params: GeneratorParams;
   setParams: React.Dispatch<React.SetStateAction<GeneratorParams>>;
+  title?: string;
 }
 
 function ParamSlider({ label, value, min, max, step, onChange }: {
@@ -33,10 +34,10 @@ function ParamSlider({ label, value, min, max, step, onChange }: {
   );
 }
 
-export function ParametersPanel({ params, setParams }: ParametersPanelProps) {
+export function ParametersPanel({ params, setParams, title = "Parameters" }: ParametersPanelProps) {
   return (
     <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Parameters</h2>
+      <h2 className="text-xl font-semibold mb-4 text-white">{title}</h2>
 
       <ParamSlider
         label={`Density: ${params.threshold.toFixed(2)}`}

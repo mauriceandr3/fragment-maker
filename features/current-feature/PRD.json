@@ -32,7 +32,7 @@
       "Confirm all generator param controls are present: density, fill amount, fill type, invert fill, gamma, frequency, contrast, directional neighbors, direction density",
       "Confirm adjusting any 'From' param updates the preview"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-004",
@@ -67,7 +67,7 @@
       "Confirm the 'From' params are not affected",
       "Confirm the diff SVG preview updates after debounce"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-007",
