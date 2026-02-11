@@ -47,10 +47,9 @@ Open http://localhost:5173 to use the interactive tool locally.
 | `invertFill` | boolean | Invert fill direction |
 | `foregroundColor` | hex string | Foreground color (supports alpha, e.g. `#ff000080`) |
 | `backgroundColor` | hex string | Background color (supports alpha) |
-| `cellSize` | 12-96 | Size of each fragment in pixels |
-| `canvasSize` | 1K, 2K, 4K | Canvas preset (1056px, 2112px, 4224px) |
-| `canvasWidth` | number | Explicit canvas width in pixels (alternative to `canvasSize`) |
-| `canvasHeight` | number | Explicit canvas height in pixels (alternative to `canvasSize`) |
+| `cellSize` | 2-200 | Size of each fragment in pixels |
+| `canvasWidth` | number | Canvas width in pixels (default: 1056) |
+| `canvasHeight` | number | Canvas height in pixels (default: 1056) |
 | `allowCropping` | boolean | Enable partial cells at edges |
 | `cropDirection` | width, height | Which axis to crop |
 
