@@ -8,6 +8,20 @@ import {
   DEFAULT_CELL_SIZE,
 } from './dimensionUtils';
 
+export interface GeneratorParamsUrl {
+  threshold: number;
+  gamma: number;
+  scale: number;
+  frequency: number;
+  contrast: number;
+  seed: number;
+  directionalNeighbors: number;
+  directionDensity: number;
+  fillAmount: number;
+  fillType: FillType;
+  invertFill: boolean;
+}
+
 export interface UrlSerializableState {
   threshold: number;
   gamma: number;
@@ -31,6 +45,7 @@ export interface UrlSerializableState {
   animationEnabled: boolean;
   animationSeedA: string;
   animationSeedB: string;
+  toParams: GeneratorParamsUrl | null;
 }
 
 // Short URL keys for each state field
@@ -57,6 +72,18 @@ const PARAM_KEYS = {
   animationEnabled: 'ae',
   animationSeedA: 'sa',
   animationSeedB: 'sb',
+  // To params (for animation)
+  toThreshold: 'to_t',
+  toGamma: 'to_g',
+  toScale: 'to_sc',
+  toFrequency: 'to_f',
+  toContrast: 'to_c',
+  toSeed: 'to_s',
+  toDirectionalNeighbors: 'to_dn',
+  toDirectionDensity: 'to_dd',
+  toFillAmount: 'to_fa',
+  toFillType: 'to_ft',
+  toInvertFill: 'to_if',
 } as const;
 
 // Defaults (seed excluded — it's random by nature)
@@ -82,6 +109,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   animationEnabled: false,
   animationSeedA: '',
   animationSeedB: '',
+  toParams: null,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -125,6 +153,22 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   if (state.animationEnabled) {
     addIfChanged(PARAM_KEYS.animationSeedA, state.animationSeedA, DEFAULTS.animationSeedA);
     addIfChanged(PARAM_KEYS.animationSeedB, state.animationSeedB, DEFAULTS.animationSeedB);
+  }
+
+  // To params (only when animation is enabled and toParams exists)
+  if (state.animationEnabled && state.toParams) {
+    const tp = state.toParams;
+    params.set(PARAM_KEYS.toThreshold, String(tp.threshold));
+    params.set(PARAM_KEYS.toGamma, String(tp.gamma));
+    params.set(PARAM_KEYS.toScale, String(tp.scale));
+    params.set(PARAM_KEYS.toFrequency, String(tp.frequency));
+    params.set(PARAM_KEYS.toContrast, String(tp.contrast));
+    params.set(PARAM_KEYS.toSeed, String(tp.seed));
+    params.set(PARAM_KEYS.toDirectionalNeighbors, String(tp.directionalNeighbors));
+    params.set(PARAM_KEYS.toDirectionDensity, String(tp.directionDensity));
+    params.set(PARAM_KEYS.toFillAmount, String(tp.fillAmount));
+    params.set(PARAM_KEYS.toFillType, tp.fillType);
+    params.set(PARAM_KEYS.toInvertFill, tp.invertFill ? '1' : '0');
   }
 
   return params.toString();
@@ -227,6 +271,28 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
 
   const sb = sp.get('sb');
   if (sb !== null) result.animationSeedB = sb;
+
+  // To params (for animation)
+  const toT = sp.get(PARAM_KEYS.toThreshold);
+  if (toT !== null) {
+    // If any toParam key exists, parse all of them
+    const toParams: GeneratorParamsUrl = {
+      threshold: clampNum(toT, 0, 1) ?? DEFAULTS.threshold,
+      gamma: clampNum(sp.get(PARAM_KEYS.toGamma), 0.1, 3) ?? DEFAULTS.gamma,
+      scale: clampNum(sp.get(PARAM_KEYS.toScale), 0.25, 1.0) ?? DEFAULTS.scale,
+      frequency: clampNum(sp.get(PARAM_KEYS.toFrequency), 0.01, 0.5) ?? DEFAULTS.frequency,
+      contrast: clampNum(sp.get(PARAM_KEYS.toContrast), 0.1, 3) ?? DEFAULTS.contrast,
+      seed: clampNum(sp.get(PARAM_KEYS.toSeed), 0, 1) ?? Math.random(),
+      directionalNeighbors: Math.floor(clampNum(sp.get(PARAM_KEYS.toDirectionalNeighbors), 0, 999) ?? DEFAULTS.directionalNeighbors),
+      directionDensity: Math.floor(clampNum(sp.get(PARAM_KEYS.toDirectionDensity), 0, 999) ?? DEFAULTS.directionDensity),
+      fillAmount: Math.floor(clampNum(sp.get(PARAM_KEYS.toFillAmount), 0, 100) ?? DEFAULTS.fillAmount),
+      fillType: (VALID_FILL_TYPES.includes(sp.get(PARAM_KEYS.toFillType) as FillType)
+        ? sp.get(PARAM_KEYS.toFillType) as FillType
+        : DEFAULTS.fillType),
+      invertFill: parseBool(sp.get(PARAM_KEYS.toInvertFill)) ?? DEFAULTS.invertFill,
+    };
+    result.toParams = toParams;
+  }
 
   return result;
 }

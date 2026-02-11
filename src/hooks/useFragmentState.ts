@@ -86,6 +86,13 @@ export function useFragmentState() {
   const [animationSeedA, setAnimationSeedA] = useState(initialUrlState.animationSeedA ?? '');
   const [animationSeedB, setAnimationSeedB] = useState(initialUrlState.animationSeedB ?? '');
 
+  // "To" params for animation (null when not initialized)
+  const [toParams, setToParams] = useState<GeneratorParams | null>(
+    initialUrlState.toParams ? {
+      ...initialUrlState.toParams,
+    } : null
+  );
+
   // --- Debounced state ---
   const [debouncedParams, setDebouncedParams] = useState(params);
   const [debouncedForeground, setDebouncedForeground] = useState(foregroundColor);
@@ -99,6 +106,7 @@ export function useFragmentState() {
   const [debouncedAnimationEnabled, setDebouncedAnimationEnabled] = useState(animationEnabled);
   const [debouncedAnimationSeedA, setDebouncedAnimationSeedA] = useState(animationSeedA);
   const [debouncedAnimationSeedB, setDebouncedAnimationSeedB] = useState(animationSeedB);
+  const [debouncedToParams, setDebouncedToParams] = useState<GeneratorParams | null>(toParams);
 
   // Debounce effects
   useEffect(() => {
@@ -149,6 +157,25 @@ export function useFragmentState() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animationEnabled]);
 
+  // Initialize toParams when animation is first enabled and no prior state exists
+  useEffect(() => {
+    if (animationEnabled && toParams === null) {
+      // Copy from current params, but give frequency a random value
+      const randomFrequency = 0.01 + Math.random() * (0.5 - 0.01);
+      setToParams({
+        ...params,
+        frequency: Math.round(randomFrequency * 100) / 100, // round to 2 decimal places
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationEnabled]);
+
+  // Debounce toParams
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedToParams(toParams), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [toParams]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedAnimationEnabled(animationEnabled);
@@ -183,6 +210,7 @@ export function useFragmentState() {
       animationEnabled: debouncedAnimationEnabled,
       animationSeedA: debouncedAnimationSeedA,
       animationSeedB: debouncedAnimationSeedB,
+      toParams: debouncedToParams,
     };
     updateUrlFromState(state);
   }, [
@@ -198,6 +226,7 @@ export function useFragmentState() {
     debouncedAnimationEnabled,
     debouncedAnimationSeedA,
     debouncedAnimationSeedB,
+    debouncedToParams,
   ]);
 
   // --- Derived values ---
@@ -243,6 +272,7 @@ export function useFragmentState() {
     animationEnabled, setAnimationEnabled,
     animationSeedA, setAnimationSeedA,
     animationSeedB, setAnimationSeedB,
+    toParams, setToParams,
     validCellSizes,
 
     // Debounced values
@@ -259,6 +289,7 @@ export function useFragmentState() {
       animationEnabled: debouncedAnimationEnabled,
       animationSeedA: debouncedAnimationSeedA,
       animationSeedB: debouncedAnimationSeedB,
+      toParams: debouncedToParams,
     },
 
     // Derived
