@@ -87,6 +87,17 @@ export interface GenerateFragmentDiffSvgOptions {
   config: FragmentConfig;
 }
 
+/**
+ * Options for generating a diff SVG from two full configurations.
+ * Used when animation is enabled and both From and To panels have independent params.
+ */
+export interface GenerateFragmentDiffFromConfigsOptions {
+  /** The "From" configuration (pattern shown by default) */
+  fromConfig: Omit<FragmentConfig, 'seedParam'>;
+  /** The "To" configuration (pattern shown on hover) */
+  toConfig: Omit<FragmentConfig, 'seedParam'>;
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -585,6 +596,70 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
       if (inA && inB) {
         svg += `<rect ${pos}/>`;
       } else if (inA) {
+        svg += `<rect ${pos} data-g="a"/>`;
+      } else {
+        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
+      }
+    }
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+/**
+ * Generates a diff SVG from two full configuration objects.
+ * Used when the From and To panels have independently configured generator params.
+ *
+ * The fromConfig provides the base pattern (shown by default).
+ * The toConfig provides the target pattern (shown on hover).
+ * Colors and canvas settings are taken from fromConfig (these are shared settings).
+ *
+ * Cells shared by both patterns are static. Cells unique to From get data-g="a" (visible, animate off).
+ * Cells unique to To get data-g="b" (hidden, animate on).
+ */
+export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFromConfigsOptions): string {
+  const { fromConfig, toConfig } = options;
+
+  // Use fromConfig for canvas/color settings (shared)
+  const dims = computeDimensions(fromConfig);
+  if (dims.cols <= 0 || dims.rows <= 0) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
+  }
+
+  const gridFrom = gridFromConfig(fromConfig, dims);
+  const gridTo = gridFromConfig(toConfig, dims);
+
+  const { cols, rows, width, height } = dims;
+  const { cellSize, foregroundColor, backgroundColor, allowCropping = false, cropDirection = 'height' } = fromConfig;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
+
+  for (let y = 0; y < Math.min(rows, gridFrom.length); y++) {
+    for (let x = 0; x < Math.min(cols, gridFrom[y]?.length || 0); x++) {
+      const inFrom = gridFrom[y][x];
+      const inTo = gridTo[y][x];
+      if (!inFrom && !inTo) continue;
+
+      let rectWidth = cellSize;
+      let rectHeight = cellSize;
+
+      if (allowCropping) {
+        if (cropDirection === 'width' && x === cols - 1) {
+          rectWidth = Math.min(cellSize, width - x * cellSize);
+        }
+        if (cropDirection === 'height' && y === rows - 1) {
+          rectHeight = Math.min(cellSize, height - y * cellSize);
+        }
+      }
+      if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
+
+      if (inFrom && inTo) {
+        svg += `<rect ${pos}/>`;
+      } else if (inFrom) {
         svg += `<rect ${pos} data-g="a"/>`;
       } else {
         svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;

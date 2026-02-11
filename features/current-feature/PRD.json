@@ -104,7 +104,7 @@
       "Confirm shared cells have no data-g attribute",
       "Hover over preview — confirm smooth transition between From and To patterns"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-010",

@@ -3,6 +3,7 @@ import {
   generateGridVariations,
   generateFragmentSvgDirect,
   generateFragmentDiffSvg,
+  generateFragmentDiffFromConfigs,
 } from "@/lib/generateFragmentSvgGrid";
 import { generateGrid as generateGridCore } from "@/lib/generateFragmentSvg";
 import type { FragmentState } from "./useFragmentState";
@@ -73,8 +74,57 @@ export function useFragmentGeneration(state: FragmentState) {
   }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection]);
 
   // Generate diff SVG for animation preview
+  // Uses the new dual-config approach when toParams is available,
+  // falls back to seed-based approach for backwards compatibility
   const diffSvg = useMemo(() => {
-    if (!debounced.animationEnabled || !debounced.animationSeedA || !debounced.animationSeedB) return '';
+    if (!debounced.animationEnabled) return '';
+
+    // Shared canvas/color settings for both configs
+    const sharedSettings = {
+      foregroundColor: displayForeground,
+      backgroundColor: displayBackground,
+      cellSize: debounced.cellSize,
+      canvasWidth: debounced.canvasWidth,
+      canvasHeight: debounced.canvasHeight,
+      allowCropping: debounced.allowCropping,
+      cropDirection: debounced.cropDirection,
+    };
+
+    // New approach: use full From/To configs when toParams is available
+    if (debounced.toParams) {
+      const fromConfig = {
+        threshold: debounced.params.threshold,
+        gamma: debounced.params.gamma,
+        frequency: debounced.params.frequency,
+        contrast: debounced.params.contrast,
+        seed: debounced.params.seed,
+        directionalNeighbors: debounced.params.directionalNeighbors,
+        directionDensity: debounced.params.directionDensity,
+        fillAmount: debounced.params.fillAmount,
+        fillType: debounced.params.fillType,
+        invertFill: debounced.params.invertFill,
+        ...sharedSettings,
+      };
+
+      const toConfig = {
+        threshold: debounced.toParams.threshold,
+        gamma: debounced.toParams.gamma,
+        frequency: debounced.toParams.frequency,
+        contrast: debounced.toParams.contrast,
+        seed: debounced.toParams.seed,
+        directionalNeighbors: debounced.toParams.directionalNeighbors,
+        directionDensity: debounced.toParams.directionDensity,
+        fillAmount: debounced.toParams.fillAmount,
+        fillType: debounced.toParams.fillType,
+        invertFill: debounced.toParams.invertFill,
+        ...sharedSettings,
+      };
+
+      return generateFragmentDiffFromConfigs({ fromConfig, toConfig });
+    }
+
+    // Legacy fallback: seed-based approach
+    if (!debounced.animationSeedA || !debounced.animationSeedB) return '';
     return generateFragmentDiffSvg({
       seedA: debounced.animationSeedA,
       seedB: debounced.animationSeedB,
@@ -89,13 +139,7 @@ export function useFragmentGeneration(state: FragmentState) {
         fillAmount: debounced.params.fillAmount,
         fillType: debounced.params.fillType,
         invertFill: debounced.params.invertFill,
-        foregroundColor: displayForeground,
-        backgroundColor: displayBackground,
-        cellSize: debounced.cellSize,
-        canvasWidth: debounced.canvasWidth,
-        canvasHeight: debounced.canvasHeight,
-        allowCropping: debounced.allowCropping,
-        cropDirection: debounced.cropDirection,
+        ...sharedSettings,
       },
     });
   }, [debounced, displayForeground, displayBackground]);
