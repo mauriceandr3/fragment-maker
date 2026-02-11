@@ -8,7 +8,7 @@
       "Confirm there are no seed text inputs or 'Randomize Seeds' button visible",
       "Confirm the checkbox still toggles animation on/off"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-002",
@@ -91,7 +91,7 @@
       "Search codebase for 'animationSeedA' and 'animationSeedB' — confirm they no longer exist in state management code",
       "Confirm the app builds without errors"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-009",
@@ -131,7 +131,7 @@
       "Confirm no 'animationEnabled', 'animationSeedA', or 'animationSeedB' fields exist anywhere",
       "Disable animation and export — confirm 'toConfig' is absent"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-012",
@@ -144,7 +144,7 @@
       "Import — confirm animation is disabled",
       "Create a legacy JSON with animationSeedA/animationSeedB fields — import it and confirm no crash"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-013",
@@ -157,7 +157,7 @@
       "Disable animation — confirm To param keys are removed from URL",
       "Confirm old 'sa' and 'sb' URL params are no longer used"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-014",
@@ -184,7 +184,7 @@
       "Confirm animation is disabled",
       "Confirm all params are back to defaults"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-016",

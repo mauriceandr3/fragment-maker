@@ -43,8 +43,6 @@ export interface UrlSerializableState {
   backgroundColor: string;
   invertColors: boolean;
   animationEnabled: boolean;
-  animationSeedA: string;
-  animationSeedB: string;
   toParams: GeneratorParamsUrl | null;
 }
 
@@ -70,8 +68,6 @@ const PARAM_KEYS = {
   backgroundColor: 'bg',
   invertColors: 'ic',
   animationEnabled: 'ae',
-  animationSeedA: 'sa',
-  animationSeedB: 'sb',
   // To params (for animation)
   toThreshold: 'to_t',
   toGamma: 'to_g',
@@ -107,8 +103,6 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   backgroundColor: '#000000',
   invertColors: false,
   animationEnabled: false,
-  animationSeedA: '',
-  animationSeedB: '',
   toParams: null,
 };
 
@@ -150,10 +144,6 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
 
   // Animation
   addIfChanged(PARAM_KEYS.animationEnabled, state.animationEnabled ? '1' : '0', DEFAULTS.animationEnabled ? '1' : '0');
-  if (state.animationEnabled) {
-    addIfChanged(PARAM_KEYS.animationSeedA, state.animationSeedA, DEFAULTS.animationSeedA);
-    addIfChanged(PARAM_KEYS.animationSeedB, state.animationSeedB, DEFAULTS.animationSeedB);
-  }
 
   // To params (only when animation is enabled and toParams exists)
   if (state.animationEnabled && state.toParams) {
@@ -265,12 +255,6 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   // Animation
   const ae = parseBool(sp.get('ae'));
   if (ae !== undefined) result.animationEnabled = ae;
-
-  const sa = sp.get('sa');
-  if (sa !== null) result.animationSeedA = sa;
-
-  const sb = sp.get('sb');
-  if (sb !== null) result.animationSeedB = sb;
 
   // To params (for animation)
   const toT = sp.get(PARAM_KEYS.toThreshold);

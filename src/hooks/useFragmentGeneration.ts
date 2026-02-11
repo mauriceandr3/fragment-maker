@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback, useDeferredValue } from "rea
 import {
   generateGridVariations,
   generateFragmentSvgDirect,
-  generateFragmentDiffSvg,
   generateFragmentDiffFromConfigs,
 } from "@/lib/generateFragmentSvgGrid";
 import { generateGrid as generateGridCore } from "@/lib/generateFragmentSvg";
@@ -73,11 +72,9 @@ export function useFragmentGeneration(state: FragmentState) {
     return generateFragmentSvgDirect(config);
   }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection]);
 
-  // Generate diff SVG for animation preview
-  // Uses the new dual-config approach when toParams is available,
-  // falls back to seed-based approach for backwards compatibility
+  // Generate diff SVG for animation preview using dual-config approach
   const diffSvg = useMemo(() => {
-    if (!debounced.animationEnabled) return '';
+    if (!debounced.animationEnabled || !debounced.toParams) return '';
 
     // Shared canvas/color settings for both configs
     const sharedSettings = {
@@ -90,58 +87,35 @@ export function useFragmentGeneration(state: FragmentState) {
       cropDirection: debounced.cropDirection,
     };
 
-    // New approach: use full From/To configs when toParams is available
-    if (debounced.toParams) {
-      const fromConfig = {
-        threshold: debounced.params.threshold,
-        gamma: debounced.params.gamma,
-        frequency: debounced.params.frequency,
-        contrast: debounced.params.contrast,
-        seed: debounced.params.seed,
-        directionalNeighbors: debounced.params.directionalNeighbors,
-        directionDensity: debounced.params.directionDensity,
-        fillAmount: debounced.params.fillAmount,
-        fillType: debounced.params.fillType,
-        invertFill: debounced.params.invertFill,
-        ...sharedSettings,
-      };
+    const fromConfig = {
+      threshold: debounced.params.threshold,
+      gamma: debounced.params.gamma,
+      frequency: debounced.params.frequency,
+      contrast: debounced.params.contrast,
+      seed: debounced.params.seed,
+      directionalNeighbors: debounced.params.directionalNeighbors,
+      directionDensity: debounced.params.directionDensity,
+      fillAmount: debounced.params.fillAmount,
+      fillType: debounced.params.fillType,
+      invertFill: debounced.params.invertFill,
+      ...sharedSettings,
+    };
 
-      const toConfig = {
-        threshold: debounced.toParams.threshold,
-        gamma: debounced.toParams.gamma,
-        frequency: debounced.toParams.frequency,
-        contrast: debounced.toParams.contrast,
-        seed: debounced.toParams.seed,
-        directionalNeighbors: debounced.toParams.directionalNeighbors,
-        directionDensity: debounced.toParams.directionDensity,
-        fillAmount: debounced.toParams.fillAmount,
-        fillType: debounced.toParams.fillType,
-        invertFill: debounced.toParams.invertFill,
-        ...sharedSettings,
-      };
+    const toConfig = {
+      threshold: debounced.toParams.threshold,
+      gamma: debounced.toParams.gamma,
+      frequency: debounced.toParams.frequency,
+      contrast: debounced.toParams.contrast,
+      seed: debounced.toParams.seed,
+      directionalNeighbors: debounced.toParams.directionalNeighbors,
+      directionDensity: debounced.toParams.directionDensity,
+      fillAmount: debounced.toParams.fillAmount,
+      fillType: debounced.toParams.fillType,
+      invertFill: debounced.toParams.invertFill,
+      ...sharedSettings,
+    };
 
-      return generateFragmentDiffFromConfigs({ fromConfig, toConfig });
-    }
-
-    // Legacy fallback: seed-based approach
-    if (!debounced.animationSeedA || !debounced.animationSeedB) return '';
-    return generateFragmentDiffSvg({
-      seedA: debounced.animationSeedA,
-      seedB: debounced.animationSeedB,
-      config: {
-        threshold: debounced.params.threshold,
-        gamma: debounced.params.gamma,
-        frequency: debounced.params.frequency,
-        contrast: debounced.params.contrast,
-        seed: debounced.params.seed,
-        directionalNeighbors: debounced.params.directionalNeighbors,
-        directionDensity: debounced.params.directionDensity,
-        fillAmount: debounced.params.fillAmount,
-        fillType: debounced.params.fillType,
-        invertFill: debounced.params.invertFill,
-        ...sharedSettings,
-      },
-    });
+    return generateFragmentDiffFromConfigs({ fromConfig, toConfig });
   }, [debounced, displayForeground, displayBackground]);
 
   // Grid view variations

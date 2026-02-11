@@ -22,11 +22,11 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setWidthInputError, setHeightInputError,
     setAllowCropping, setCropDirection, setInvertColors,
     setParams,
-    setAnimationEnabled, setAnimationSeedA, setAnimationSeedB,
+    setAnimationEnabled,
+    setToParams,
     clearUrlParams,
     foregroundColor, backgroundColor, cellSize,
     canvasWidth, canvasHeight, allowCropping, cropDirection,
-    animationEnabled, animationSeedA, animationSeedB,
     params,
   } = state;
 
@@ -72,8 +72,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
       invertFill: false,
     });
     setAnimationEnabled(false);
-    setAnimationSeedA('');
-    setAnimationSeedB('');
+    setToParams(null);
     clearUrlParams();
   };
 
@@ -116,6 +115,8 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   };
 
   const exportSettingsAsJson = () => {
+    const { animationEnabled, toParams } = state;
+
     const exportData: {
       version: string;
       exportedAt: string;
@@ -137,9 +138,25 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         canvasHeight: number;
         allowCropping: boolean;
         cropDirection?: 'width' | 'height';
-        animationEnabled?: boolean;
-        animationSeedA?: string;
-        animationSeedB?: string;
+      };
+      toConfig?: {
+        threshold: number;
+        gamma: number;
+        frequency: number;
+        contrast: number;
+        seed: number;
+        directionalNeighbors: number;
+        directionDensity: number;
+        fillAmount: number;
+        fillType: FillType;
+        invertFill: boolean;
+        foregroundColor: string;
+        backgroundColor: string;
+        cellSize: number;
+        canvasWidth: number;
+        canvasHeight: number;
+        allowCropping: boolean;
+        cropDirection?: 'width' | 'height';
       };
     } = {
       version: '2.0.0',
@@ -162,8 +179,30 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         canvasHeight,
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
-        ...(animationEnabled ? { animationEnabled, animationSeedA, animationSeedB } : {}),
       },
+      // Include toConfig when animation is enabled (presence implies animation enabled)
+      ...(animationEnabled && toParams ? {
+        toConfig: {
+          threshold: toParams.threshold,
+          gamma: toParams.gamma,
+          frequency: toParams.frequency,
+          contrast: toParams.contrast,
+          seed: toParams.seed,
+          directionalNeighbors: toParams.directionalNeighbors,
+          directionDensity: toParams.directionDensity,
+          fillAmount: toParams.fillAmount,
+          fillType: toParams.fillType,
+          invertFill: toParams.invertFill,
+          // Shared settings (included for type consistency)
+          foregroundColor,
+          backgroundColor,
+          cellSize,
+          canvasWidth,
+          canvasHeight,
+          allowCropping,
+          ...(allowCropping ? { cropDirection } : {}),
+        },
+      } : {}),
     };
 
     const json = JSON.stringify(exportData, null, 2);
@@ -266,14 +305,26 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           invertFill: typeof config.invertFill === 'boolean' ? config.invertFill : false,
         }));
 
-        if (typeof config.animationEnabled === 'boolean') {
-          setAnimationEnabled(config.animationEnabled);
-        }
-        if (typeof config.animationSeedA === 'string') {
-          setAnimationSeedA(config.animationSeedA);
-        }
-        if (typeof config.animationSeedB === 'string') {
-          setAnimationSeedB(config.animationSeedB);
+        // Handle toConfig (new format) - presence implies animation enabled
+        if (data.toConfig && typeof data.toConfig === 'object') {
+          setAnimationEnabled(true);
+          setToParams({
+            threshold: clamp(data.toConfig.threshold, 0, 1, 0.5),
+            gamma: clamp(data.toConfig.gamma, 0.1, 3, 1.0),
+            scale: 0.5, // toConfig doesn't have scale, use default
+            frequency: clamp(data.toConfig.frequency, 0.01, 0.5, 0.1),
+            contrast: clamp(data.toConfig.contrast, 0.1, 3, 1.0),
+            seed: clamp(data.toConfig.seed, 0, 1, Math.round(Math.random() * 10000) / 10000),
+            directionalNeighbors: Math.floor(clamp(data.toConfig.directionalNeighbors, 0, 999, 8)),
+            directionDensity: Math.floor(clamp(data.toConfig.directionDensity, 0, 999, 50)),
+            fillAmount: Math.floor(clamp(data.toConfig.fillAmount, 0, 100, 50)),
+            fillType: validFillTypes.includes(data.toConfig.fillType) ? data.toConfig.fillType : 'linear',
+            invertFill: typeof data.toConfig.invertFill === 'boolean' ? data.toConfig.invertFill : false,
+          });
+        } else {
+          // No toConfig = animation disabled
+          setAnimationEnabled(false);
+          // Note: Legacy animationSeedA/animationSeedB fields are ignored gracefully
         }
 
       } catch {

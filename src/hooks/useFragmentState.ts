@@ -83,8 +83,6 @@ export function useFragmentState() {
 
   // Animation preview state
   const [animationEnabled, setAnimationEnabled] = useState(initialUrlState.animationEnabled ?? false);
-  const [animationSeedA, setAnimationSeedA] = useState(initialUrlState.animationSeedA ?? '');
-  const [animationSeedB, setAnimationSeedB] = useState(initialUrlState.animationSeedB ?? '');
 
   // "To" params for animation (null when not initialized)
   const [toParams, setToParams] = useState<GeneratorParams | null>(
@@ -104,8 +102,6 @@ export function useFragmentState() {
   const [debouncedAllowCropping, setDebouncedAllowCropping] = useState(allowCropping);
   const [debouncedCropDirection, setDebouncedCropDirection] = useState(cropDirection);
   const [debouncedAnimationEnabled, setDebouncedAnimationEnabled] = useState(animationEnabled);
-  const [debouncedAnimationSeedA, setDebouncedAnimationSeedA] = useState(animationSeedA);
-  const [debouncedAnimationSeedB, setDebouncedAnimationSeedB] = useState(animationSeedB);
   const [debouncedToParams, setDebouncedToParams] = useState<GeneratorParams | null>(toParams);
 
   // Debounce effects
@@ -148,15 +144,6 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [allowCropping, cropDirection]);
 
-  // Auto-generate random seeds when animation is first enabled
-  useEffect(() => {
-    if (animationEnabled) {
-      if (!animationSeedA) setAnimationSeedA(`seed-${Math.random().toString(36).slice(2, 8)}`);
-      if (!animationSeedB) setAnimationSeedB(`seed-${Math.random().toString(36).slice(2, 8)}`);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animationEnabled]);
-
   // Initialize toParams when animation is first enabled and no prior state exists
   useEffect(() => {
     if (animationEnabled && toParams === null) {
@@ -177,13 +164,9 @@ export function useFragmentState() {
   }, [toParams]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedAnimationEnabled(animationEnabled);
-      setDebouncedAnimationSeedA(animationSeedA);
-      setDebouncedAnimationSeedB(animationSeedB);
-    }, DEBOUNCE_DELAY);
+    const timer = setTimeout(() => setDebouncedAnimationEnabled(animationEnabled), DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
-  }, [animationEnabled, animationSeedA, animationSeedB]);
+  }, [animationEnabled]);
 
   // --- URL sync ---
   useEffect(() => {
@@ -208,8 +191,6 @@ export function useFragmentState() {
       backgroundColor: debouncedBackground,
       invertColors: debouncedInvertColors,
       animationEnabled: debouncedAnimationEnabled,
-      animationSeedA: debouncedAnimationSeedA,
-      animationSeedB: debouncedAnimationSeedB,
       toParams: debouncedToParams,
     };
     updateUrlFromState(state);
@@ -224,8 +205,6 @@ export function useFragmentState() {
     debouncedBackground,
     debouncedInvertColors,
     debouncedAnimationEnabled,
-    debouncedAnimationSeedA,
-    debouncedAnimationSeedB,
     debouncedToParams,
   ]);
 
@@ -270,8 +249,6 @@ export function useFragmentState() {
     isCollapsed, setIsCollapsed,
     viewMode, setViewMode,
     animationEnabled, setAnimationEnabled,
-    animationSeedA, setAnimationSeedA,
-    animationSeedB, setAnimationSeedB,
     toParams, setToParams,
     validCellSizes,
 
@@ -287,8 +264,6 @@ export function useFragmentState() {
       allowCropping: debouncedAllowCropping,
       cropDirection: debouncedCropDirection,
       animationEnabled: debouncedAnimationEnabled,
-      animationSeedA: debouncedAnimationSeedA,
-      animationSeedB: debouncedAnimationSeedB,
       toParams: debouncedToParams,
     },
 
