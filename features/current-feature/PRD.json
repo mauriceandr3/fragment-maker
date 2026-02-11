@@ -1,0 +1,202 @@
+[
+  {
+    "id": "PRD-001",
+    "category": "UI - Animation Panel",
+    "description": "Remove the Seed A / Seed B text inputs and the 'Randomize Seeds' button from the AnimationPanel when animation is enabled. The checkbox 'Preview animation on hover' remains.",
+    "stepsToVerify": [
+      "Enable 'Preview animation on hover'",
+      "Confirm there are no seed text inputs or 'Randomize Seeds' button visible",
+      "Confirm the checkbox still toggles animation on/off"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-002",
+    "category": "UI - Colors Panel Position",
+    "description": "Move the Colors panel to be a shared settings section (above the From/To panels, below Animation Preview), similar to how Canvas Settings is shared. Colors are not duplicated per-panel.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Confirm the Colors panel appears above the From/To panels as shared settings",
+      "Confirm Colors is NOT duplicated inside the From or To panels",
+      "Confirm color changes affect both the From and To pattern preview"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-003",
+    "category": "UI - From Panel",
+    "description": "When animation is enabled, the existing Parameters panel gets the title 'From' and contains all generator params: density (threshold), gamma, frequency, contrast, seed (not exposed as text input — it's the numeric seed slider), directional neighbors, direction density, fill amount, fill type, and invert fill.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Confirm the parameters panel is titled 'From'",
+      "Confirm all generator param controls are present: density, fill amount, fill type, invert fill, gamma, frequency, contrast, directional neighbors, direction density",
+      "Confirm adjusting any 'From' param updates the preview"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-004",
+    "category": "UI - To Panel",
+    "description": "When animation is enabled, a second parameters panel titled 'To' appears beside (or below) the 'From' panel. It contains the same generator param controls as the From panel: density, gamma, frequency, contrast, seed, directional neighbors, direction density, fill amount, fill type, invert fill.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Confirm a 'To' panel appears with all generator param controls",
+      "Confirm adjusting any 'To' param updates the animation diff preview",
+      "Confirm the 'To' panel is not visible when animation is disabled"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-005",
+    "category": "UI - Shared Canvas Settings",
+    "description": "Canvas settings (width, height, cell size, cropping) remain shared and are NOT duplicated in the From or To panels. Both patterns use the same grid dimensions.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Confirm canvas settings appear only once (not in From or To panels)",
+      "Change canvas width — confirm both From and To patterns reflect the new dimensions"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-006",
+    "category": "State - To Generator Params",
+    "description": "Add state management for a full set of 'To' generator params (GeneratorParams type: threshold, gamma, frequency, contrast, seed, directionalNeighbors, directionDensity, fillAmount, fillType, invertFill). This state is independent from the 'From' params. Include debounced versions for generation and URL sync.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Change a 'To' param (e.g., frequency slider)",
+      "Confirm the 'From' params are not affected",
+      "Confirm the diff SVG preview updates after debounce"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-007",
+    "category": "State - Initialization",
+    "description": "When the user first enables animation and no prior 'To' state exists, all 'To' generator params are initialized as a copy of the current 'From' params, EXCEPT for the frequency param, which gets a random value within its valid range (0.01–0.50). The 'To' state persists across animation enable/disable toggles — disabling and re-enabling animation does NOT reset the 'To' params.",
+    "stepsToVerify": [
+      "Set specific 'From' params (e.g., density=0.7, gamma=2.0)",
+      "Enable animation preview",
+      "Confirm 'To' params match 'From' params except frequency",
+      "Confirm 'To' frequency is a random value different from 'From' frequency",
+      "Adjust a 'To' param (e.g., change density to 0.3)",
+      "Disable animation, then re-enable — confirm the adjusted 'To' params are preserved (density is still 0.3)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-008",
+    "category": "State - Remove Old Animation Seeds",
+    "description": "Remove the animationSeedA, animationSeedB state variables and their debounced counterparts from useFragmentState. They are fully replaced by the 'To' params state.",
+    "stepsToVerify": [
+      "Search codebase for 'animationSeedA' and 'animationSeedB' — confirm they no longer exist in state management code",
+      "Confirm the app builds without errors"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-009",
+    "category": "SVG Generation - Dual Config",
+    "description": "Update generateFragmentDiffSvg to accept two full config objects (From and To) instead of seedA/seedB + single config. Generate two independent grids — one per config. Combine into a single SVG using the existing data-g attribute scheme: shared cells have no data-g, from-only cells get data-g='a', to-only cells get data-g='b' (opacity:0). Use the shared foreground/background colors for all rendering.",
+    "stepsToVerify": [
+      "Enable animation preview with different From/To params",
+      "Confirm the SVG shows a diff pattern (some cells animate on hover)",
+      "Inspect SVG markup — confirm data-g='a' and data-g='b' attributes exist on differing cells",
+      "Confirm shared cells have no data-g attribute",
+      "Hover over preview — confirm smooth transition between From and To patterns"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-010",
+    "category": "Animation - Hover Behavior Unchanged",
+    "description": "The useFragmentReveal hook continues to work without modification. It selects rects by data-g='a' and data-g='b' attributes and toggles opacity on hover, same as before.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Hover over the preview — confirm pattern transitions from 'From' to 'To'",
+      "Move mouse away — confirm pattern transitions back to 'From'",
+      "Confirm animation is smooth (batched frame-based reveal)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-011",
+    "category": "Export - JSON Format",
+    "description": "When animation is enabled, the exported JSON includes a top-level 'toConfig' field alongside 'config'. 'config' retains its name (not renamed to 'fromConfig'). 'toConfig' is a complete config object with the same shape as 'config' — it contains all generator params, colors, and canvas settings. Colors and canvas settings in 'toConfig' will mirror the shared values (since those are shared), but they are included for type consistency. On import, canvas/color settings from 'toConfig' are ignored in favor of 'config'. The old animationEnabled/animationSeedA/animationSeedB fields are removed from the export. The presence of 'toConfig' implies animation is enabled.",
+    "stepsToVerify": [
+      "Enable animation preview with distinct From/To params",
+      "Export settings as JSON",
+      "Open exported file — confirm 'config' field exists with From generator params",
+      "Confirm 'toConfig' field exists with To generator params",
+      "Confirm 'toConfig' has the same shape as 'config' (complete config object)",
+      "Confirm no 'animationEnabled', 'animationSeedA', or 'animationSeedB' fields exist anywhere",
+      "Disable animation and export — confirm 'toConfig' is absent"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-012",
+    "category": "Import - JSON Format",
+    "description": "When importing a JSON file, if 'toConfig' is present, enable animation and populate the 'To' params from it. If 'toConfig' is absent, animation is disabled. Support backward compatibility: if the old animationSeedA/animationSeedB fields are present (legacy format), ignore them gracefully (do not crash).",
+    "stepsToVerify": [
+      "Export settings with animation enabled",
+      "Import the exported file — confirm animation is enabled and To params are restored correctly",
+      "Export settings with animation disabled",
+      "Import — confirm animation is disabled",
+      "Create a legacy JSON with animationSeedA/animationSeedB fields — import it and confirm no crash"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-013",
+    "category": "URL State - To Params Serialization",
+    "description": "Serialize the 'To' generator params to the URL when animation is enabled. Use prefixed param keys (e.g., 'to_th' for to-threshold, 'to_fr' for to-frequency, etc.) to distinguish from 'From' params. Remove old 'sa' (seedA) and 'sb' (seedB) URL params.",
+    "stepsToVerify": [
+      "Enable animation and adjust To params",
+      "Check URL — confirm To params are serialized with distinct keys",
+      "Copy URL and open in new tab — confirm both From and To params are restored",
+      "Disable animation — confirm To param keys are removed from URL",
+      "Confirm old 'sa' and 'sb' URL params are no longer used"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-014",
+    "category": "Actions - Randomize",
+    "description": "When animation is enabled, the global 'Randomize' action button is removed. Instead, each panel (From and To) gets its own Randomize button that only randomizes that panel's generator params. When animation is disabled, the single Randomize button works as before.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Confirm the global Randomize button is not visible",
+      "Confirm the From panel has its own Randomize button",
+      "Click From Randomize — confirm only From params change, To params are preserved",
+      "Confirm the To panel has its own Randomize button",
+      "Click To Randomize — confirm only To params change, From params are preserved",
+      "Disable animation — confirm the single global Randomize button returns"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-015",
+    "category": "Actions - Reset to Defaults",
+    "description": "The 'Reset to Defaults' action resets both From and To params, disables animation, and clears the To state.",
+    "stepsToVerify": [
+      "Enable animation and adjust both From and To params",
+      "Click Reset to Defaults",
+      "Confirm animation is disabled",
+      "Confirm all params are back to defaults"
+    ],
+    "passes": false
+  },
+  {
+    "id": "PRD-016",
+    "category": "UI - Sidebar Layout",
+    "description": "When animation is enabled, the sidebar expands to accommodate side-by-side From/To panels. The shared sections (Canvas Settings, Animation Preview, Colors) remain full-width at the top. The From and To panels appear as two columns below the shared sections. When animation is disabled, the sidebar returns to its normal width. Reference img1.png for the target layout.",
+    "stepsToVerify": [
+      "Enable animation preview",
+      "Confirm the sidebar is wider than normal to fit two columns",
+      "Confirm From and To panels appear side-by-side",
+      "Confirm shared sections (Canvas Settings, Colors) span the full sidebar width above the From/To columns",
+      "Disable animation — confirm the sidebar returns to its normal width"
+    ],
+    "passes": false
+  }
+]
