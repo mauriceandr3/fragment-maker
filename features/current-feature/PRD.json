@@ -1,275 +1,201 @@
 [
   {
     "id": "PRD-001",
-    "category": "Remove Aspect Ratio Control",
-    "description": "Remove the aspect ratio preset selector (1:1, 4:3, 3:2, 16:9, 9:16, Custom buttons) from the Canvas Settings panel.",
+    "category": "UI - Animation Panel",
+    "description": "Remove the Seed A / Seed B text inputs and the 'Randomize Seeds' button from the AnimationPanel when animation is enabled. The checkbox 'Preview animation on hover' remains.",
     "stepsToVerify": [
-      "Open the Fragment Generator UI.",
-      "Inspect the Canvas Settings section.",
-      "Confirm there are no aspect ratio preset buttons anywhere in the controls."
+      "Enable 'Preview animation on hover'",
+      "Confirm there are no seed text inputs or 'Randomize Seeds' button visible",
+      "Confirm the checkbox still toggles animation on/off"
     ],
     "passes": true
   },
   {
     "id": "PRD-002",
-    "category": "Remove Aspect Ratio Control",
-    "description": "Remove the custom aspect ratio width/height inputs and all associated state (aspectRatioPreset, customAspectRatio, customRatioWidthInput, customRatioHeightInput, customRatioWidthError, customRatioHeightError, currentAspectRatio).",
+    "category": "UI - Colors Panel Position",
+    "description": "Move the Colors panel to be a shared settings section (above the From/To panels, below Animation Preview), similar to how Canvas Settings is shared. Colors are not duplicated per-panel.",
     "stepsToVerify": [
-      "Search the codebase for 'aspectRatio', 'customRatio', 'AspectRatio' references.",
-      "Confirm no aspect-ratio-related state, types, or UI elements remain in AssetGenerator.tsx.",
-      "Confirm no aspect-ratio-related utilities remain in dimensionUtils.ts (e.g. calculateHeight, validateAspectRatioValue)."
+      "Enable animation preview",
+      "Confirm the Colors panel appears above the From/To panels as shared settings",
+      "Confirm Colors is NOT duplicated inside the From or To panels",
+      "Confirm color changes affect both the From and To pattern preview"
     ],
     "passes": true
   },
   {
     "id": "PRD-003",
-    "category": "Independent Width and Height",
-    "description": "Make the Height field an editable number input (currently it is read-only/disabled and auto-calculated from width and aspect ratio).",
+    "category": "UI - From Panel",
+    "description": "When animation is enabled, the existing Parameters panel gets the title 'From' and contains all generator params: density (threshold), gamma, frequency, contrast, seed (not exposed as text input — it's the numeric seed slider), directional neighbors, direction density, fill amount, fill type, and invert fill.",
     "stepsToVerify": [
-      "Open the Fragment Generator UI.",
-      "Locate the Height input field in Canvas Settings.",
-      "Confirm it is an editable text/number input, not disabled or read-only.",
-      "Type a value (e.g. 500) and confirm it is accepted."
+      "Enable animation preview",
+      "Confirm the parameters panel is titled 'From'",
+      "Confirm all generator param controls are present: density, fill amount, fill type, invert fill, gamma, frequency, contrast, directional neighbors, direction density",
+      "Confirm adjusting any 'From' param updates the preview"
     ],
     "passes": true
   },
   {
     "id": "PRD-004",
-    "category": "Independent Width and Height",
-    "description": "Both Width and Height accept integer values in the range 64-4096 px with the same validation behavior (clamp/error) as the current width input.",
+    "category": "UI - To Panel",
+    "description": "When animation is enabled, a second parameters panel titled 'To' appears beside (or below) the 'From' panel. It contains the same generator param controls as the From panel: density, gamma, frequency, contrast, seed, directional neighbors, direction density, fill amount, fill type, invert fill.",
     "stepsToVerify": [
-      "Enter 63 in Width - confirm it is rejected or clamped to 64.",
-      "Enter 4097 in Width - confirm it is rejected or clamped to 4096.",
-      "Enter 63 in Height - confirm it is rejected or clamped to 64.",
-      "Enter 4097 in Height - confirm it is rejected or clamped to 4096.",
-      "Enter a decimal (e.g. 100.5) in either field - confirm it is floored to an integer.",
-      "Enter a valid value (e.g. 512) in either field - confirm it is accepted without error."
+      "Enable animation preview",
+      "Confirm a 'To' panel appears with all generator param controls",
+      "Confirm adjusting any 'To' param updates the animation diff preview",
+      "Confirm the 'To' panel is not visible when animation is disabled"
     ],
     "passes": true
   },
   {
     "id": "PRD-005",
-    "category": "Independent Width and Height",
-    "description": "Width and Height are fully independent - changing one does NOT affect the other. This applies in ALL modes, including when 'Allow cropping' is enabled. Canvas dimensions are always exactly what the user entered.",
+    "category": "UI - Shared Canvas Settings",
+    "description": "Canvas settings (width, height, cell size, cropping) remain shared and are NOT duplicated in the From or To panels. Both patterns use the same grid dimensions.",
     "stepsToVerify": [
-      "Set Width to 800 and Height to 600.",
-      "Change Width to 1024 - confirm Height remains 600.",
-      "Change Height to 768 - confirm Width remains 1024.",
-      "Enable 'Allow cropping', set cell size to 37 - confirm Width and Height input fields remain unchanged."
+      "Enable animation preview",
+      "Confirm canvas settings appear only once (not in From or To panels)",
+      "Change canvas width — confirm both From and To patterns reflect the new dimensions"
     ],
     "passes": true
   },
   {
     "id": "PRD-006",
-    "category": "Independent Width and Height",
-    "description": "Default dimensions on load remain the current defaults (1000x1000).",
+    "category": "State - To Generator Params",
+    "description": "Add state management for a full set of 'To' generator params (GeneratorParams type: threshold, gamma, frequency, contrast, seed, directionalNeighbors, directionDensity, fillAmount, fillType, invertFill). This state is independent from the 'From' params. Include debounced versions for generation and URL sync.",
     "stepsToVerify": [
-      "Reload the application.",
-      "Confirm Width is 1000 and Height is 1000."
+      "Enable animation preview",
+      "Change a 'To' param (e.g., frequency slider)",
+      "Confirm the 'From' params are not affected",
+      "Confirm the diff SVG preview updates after debounce"
     ],
     "passes": true
   },
   {
     "id": "PRD-007",
-    "category": "Dynamic Valid Cell Size Buttons",
-    "description": "When dimensions change, calculate GCD(width, height) and find all divisors of that GCD that are >= dynamicMin and <= 200. The dynamic minimum is max(2, ceil(max(width, height) * 0.01)). Display these as selectable buttons. Buttons wrap naturally within the control panel (no scrolling needed for typical cases of up to ~16 buttons).",
+    "category": "State - Initialization",
+    "description": "When the user first enables animation and no prior 'To' state exists, all 'To' generator params are initialized as a copy of the current 'From' params, EXCEPT for the frequency param, which gets a random value within its valid range (0.01–0.50). The 'To' state persists across animation enable/disable toggles — disabling and re-enabling animation does NOT reset the 'To' params.",
     "stepsToVerify": [
-      "Set dimensions to 200x350 (dynamicMin = max(2, ceil(350*0.01)) = 4).",
-      "Confirm the available cell size buttons are exactly: 5, 10, 25, 50 (divisors of GCD=50 that are >= 4 and <= 200).",
-      "Set dimensions to 1000x1000 (dynamicMin = 10).",
-      "Confirm the divisors of GCD(1000,1000)=1000 that are >= 10 and <= 200 are shown (10, 20, 25, 40, 50, 100, 125, 200).",
-      "Confirm divisors < 10 (1, 2, 4, 5, 8) and > 200 (250, 500, 1000) are NOT shown."
+      "Set specific 'From' params (e.g., density=0.7, gamma=2.0)",
+      "Enable animation preview",
+      "Confirm 'To' params match 'From' params except frequency",
+      "Confirm 'To' frequency is a random value different from 'From' frequency",
+      "Adjust a 'To' param (e.g., change density to 0.3)",
+      "Disable animation, then re-enable — confirm the adjusted 'To' params are preserved (density is still 0.3)"
     ],
     "passes": true
   },
   {
     "id": "PRD-008",
-    "category": "Dynamic Valid Cell Size Buttons",
-    "description": "Minimum cell size is dynamic: max(2, ceil(max(width, height) * 0.01)) — roughly 1% of the largest dimension, with a floor of 2px. Divisors below this dynamic minimum are excluded from the valid set to prevent performance issues with extremely small cells.",
+    "category": "State - Remove Old Animation Seeds",
+    "description": "Remove the animationSeedA, animationSeedB state variables and their debounced counterparts from useFragmentState. They are fully replaced by the 'To' params state.",
     "stepsToVerify": [
-      "Set dimensions to 200x350 (dynamicMin = 4). Confirm smallest visible button is 5px (divisors of 50 >= 4).",
-      "Set dimensions to 1000x1000 (dynamicMin = 10). Confirm smallest visible button is 10px.",
-      "Set dimensions to 64x64 (dynamicMin = 2). Confirm 2px and 4px are available (both divide 64).",
-      "Set dimensions to 4096x4096 (dynamicMin = 41). Confirm no buttons below 41px are shown."
+      "Search codebase for 'animationSeedA' and 'animationSeedB' — confirm they no longer exist in state management code",
+      "Confirm the app builds without errors"
     ],
     "passes": true
   },
   {
     "id": "PRD-009",
-    "category": "Dynamic Valid Cell Size Buttons",
-    "description": "Remove the 'Custom cell size' freeform input and the old fixed cell size presets (8, 16, 24, 32, 48, 64) in normal (non-cropping) mode. Only dynamically calculated valid-size buttons are available.",
+    "category": "SVG Generation - Dual Config",
+    "description": "Update generateFragmentDiffSvg to accept two full config objects (From and To) instead of seedA/seedB + single config. Generate two independent grids — one per config. Combine into a single SVG using the existing data-g attribute scheme: shared cells have no data-g, from-only cells get data-g='a', to-only cells get data-g='b' (opacity:0). Use the shared foreground/background colors for all rendering.",
     "stepsToVerify": [
-      "Open the Fragment Generator UI with 'Allow cropping' disabled.",
-      "Confirm there is no 'Custom' button or freeform cell size input field.",
-      "Confirm the old preset buttons (8px, 16px, 24px, 32px, 48px, 64px) are no longer hardcoded.",
-      "Confirm cell size options are entirely derived from GCD divisors."
+      "Enable animation preview with different From/To params",
+      "Confirm the SVG shows a diff pattern (some cells animate on hover)",
+      "Inspect SVG markup — confirm data-g='a' and data-g='b' attributes exist on differing cells",
+      "Confirm shared cells have no data-g attribute",
+      "Hover over preview — confirm smooth transition between From and To patterns"
     ],
     "passes": true
   },
   {
     "id": "PRD-010",
-    "category": "Dynamic Valid Cell Size Buttons",
-    "description": "If the previously selected cell size is still in the new valid set after a dimension change, keep it selected.",
+    "category": "Animation - Hover Behavior Unchanged",
+    "description": "The useFragmentReveal hook continues to work without modification. It selects rects by data-g='a' and data-g='b' attributes and toggles opacity on hover, same as before.",
     "stepsToVerify": [
-      "Set dimensions to 200x400 - select cell size 10.",
-      "Change width to 300 (now 300x400, GCD=100, divisors include 10).",
-      "Confirm cell size 10 is still selected."
+      "Enable animation preview",
+      "Hover over the preview — confirm pattern transitions from 'From' to 'To'",
+      "Move mouse away — confirm pattern transitions back to 'From'",
+      "Confirm animation is smooth (batched frame-based reveal)"
     ],
     "passes": true
   },
   {
     "id": "PRD-011",
-    "category": "Dynamic Valid Cell Size Buttons",
-    "description": "If the previously selected cell size is NOT in the new valid set, auto-select the nearest valid cell size. Tie-breaking rule: when two valid sizes are equidistant from the previous value, prefer the larger one.",
+    "category": "Export - JSON Format",
+    "description": "When animation is enabled, the exported JSON includes a top-level 'toConfig' field alongside 'config'. 'config' retains its name (not renamed to 'fromConfig'). 'toConfig' is a complete config object with the same shape as 'config' — it contains all generator params, colors, and canvas settings. Colors and canvas settings in 'toConfig' will mirror the shared values (since those are shared), but they are included for type consistency. On import, canvas/color settings from 'toConfig' are ignored in favor of 'config'. The old animationEnabled/animationSeedA/animationSeedB fields are removed from the export. The presence of 'toConfig' implies animation is enabled.",
     "stepsToVerify": [
-      "Set dimensions to 1000x1000 - select cell size 40.",
-      "Change dimensions to 200x350 (GCD=50, valid >= 4: 5,10,25,50).",
-      "Confirm cell size auto-selects 50 (nearest to 40 in the valid set).",
-      "Test tie-breaking: select cell size 15, change to dimensions where valid set is [10, 20] - confirm 20 is selected (larger wins tie)."
-    ],
-    "passes": true
-  },
-  {
-    "id": "PRD-011a",
-    "category": "Dynamic Valid Cell Size Buttons",
-    "description": "When there are 3 or fewer valid GCD divisors in the [dynamicMin, 200] range, show a hint: 'Few valid sizes. Enable Allow cropping for more options.' When there are ZERO valid divisors (e.g., coprime dimensions like 100x101 where GCD=1), the grid preview and export buttons are disabled. A message is shown: 'No valid sizes for these dimensions. Change dimensions or enable Allow cropping.' The user must change dimensions or enable cropping before rendering resumes.",
-    "stepsToVerify": [
-      "Set dimensions to 100x101 (GCD=1, zero divisors >= dynamicMin).",
-      "Confirm no cell size buttons are shown.",
-      "Confirm the grid preview area is disabled/blank.",
-      "Confirm export buttons (SVG, Copy SVG, Export JSON) are disabled.",
-      "Confirm a message is displayed: 'No valid sizes for these dimensions. Change dimensions or enable Allow cropping.'",
-      "Enable 'Allow cropping' - confirm the slider appears, grid renders, and exports are re-enabled.",
-      "Disable 'Allow cropping' - confirm the blocking state returns.",
-      "Change dimensions to 100x200 (GCD=100, many divisors) - confirm the blocking state clears and buttons appear."
+      "Enable animation preview with distinct From/To params",
+      "Export settings as JSON",
+      "Open exported file — confirm 'config' field exists with From generator params",
+      "Confirm 'toConfig' field exists with To generator params",
+      "Confirm 'toConfig' has the same shape as 'config' (complete config object)",
+      "Confirm no 'animationEnabled', 'animationSeedA', or 'animationSeedB' fields exist anywhere",
+      "Disable animation and export — confirm 'toConfig' is absent"
     ],
     "passes": true
   },
   {
     "id": "PRD-012",
-    "category": "Allow Cropping Option",
-    "description": "Add a checkbox labeled 'Allow cropping' with an info icon. On hover, the tooltip reads: 'Enabling this allows any cell size, even if it doesn't perfectly divide the SVG dimensions. Fragments at the edge will be cropped.'",
+    "category": "Import - JSON Format",
+    "description": "When importing a JSON file, if 'toConfig' is present, enable animation and populate the 'To' params from it. If 'toConfig' is absent, animation is disabled. Support backward compatibility: if the old animationSeedA/animationSeedB fields are present (legacy format), ignore them gracefully (do not crash).",
     "stepsToVerify": [
-      "Open the Fragment Generator UI.",
-      "Locate a checkbox labeled 'Allow cropping' near the cell size controls.",
-      "Hover over the info icon next to the checkbox.",
-      "Confirm the tooltip text matches the specified message."
+      "Export settings with animation enabled",
+      "Import the exported file — confirm animation is enabled and To params are restored correctly",
+      "Export settings with animation disabled",
+      "Import — confirm animation is disabled",
+      "Create a legacy JSON with animationSeedA/animationSeedB fields — import it and confirm no crash"
     ],
     "passes": true
   },
   {
     "id": "PRD-013",
-    "category": "Allow Cropping Option",
-    "description": "When 'Allow cropping' is enabled, the divisor buttons are replaced by a slider with range dynamicMin to 200 (where dynamicMin = max(2, ceil(max(width, height) * 0.01))). The slider allows selecting any integer cell size in that range.",
+    "category": "URL State - To Params Serialization",
+    "description": "Serialize the 'To' generator params to the URL when animation is enabled. Use prefixed param keys (e.g., 'to_th' for to-threshold, 'to_fr' for to-frequency, etc.) to distinguish from 'From' params. Remove old 'sa' (seedA) and 'sb' (seedB) URL params.",
     "stepsToVerify": [
-      "Enable 'Allow cropping' with dimensions 500x500 (dynamicMin = 5).",
-      "Confirm the valid-divisor buttons are no longer shown.",
-      "Confirm a slider is visible with range 5-200.",
-      "Slide to value 37 - confirm cell size is set to 37.",
-      "Disable 'Allow cropping' - confirm the slider disappears and divisor buttons return."
+      "Enable animation and adjust To params",
+      "Check URL — confirm To params are serialized with distinct keys",
+      "Copy URL and open in new tab — confirm both From and To params are restored",
+      "Disable animation — confirm To param keys are removed from URL",
+      "Confirm old 'sa' and 'sb' URL params are no longer used"
     ],
     "passes": true
   },
   {
     "id": "PRD-014",
-    "category": "Allow Cropping Option",
-    "description": "The cropping-mode slider visually marks positions that correspond to GCD divisors >= dynamicMin (evenly divisible sizes). When the slider value lands on a size that divides BOTH the original user-entered width and height, an 'Evenly divisible' indicator is shown next to the slider.",
+    "category": "Actions - Randomize",
+    "description": "When animation is enabled, the global 'Randomize' action button is removed. Instead, each panel (From and To) gets its own Randomize button that only randomizes that panel's generator params. When animation is disabled, the single Randomize button works as before.",
     "stepsToVerify": [
-      "Set dimensions to 200x350 (GCD divisors >= dynamicMin(4): 5,10,25,50). Enable 'Allow cropping'.",
-      "Confirm the slider has visible tick marks or indicators at positions 5, 10, 25, and 50.",
-      "Slide to value 10 - confirm an 'Evenly divisible' label/indicator appears.",
-      "Slide to value 11 - confirm the 'Evenly divisible' indicator disappears.",
-      "Slide to value 50 - confirm the indicator reappears."
+      "Enable animation preview",
+      "Confirm the global Randomize button is not visible",
+      "Confirm the From panel has its own Randomize button",
+      "Click From Randomize — confirm only From params change, To params are preserved",
+      "Confirm the To panel has its own Randomize button",
+      "Click To Randomize — confirm only To params change, From params are preserved",
+      "Disable animation — confirm the single global Randomize button returns"
     ],
     "passes": true
   },
   {
     "id": "PRD-015",
-    "category": "Allow Cropping Option",
-    "description": "When 'Allow cropping' is enabled, a direction toggle appears with two options: 'Crop width' and 'Crop height', indicating which axis will have cropped (partial) cells at the edge. Default selection is 'Crop height'.",
+    "category": "Actions - Reset to Defaults",
+    "description": "The 'Reset to Defaults' action resets both From and To params, disables animation, and clears the To state.",
     "stepsToVerify": [
-      "Enable 'Allow cropping'.",
-      "Confirm a direction toggle with 'Crop width' and 'Crop height' options is visible.",
-      "Confirm 'Crop height' is selected by default.",
-      "Disable 'Allow cropping' - confirm the direction toggle disappears."
+      "Enable animation and adjust both From and To params",
+      "Click Reset to Defaults",
+      "Confirm animation is disabled",
+      "Confirm all params are back to defaults"
     ],
     "passes": true
   },
   {
     "id": "PRD-016",
-    "category": "Allow Cropping Option",
-    "description": "Crop width: the rightmost column of cells may be narrower than the cell size (partial cells cropped to fit the canvas width). Only full rows are rendered on the height axis. Empty space (where no cells are rendered) shows the canvas background color with no additional visual treatment. Canvas dimensions never change — the user's entered width and height are always preserved.",
+    "category": "UI - Sidebar Layout",
+    "description": "When animation is enabled, the sidebar expands to accommodate side-by-side From/To panels. The shared sections (Canvas Settings, Animation Preview, Colors) remain full-width at the top. The From and To panels appear as two columns below the shared sections. When animation is disabled, the sidebar returns to its normal width. Reference img1.png for the target layout.",
     "stepsToVerify": [
-      "Set dimensions to 500x500. Enable 'Allow cropping'. Select 'Crop width' direction.",
-      "Set cell size to 37 via slider.",
-      "Confirm the Width and Height input fields still show 500 and 500 (unchanged).",
-      "Inspect the grid: cols = ceil(500/37) = 14 columns, last column is 500 - 13*37 = 19px wide (cropped).",
-      "Inspect the grid: rows = floor(500/37) = 13 full rows, bottom 19px is empty (no partial rows)."
-    ],
-    "passes": true
-  },
-  {
-    "id": "PRD-017",
-    "category": "Allow Cropping Option",
-    "description": "Crop height: the bottom row of cells may be shorter than the cell size (partial cells cropped to fit the canvas height). Only full columns are rendered on the width axis. Empty space (where no cells are rendered) shows the canvas background color with no additional visual treatment. Canvas dimensions never change.",
-    "stepsToVerify": [
-      "Set dimensions to 500x500. Enable 'Allow cropping'. Select 'Crop height' direction.",
-      "Set cell size to 37 via slider.",
-      "Confirm the Width and Height input fields still show 500 and 500 (unchanged).",
-      "Inspect the grid: rows = ceil(500/37) = 14 rows, last row is 500 - 13*37 = 19px tall (cropped).",
-      "Inspect the grid: cols = floor(500/37) = 13 full columns, right 19px is empty (no partial columns)."
-    ],
-    "passes": true
-  },
-  {
-    "id": "PRD-018",
-    "category": "Remove Auto-Adjustment Logic",
-    "description": "Remove the automatic dimension/cell-size adjustment logic. Changing cell size no longer snaps dimensions, and changing dimensions no longer adjusts cell size (except to pick the nearest valid size from the new divisor set, or enter the blocking state per PRD-011a if no valid sizes exist).",
-    "stepsToVerify": [
-      "Set dimensions to 500x500. Select cell size 50.",
-      "Change width to 400 - confirm height remains 500, and cell size updates to nearest valid divisor of GCD(400,500)=100.",
-      "Change width to 501 (GCD(501,500)=1, zero valid divisors) - confirm grid is disabled and blocking-state message is shown per PRD-011a.",
-      "Confirm no 'adjustment warning' toast appears.",
-      "Search the codebase for adjustmentWarning - confirm the warning system is removed."
-    ],
-    "passes": true
-  },
-  {
-    "id": "PRD-019",
-    "category": "Remove Auto-Adjustment Logic",
-    "description": "Remove the adjustDimensionsAndCellSize and adjustCellSizeForDimensions functions and the useEffect that calls them. Remove the adjustment warning toast UI.",
-    "stepsToVerify": [
-      "Search for 'adjustDimensionsAndCellSize' in the codebase - confirm it is removed.",
-      "Search for 'adjustCellSizeForDimensions' in the codebase - confirm it is removed.",
-      "Search for 'adjustmentWarning' in the codebase - confirm it is removed.",
-      "Confirm no yellow warning toast appears during any user interaction."
-    ],
-    "passes": true
-  },
-  {
-    "id": "PRD-020",
-    "category": "Export Format",
-    "description": "Update the export JSON format: remove aspectRatioPreset and customAspectRatio fields. Add allowCropping (boolean) and cropDirection ('width' | 'height') fields. When allowCropping is false, cropDirection is omitted from the export. Bump version to '2.0.0'. Note: there is no import/load feature — this is export-only.",
-    "stepsToVerify": [
-      "Export a configuration with 'Allow cropping' enabled and inspect the JSON.",
-      "Confirm version is '2.0.0'.",
-      "Confirm aspectRatioPreset and customAspectRatio fields are absent.",
-      "Confirm allowCropping is true and cropDirection is 'width' or 'height'.",
-      "Confirm cellSize, canvasWidth, canvasHeight fields are still present.",
-      "Export a configuration with 'Allow cropping' disabled.",
-      "Confirm allowCropping is false and cropDirection field is absent."
-    ],
-    "passes": true
-  },
-  {
-    "id": "PRD-021",
-    "category": "Allow Cropping Option",
-    "description": "When disabling 'Allow cropping', the current slider cell size value is carried over and the nearest-valid-size logic (PRD-011) is applied to it. If no valid sizes exist for the current dimensions, the blocking state (PRD-011a) is entered. There is no separate 'pre-cropping cell size' memory.",
-    "stepsToVerify": [
-      "Set dimensions to 500x500. Select cell size 50. Enable 'Allow cropping'. Slide to 37.",
-      "Disable 'Allow cropping' - confirm cell size auto-selects nearest valid divisor (50, nearest to 37 in valid set).",
-      "Set dimensions to 100x101 (zero valid sizes). Enable 'Allow cropping'. Slide to 37.",
-      "Disable 'Allow cropping' - confirm the blocking state is entered (grid disabled, message shown)."
+      "Enable animation preview",
+      "Confirm the sidebar is wider than normal to fit two columns",
+      "Confirm From and To panels appear side-by-side",
+      "Confirm shared sections (Canvas Settings, Colors) span the full sidebar width above the From/To columns",
+      "Disable animation — confirm the sidebar returns to its normal width"
     ],
     "passes": true
   }

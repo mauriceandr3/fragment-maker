@@ -1,73 +1,74 @@
-# Feature Request: Simplify Dimension & Cell Size Controls
+# Animation Preview: Independent From/To Patterns
 
-## Problem
+## Summary
 
-The current controls for dimensions and cell size are coupled in a way that makes the tool frustrating to use. Changing one setting triggers automatic adjustments to others, creating a "wobbly" experience where the user never feels in control. Specifically:
+Replace the current seed-based animation preview (which only varies the `frequency` parameter between two states) with a system where the user has full independent control over both the "from" and "to" patterns. This produces much more striking transitions since the two patterns can be completely different.
 
-- **Aspect ratio** constrains height, which cascades into cell size adjustments.
-- **Cell size presets** that don't evenly divide the current dimensions trigger warnings and silently switch to a "custom" nearest-fit value.
-- **Width input is effectively broken** — automatic adjustments fight the user's input, making it impossible to type a value freely.
-- The overall effect: everything affects everything, and the user can't predict what will happen when they change a setting.
+## Current Behavior
 
-## Solution
+When "Preview animation on hover" is checked, the user provides two seed strings (A and B). Each seed is hashed and used to vary a single parameter (frequency by default). The result is a subtle shift in the same pattern. The diff SVG encodes cells unique to each pattern with `data-g="a"` / `data-g="b"` attributes, and the hover animation fades between them.
 
-Establish a clear hierarchy: **dimensions are primary, cell size is derived**.
+## Proposed Behavior
 
-### 1. Remove the Aspect Ratio control
+### UI
 
-Delete the aspect ratio preset selector and custom ratio inputs entirely. They add complexity without enough value.
+When "Preview animation on hover" is checked:
 
-### 2. Make both Width and Height independently editable
+1. The existing settings panel gets the title **"From"**.
+2. A second settings panel appears beside it, titled **"To"** (see `img1.png` for layout).
+3. The "To" panel contains all the same controls as the "From" panel: all generator params (threshold, gamma, frequency, contrast, seed, fill settings, directional neighbors/density) and color settings (presets, foreground, background, invert). **Canvas settings (width, height, cell size, cropping) remain shared** — they are not duplicated in the "To" panel.
+4. **Remove** the current Seed A / Seed B text inputs and the "Randomize Seeds" button entirely. They are replaced by this new system.
 
-- Both fields accept values in the range **64–4096 px** (same validation as current width).
-- Width and height are fully independent — changing one does not affect the other.
-- Default dimensions on load: keep whatever the current defaults are.
+### Initialization
 
-### 3. Replace cell size presets with dynamic valid-size buttons
+When the user first checks "Preview animation on hover" and the "To" panel appears:
 
-When dimensions change:
+- All "To" settings are initialized as a **copy of the current "From" settings**, except for the **frequency** param, which is initialized with a **random value** within its valid range. This gives an immediate visual difference while keeping the overall structure recognizable.
 
-1. Calculate `GCD(width, height)`.
-2. Find all divisors of that GCD — these are the cell sizes that evenly tile both dimensions.
-3. Display divisors between a **dynamic minimum** and **200px** as selectable buttons. The dynamic minimum is `max(2, ceil(max(width, height) * 0.01))` — roughly 1% of the largest dimension, with a floor of 2px. Divisors below this minimum or above 200 are excluded.
-4. **Remove the "Custom cell size" freeform input** — it's no longer needed since only valid sizes are shown.
-5. If the previously selected cell size is still in the new valid set, keep it selected.
-6. If not, **auto-select the nearest valid cell size** to what was previously selected.
+### Preview behavior
 
-**Example:** For dimensions 200 x 350, GCD = 50, divisors of 50 that are ≥ dynamic minimum = **5, 10, 25, 50** — these become the available cell size options.
+- The SVG preview transitions between the "From" pattern and the "To" pattern on hover, same as today.
+- The transition animation mechanism (fade out "from" rects, fade in "to" rects using `data-g` attributes) remains the same.
 
-**Hint for limited options:** When there are 3 or fewer valid cell sizes, show a subtle hint: *"Few valid sizes. Enable Allow cropping for more options."*
+### Export format
 
-**Zero valid sizes (blocking state):** When there are **zero** valid cell sizes in the allowed range (e.g., coprime dimensions like 100×101 where GCD=1), the grid preview and export buttons are **disabled**. A message is shown: *"No valid sizes for these dimensions. Change dimensions or enable Allow cropping."* The user must act before rendering resumes.
+When animation is enabled, the exported JSON should include a `toConfig` field alongside the existing `config`:
 
-### 4. Add an "Allow cropping" option
+```json
+{
+  "version": "2.0.0",
+  "config": { /* from-pattern settings (unchanged field name) */ },
+  "toConfig": { /* to-pattern settings, full config object */ }
+}
+```
 
-Add a checkbox labeled **"Allow cropping"** with an info icon. On hover, the tooltip explains:
+- `config` keeps its current name — it is the primary pattern config and is not renamed to "fromConfig". This avoids breaking changes and is accurate for contexts where animation is not used.
+- `toConfig` is a **full config object** containing all generator params and color settings (same shape as `config`). It is only present when animation is enabled.
+- The current `animationSeedA` / `animationSeedB` / `animationEnabled` fields in the export are replaced by the presence/absence of `toConfig` (if `toConfig` exists, animation is enabled).
 
-> "Enabling this allows any cell size, even if it doesn't perfectly divide the SVG dimensions. Fragments at the edge will be cropped."
+### SVG generation
 
-**Canvas dimensions never change.** The user's entered width and height are always preserved. Only the cells at the grid edges are affected — partial cells are rendered and clipped to the canvas boundary.
+The `generateFragmentDiffSvg` function (or its replacement) should:
 
-When enabled:
+1. Accept two full configs (the "from" config and the "to" config).
+2. Generate two independent grids — one per config.
+3. Combine them into a single SVG using the existing `data-g` attribute scheme:
+   - Cells in both grids: no `data-g` (always visible)
+   - Cells only in "from": `data-g="a"` (visible initially)
+   - Cells only in "to": `data-g="b"` (hidden initially, `opacity: 0`)
 
-- The divisor buttons are **replaced by a slider** (range **dynamic minimum–200**). The slider allows any integer cell size.
-  - The slider visually **marks positions** that correspond to GCD divisors (evenly divisible sizes) with tick marks or indicators.
-  - When the slider value lands on a divisor of **both** the original width and height, an **"Evenly divisible"** indicator is shown next to the slider.
-- A **direction toggle** appears: **Crop width** / **Crop height**, indicating which axis will have cropped (partial) cells at the edge.
-  - **Crop width:** the rightmost column of cells may be narrower than the cell size (cropped to fit the canvas width). Only full rows of cells are rendered on the height axis.
-  - **Crop height:** the bottom row of cells may be shorter than the cell size (cropped to fit the canvas height). Only full columns of cells are rendered on the width axis.
-- Only the chosen axis has cropped (partial) cells; the other axis renders only complete cells.
+This is the same approach as today, but the two grids are now generated from fully independent configs rather than from the same config with a single varied parameter.
 
-### 5. Remove all automatic dimension/cell-size adjustment logic
+### What stays the same
 
-The current system where changing cell size can snap dimensions (and vice versa) should be removed. The new flow is:
+- The hover animation mechanism in `useFragmentReveal` (frame-based opacity toggling of `data-g="a"` and `data-g="b"` rects) — no changes needed.
+- Canvas settings are shared between "from" and "to" (both patterns use the same grid dimensions).
+- Single/Grid view toggle behavior.
+- The `config` field name in exports.
 
-- User sets width and height → valid cell sizes are calculated and shown.
-- User picks a cell size → grid renders. No dimension adjustment.
-- If "Allow cropping" is on → user can enter any cell size, one axis has cropped (partial) cells at the edge, the other axis renders only full cells. Canvas dimensions never change.
+---
 
-## Out of scope
+## Clarifications
 
-- Aspect ratio (removed entirely)
-- "Custom cell size" freeform input in normal mode (removed — replaced by dynamic buttons)
-- Automatic dimension snapping when cell size changes (removed)
+- **Colors are shared, not per-panel.** Despite the mockup in `img1.png` showing independent color sections for From/To, colors (presets, foreground, background, invert) remain a single shared section — not duplicated per panel. Color-based transitions are out of scope for this feature.
+- **`scale` (zoom) is a UI-only display setting** and is not part of the generator config or export format. It does not appear in From/To panels.

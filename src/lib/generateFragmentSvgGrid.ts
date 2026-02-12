@@ -8,17 +8,19 @@
 import {
   type FragmentConfig,
   type SeedableParam,
-  type CanvasSize,
   type FillType,
   type CropDirection,
-  CANVAS_SIZES,
+  type GenerateFragmentDiffSvgOptions,
+  type GenerateFragmentDiffFromConfigsOptions,
   PARAM_RANGES,
   generateFragmentSvgDirect,
+  generateFragmentDiffSvg,
+  generateFragmentDiffFromConfigs,
 } from './generateFragmentSvg';
 
 // Re-export types that the tool needs
-export type { FragmentConfig, SeedableParam, CanvasSize, FillType, CropDirection };
-export { CANVAS_SIZES, PARAM_RANGES, generateFragmentSvgDirect };
+export type { FragmentConfig, SeedableParam, FillType, CropDirection, GenerateFragmentDiffSvgOptions, GenerateFragmentDiffFromConfigsOptions };
+export { PARAM_RANGES, generateFragmentSvgDirect, generateFragmentDiffSvg, generateFragmentDiffFromConfigs };
 
 /**
  * Generates an array of configurations with one parameter varying across its range.

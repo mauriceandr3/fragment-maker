@@ -1,179 +1,105 @@
-# PRD Critique: Simplify Dimension & Cell Size Controls (Round 2)
+# PRD Critique: Animation Preview — Independent From/To Patterns
 
-**Reviewer:** Senior Dev (still hostile, but acknowledging improvements)
-**Verdict:** The PRD addressed several issues from the first review (tie-breaking, cropping labels, export format, coprime hint). But new problems have surfaced, and the cropping feature is *still* underspecified in ways that will block implementation.
+**Reviewer**: Senior Dev (hostile)
+**Verdict**: This PRD has structural contradictions, handwaves critical UX decisions, and silently deviates from the feature request in ways that will bite us later.
 
 ---
 
-## 1. PRD-011a Creates a Logical Contradiction
+## Critical Issues
 
-When dimensions are coprime (e.g., 100x101, GCD=1), there are zero valid divisors in the 4-200 range. The PRD says:
+### 1. PRD-002 directly contradicts the feature request
 
-> "The previously selected cell size remains in use until the user changes dimensions or enables cropping."
+The feature request explicitly states the "To" panel contains **"color settings (presets, foreground, background, invert)"**. PRD-002 unilaterally moves Colors to a shared section and says they are NOT duplicated per-panel. This is a significant scope reduction that was never discussed or justified.
 
-Think about what this means. The user had cell size 50, changes dimensions to 100x101, and... cell size stays at 50. **But cropping is OFF.** 50 doesn't divide 100 or 101 evenly. So either:
+If the intent is to allow "completely different" patterns, why can't the To pattern have different colors? A blue-on-white "From" transitioning to a red-on-black "To" would be far more striking. The PRD silently kills this use case and pretends the feature request asked for it.
 
-- The grid silently renders with floor division (incomplete coverage, gap at edges) — which is *cropping without the user enabling cropping*
-- The grid breaks or renders nothing
-- Some hidden adjustment kicks in, which we just ripped out per PRD-018/019
+**Decision needed**: Are colors shared or independent? Pick one and justify it. Don't just quietly contradict the spec.
 
-You can't have "no valid sizes, keep the old one, no cropping, no adjustment" simultaneously. Something has to give, and the PRD doesn't say what. This isn't an edge case — any off-by-one dimension change can trigger it.
+### 2. PRD-007 destroys user work on toggle
 
-**Fix:** Either force "Allow cropping" on when no valid sizes exist, or auto-select the nearest dimension pair that has valid divisors and show a notification.
+The verification step says: *"Disable and re-enable animation — confirm 'To' params are re-initialized from current 'From' params."*
 
-## 2. The Feature Request Has a Math Error
+So if a user spends five minutes carefully tuning their "To" pattern, accidentally unchecks the box, and checks it again — everything is gone. Re-initialized. No confirmation, no undo. This is hostile UX.
 
-The feature request example states:
+**Fix**: Persist the "To" state across toggles. Only initialize from "From" on the *first* enable (or when there's no prior "To" state). An accidental toggle shouldn't nuke minutes of work.
 
-> For dimensions 200 x 350, GCD = 50, divisors ≥ 4 = **4, 5, 10, 25, 50**
+### 3. PRD-014 is not a PRD item, it's a question
 
-4 is NOT a divisor of 50. The divisors of 50 are {1, 2, 5, 10, 25, 50}. Those ≥ 4 are {5, 10, 25, 50}.
+> "Consider adding a separate randomize control for the 'To' panel."
 
-PRD-007 gets this right in the verification steps, but the feature request itself — the source of truth — has a wrong example. If anyone implements from the feature request instead of the PRD, they'll include 4 incorrectly.
+A PRD defines what we're building. "Consider" is not a decision. If the user has independent From/To panels, they obviously need a way to randomize each independently. Make the call. If we're not doing per-panel randomize, explain why. If we are, spec it.
 
-**Fix:** Correct the example in the feature request.
+### 4. Export format for `toConfig` is self-contradictory
 
-## 3. Hint Threshold Mismatch Between Feature Request and PRD
+PRD-011 says: *"'toConfig' contains all generator params and shared color/canvas settings (same shape as config)."*
 
-The feature request says:
+But if colors and canvas are shared, why duplicate them in `toConfig`? This creates two problems:
+- **Redundancy**: Color/canvas values appear in both `config` and `toConfig`. Which is authoritative?
+- **Divergence risk**: What if someone hand-edits the JSON and `config.foregroundColor` differs from `toConfig.foregroundColor`? Who wins?
 
-> When there are **3 or fewer** valid cell sizes, show a subtle hint.
+If `toConfig` only stores generator params (the things that actually differ), it's NOT the same shape as `config`, so stop claiming it is.
 
-But PRD-011a triggers the hint only when there are **zero** valid sizes:
+**Pick one**:
+- `toConfig` has the same shape as `config` (full duplication, clear authority rules)
+- `toConfig` only has generator params (different shape, but no ambiguity)
 
-> "When no valid GCD divisors exist in the 4-200 range"
+### 5. `scale` parameter is never mentioned
 
-These are different conditions. A user with dimensions yielding exactly 1 or 2 valid cell sizes (like 512x256, GCD=256, valid divisors: {4, 8, 16, 32, 64, 128}) — wait, that's 6. OK, a tighter example: 128x96, GCD=32, valid divisors: {4, 8, 16, 32} — that's 4, so it wouldn't trigger the ≤3 hint either. Finding dimensions that give exactly 1-3 valid sizes is actually tricky, which suggests the "≤3" threshold from the feature request may have been arbitrary. But the discrepancy still needs resolving.
+`GeneratorParams` includes `scale` (zoom level, 0.25-1.0). The PRD lists every other param in PRD-003/PRD-004/PRD-006 but never mentions `scale`. Is it shared? Is it per-panel? Is it a generator param or a display param? The current type definition says it's a generator param, so should it be in both From and To? The PRD needs to explicitly address this.
 
-**Fix:** Decide: is the hint for zero valid sizes (PRD) or ≤3 valid sizes (feature request)?
+### 6. Backward compatibility for shared URLs is ignored
 
-## 4. Crop Direction Default Is Unspecified (PRD-015)
+PRD-013 says to remove the old `sa` (seedA) and `sb` (seedB) URL params. But what about every URL that's been shared with those params? They'll silently lose their animation state — the URL will load, animation will be off, and the user won't know why.
 
-When the user enables "Allow cropping," a direction toggle appears with "Crop width" and "Crop height." Which one is selected by default? The PRD doesn't say.
+**Minimum viable approach**: Parse legacy `sa`/`sb` URL params and at least enable the animation toggle so the user knows animation was intended, even if you can't perfectly reconstruct the old seed-based diff.
 
-This matters because:
-- The grid renders completely differently depending on the selection
-- If the default is "Crop width," the user sees partial cells on the right immediately
-- If there's no default and neither is selected, the grid can't render at all
+### 7. No discussion of sidebar layout feasibility
 
-**Fix:** Specify the default crop direction. "Crop height" is probably the more intuitive default since most people read left-to-right and expect full columns.
+The current sidebar is 400px wide. We're about to jam TWO full parameter panels into it. `ParametersPanel` already has 11 controls (density, fill amount, fill type, invert fill, gamma, frequency, contrast, seed, directional neighbors, direction density, and the fill type is a dropdown with 6 options). Doubling that is 22+ controls in a scrollable 400px column.
 
-## 5. What Does "Empty Space" Look Like? (PRD-016, PRD-017)
+The feature request references `img1.png` for layout but the PRD never addresses:
+- Are the From/To panels side-by-side (requiring wider sidebar or responsive layout)?
+- Are they stacked vertically (requiring massive scrolling)?
+- Are they collapsible/tabbed?
+- What happens on smaller viewports?
 
-PRD-016 says for "Crop width" mode:
+This is a UX-critical decision that the PRD entirely ignores.
 
-> rows = floor(500/37) = 13 full rows, **bottom 19px is empty** (no partial rows)
+### 8. No "Copy From to To" or "Swap" interactions
 
-What does "empty" mean visually?
-- Background color fill?
-- Canvas background showing through?
-- Transparent?
-- A visible boundary indicator?
+The most obvious user workflow is: tweak "From" until it looks good, copy it to "To", then make targeted changes. There's no copy or swap mechanism in this PRD. Users will have to manually match 11 parameters by hand to get a starting point (yes, PRD-007 initializes on first enable, but what about subsequent adjustments?).
 
-On a 500x500 canvas with 13 rows of 37px cells, the grid covers 481px of height. The remaining 19px at the bottom is... what? If it's just background color, the user might think the canvas is 500x481. If there's no visual distinction, they won't know cropping is happening on the other axis.
+Similarly, "Swap From/To" is a natural interaction for previewing the reverse transition. Not mentioned.
 
-**Fix:** Specify the visual treatment of empty space. At minimum: "Empty space shows the canvas background color with no additional indicator."
+---
 
-## 6. Slider Tick Marks Are Still a Custom Component Problem (PRD-014)
+## Minor Issues
 
-The first critique flagged this. The PRD still specifies:
+### 9. PRD-009 color authority is unclear
 
-> The slider visually marks positions that correspond to GCD divisors with tick marks or indicators.
+PRD-009 says: *"Use the 'From' config's foreground/background colors for all rendering."* But if PRD-002 makes colors shared, there is no "From config's colors" — colors are global. This sentence is either redundant or reveals confused thinking about the data model.
 
-The codebase uses Radix UI. Radix Slider has no tick mark API. This is not a "display some buttons" task — it's a custom component with:
-- Absolute-positioned tick marks calculated from divisor positions
-- Accessibility concerns (screen readers need to announce tick positions)
-- Visual design that doesn't clash with the existing Radix styling
+### 10. No performance discussion
 
-This needs to be called out as a distinct engineering task, not a sub-bullet of the slider story.
+The current seed-based approach varies ONE parameter between two grids. The new approach allows ALL parameters to differ, meaning the two grids can be completely different. This means:
+- More cells with `data-g` attributes (potentially ALL cells differ)
+- More DOM elements being animated on hover
+- `useFragmentReveal` does `querySelectorAll` on potentially thousands of rects
 
-**Fix:** Either scope this as its own PRD item with design specs, or simplify to "display valid divisors as small text labels below the slider" (much simpler to implement).
+For large canvases (1056x1056 with cellSize 4 = ~69,000+ cells), having most/all of them animate could be noticeably slow. The PRD should at least acknowledge this and specify whether we need to benchmark or throttle.
 
-## 7. Export Schema Gaps (PRD-020)
+### 11. Grid view animation behavior is unspecified
 
-PRD-020 specifies adding `allowCropping` and `cropDirection` to the export. But:
+The feature request says "Single/Grid view toggle behavior" stays the same. But grid view shows multiple fragments. Does each grid item animate independently? Do they all use the same From/To config? If grid items already have different seeds, how does that interact with the To config? The PRD inherits this ambiguity without addressing it.
 
-1. **What's `cropDirection` when `allowCropping` is false?** `null`? `undefined`? Omitted? A default value? This matters for JSON schema validation.
-2. **There is no import functionality.** The PRD says "Old v1 exports with aspect ratio fields are silently ignored if loaded" — but the codebase exploration confirmed there's no load/import feature. Are we building import now too? Or is this aspirational for a future feature?
-3. **What about `cellSize` range change?** Old exports may have cell sizes between 8-128 (old range). New valid range for the slider is 4-200. If a loaded config has `cellSize: 128` and the new valid set doesn't include 128, what happens?
+### 12. No versioning bump specified
 
-**Fix:** Define the full export JSON schema with types and nullability. Clarify whether import exists or is future scope.
-
-## 8. Scale Parameter Is Still Ignored
-
-The codebase has a `scale` parameter affecting canvas rendering:
-
-```
-Canvas: cols × (cellSize × scale), rows × (cellSize × scale)
-SVG export: cols × cellSize, rows × cellSize
-```
-
-When cropping mode renders partial cells at edges, the partial cell width/height must be calculated in both logical (SVG) and scaled (canvas preview) coordinates. The PRD never mentions `scale`. If the implementer forgets to apply scale to the cropped edge cells, the preview and export will look different.
-
-**Fix:** Add a note about scale-aware rendering for cropped cells, or confirm that scale is applied uniformly and needs no special handling.
-
-## 9. PRD-018 Verification Step Doesn't Test the Dangerous Case
-
-PRD-018 tests changing width from 500 to 400, which gives GCD(400,500)=100 — a very friendly GCD with lots of divisors. This doesn't test the problematic scenario at all.
-
-The dangerous case is: change width from 500 to **501**. Now GCD(501,500)=1, zero valid divisors ≥4. This is where the system's behavior is unspecified (see Issue #1 above) and where real users will end up.
-
-**Fix:** Add a verification step for coprime-result dimension changes. Specify what should happen.
-
-## 10. Toggling Cropping Off — What Happens to Cell Size? (PRD-013)
-
-User flow:
-1. Set 500x500, cell size 50 (valid divisor)
-2. Enable "Allow cropping"
-3. Slide to cell size 37
-4. Disable "Allow cropping"
-
-Now we're back in normal mode. 37 is not a divisor of GCD(500,500)=500. PRD-011 says auto-select nearest valid size. That's fine.
-
-But what if the user was at:
-1. Set 100x101, zero valid sizes, cell size stuck at 50 from before
-2. Enable "Allow cropping," slide to 37
-3. Disable "Allow cropping"
-
-Now we're back in normal mode with zero valid sizes. Cell size was 37 (from slider), which is not valid. PRD-011a says "previously selected cell size remains in use" — but which "previously selected"? The 37 from the slider? The 50 from before cropping was enabled? The PRD doesn't track a "pre-cropping cell size."
-
-**Fix:** Specify whether enabling/disabling cropping preserves a "pre-cropping" cell size or always applies the nearest-valid logic to the current value.
-
-## 11. Cropping Mode When Cell Size Evenly Divides Both Dimensions
-
-500x500, cropping enabled, cell size 50. 50 divides both perfectly. There are zero partial cells. The crop direction toggle is visible but... irrelevant? Both "Crop width" and "Crop height" produce identical grids.
-
-Is this confusing? Should the toggle be hidden/disabled when the current cell size evenly divides both dimensions? Should the "Evenly divisible" indicator be sufficient?
-
-Not critical, but a polish question that will come up during implementation and cause a design debate.
-
-## 12. Performance at Cell Size 4
-
-The new minimum is 4px (down from 8px). On max canvas 4096x4096:
-- Cell size 4: **1,048,576 cells** (each a `<rect>` SVG element)
-- Grid view: 20 variations × 1M = **20 million SVG elements**
-
-The old minimum of 8px gave 262,144 cells — already sluggish. Halving the minimum cell size quadruples the cell count. The PRD has no performance guard, no lazy rendering, no cell count warning.
-
-**Fix:** Add a performance warning threshold (e.g., >100k cells) or keep the minimum at 8px. At minimum, skip grid view generation above a certain cell count.
+The export format changes significantly (removing `animationSeedA/B`, adding `toConfig`). Is this still `"version": "2.0.0"`? Should it be `"2.1.0"`? The import code validates version prefixed with "2." so it probably still works, but a version bump would make it explicit that the format changed. The PRD doesn't mention it.
 
 ---
 
 ## Summary
 
-| # | Issue | Severity |
-|---|-------|----------|
-| 1 | PRD-011a: no-valid-sizes + no-cropping = contradiction | **Critical** |
-| 2 | Feature request math error (4 is not a divisor of 50) | Low |
-| 3 | Hint threshold mismatch (0 vs ≤3) | Low |
-| 4 | Crop direction default unspecified | Medium |
-| 5 | Empty space visual treatment undefined | Medium |
-| 6 | Slider tick marks = custom component (still) | Medium |
-| 7 | Export schema incomplete | Medium |
-| 8 | Scale parameter interaction ignored | Medium |
-| 9 | PRD-018 doesn't test the dangerous case | Medium |
-| 10 | Cropping toggle state persistence unclear | **High** |
-| 11 | Cropping mode when cell size divides perfectly | Low |
-| 12 | Performance at 4px cell size | **High** |
+The PRD has good coverage of the core mechanics (state, SVG gen, hover behavior) but fumbles on the design decisions that actually matter: it contradicts the feature request on colors, destroys user state on toggle, punts on layout, leaves the export format ambiguous, and ignores backward compat. Half the items read like someone described the current architecture with minor tweaks, rather than thinking through what the user actually needs.
 
-**Bottom line:** The PRD is significantly better after Round 1 fixes. The cropping labels, tie-breaking, and export format are all handled now. But Issue #1 (the no-valid-sizes contradiction) is a **logical impossibility** in the current spec — it literally can't be implemented as written. Fix that, clarify the cropping toggle state (#10), and add a performance guard (#12) before starting implementation.
+Fix the contradictions, make actual decisions (not "consider"), and address the UX before handing this to anyone to implement.
