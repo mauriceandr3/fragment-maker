@@ -116,30 +116,63 @@ Available seedable parameters: `threshold`, `gamma`, `frequency`, `contrast`, `d
 
 ### Hover Animation (Diff Transition)
 
-You can animate between two seeded patterns on hover — pattern A morphs into pattern B by toggling individual cells. This uses a single SVG with `data-g` attributes, so there's no stacking or opacity conflicts with opaque backgrounds.
+You can animate between two patterns on hover — the "from" pattern morphs into the "to" pattern by toggling individual cells. This uses a single SVG with `data-g` attributes, so there's no stacking or opacity conflicts with opaque backgrounds.
+
+The two patterns can be fully independent configs (different threshold, frequency, fill, etc.) or the same config with different seed strings for per-item variation (e.g. one seed per blog post).
 
 #### Files to Copy
 
 1. `src/lib/generateFragmentSvg.ts` — Core generator (you already need this)
 2. `src/hooks/useFragmentReveal.ts` — Animation hook (React)
 3. `src/hooks/useReducedMotion.ts` — Dependency of the above
+4. `src/hooks/useFragmentSize.ts` — Responsive container sizing (optional, React)
 
 #### Usage (React)
 
 ```tsx
 import { useRef, useMemo } from 'react';
-import { generateFragmentDiffSvg, type FragmentConfig } from './generateFragmentSvg';
+import { generateFragmentDiffFromConfigs, type FragmentConfig } from './generateFragmentSvg';
 import { useFragmentReveal } from './hooks/useFragmentReveal';
 
-// Your exported config
-const config: FragmentConfig = { /* ... from your JSON export ... */ };
+// Load your exported JSON (contains config and optionally toConfig)
+const fragmentExport = await fetch('/fragment-config.json').then(r => r.json());
 
-function FragmentCard({ seedA, seedB }: { seedA: string; seedB: string }) {
+// Option 1: Two independent configs (designed in the Fragment Maker UI)
+function FragmentCard() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const svg = useMemo(
-    () => generateFragmentDiffSvg({ seedA, seedB, config }),
-    [seedA, seedB]
+    () => generateFragmentDiffFromConfigs({
+      fromConfig: fragmentExport.config,
+      toConfig: fragmentExport.toConfig,
+    }),
+    []
+  );
+
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, true);
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
+// Option 2: Same config with per-item seed strings (e.g. blog posts)
+function BlogPostCard({ title }: { title: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const svg = useMemo(
+    () => generateFragmentDiffFromConfigs({
+      fromConfig: fragmentExport.config,
+      toConfig: fragmentExport.toConfig,
+      fromSeed: title,              // Each post gets a unique "from" pattern
+      toSeed: title + '-hover',     // ...and a unique "to" pattern
+    }),
+    [title]
   );
 
   const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, true);
@@ -157,12 +190,13 @@ function FragmentCard({ seedA, seedB }: { seedA: string; seedB: string }) {
 
 #### How It Works
 
-1. `generateFragmentDiffSvg` computes two grids (one per seed) and renders a single SVG:
+1. `generateFragmentDiffFromConfigs` generates two grids (one per config) and renders a single SVG:
    - Cells in **both** grids → always visible (no attribute)
-   - Cells only in grid **A** → `data-g="a"` (visible initially)
-   - Cells only in grid **B** → `data-g="b"` (hidden initially, `opacity: 0`)
+   - Cells only in **from** → `data-g="a"` (visible initially)
+   - Cells only in **to** → `data-g="b"` (hidden initially, `opacity: 0`)
+   - If `fromSeed`/`toSeed` are provided, the config's `seedParam` (default: `frequency`) is overridden with a deterministic value derived from the seed string
 2. `useFragmentReveal` queries these rects from the DOM
-3. On **mouseEnter**: A-rects fade off and B-rects fade on in shuffled batches (~20 animation frames)
+3. On **mouseEnter**: from-rects turn off and to-rects turn on in shuffled batches (~20 animation frames)
 4. On **mouseLeave**: reverses the animation
 5. Respects `prefers-reduced-motion` (instant swap instead of animation)
 
@@ -171,23 +205,76 @@ function FragmentCard({ seedA, seedB }: { seedA: string; seedB: string }) {
 The diff SVG generation is framework-agnostic. For vanilla JS, generate the SVG and manipulate the `data-g` rects yourself:
 
 ```js
-import { generateFragmentDiffSvg } from './generateFragmentSvg';
+import { generateFragmentDiffFromConfigs } from './generateFragmentSvg';
 
-const svg = generateFragmentDiffSvg({ seedA: 'user-123', seedB: 'user-456', config });
+const svg = generateFragmentDiffFromConfigs({
+  fromConfig: fragmentExport.config,
+  toConfig: fragmentExport.toConfig,
+  fromSeed: 'user-123',
+  toSeed: 'user-123-hover',
+});
 container.innerHTML = svg;
 
 const svgEl = container.querySelector('svg');
 const aRects = svgEl.querySelectorAll('rect[data-g="a"]');
 const bRects = svgEl.querySelectorAll('rect[data-g="b"]');
 
-// On hover: hide A, show B
+// On hover: hide from, show to
 aRects.forEach(r => r.style.opacity = '0');
 bRects.forEach(r => r.style.opacity = '1');
 
-// On leave: show A, hide B
+// On leave: show from, hide to
 aRects.forEach(r => r.style.opacity = '');
 bRects.forEach(r => r.style.opacity = '0');
 ```
+
+#### Responsive Container Sizing
+
+By default, the SVG is generated at the fixed `canvasWidth`/`canvasHeight` from your config. If you need the SVG to fill a dynamically-sized container (e.g. a fluid card layout), use `useFragmentSize` to observe the container and regenerate the SVG when it resizes.
+
+The hook watches the container with a `ResizeObserver` and returns its dimensions, but only triggers a re-render when the size changes by at least one full `cellSize` — avoiding unnecessary SVG regeneration on sub-pixel resize events.
+
+```tsx
+import { useRef, useMemo } from 'react';
+import { generateFragmentDiffFromConfigs, type FragmentConfig } from './generateFragmentSvg';
+import { useFragmentReveal } from './hooks/useFragmentReveal';
+import { useFragmentSize } from './hooks/useFragmentSize';
+
+const fragmentExport = await fetch('/fragment-config.json').then(r => r.json());
+const fromConfig: FragmentConfig = fragmentExport.config;
+const toConfig: FragmentConfig = fragmentExport.toConfig;
+
+function ResponsiveFragmentCard({ title }: { title: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Observe container size, snapped to cellSize boundaries
+  const size = useFragmentSize(containerRef, fromConfig.cellSize);
+
+  const svg = useMemo(() => {
+    if (!size) return '';
+    return generateFragmentDiffFromConfigs({
+      fromConfig: { ...fromConfig, canvasWidth: size.width, canvasHeight: size.height },
+      toConfig: { ...toConfig, canvasWidth: size.width, canvasHeight: size.height },
+      fromSeed: title,
+      toSeed: title + '-hover',
+    });
+  }, [size, title]);
+
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, !!svg);
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{ width: '100%', aspectRatio: '16/9' }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+```
+
+If you don't need responsive sizing, skip `useFragmentSize` and use the fixed dimensions from your config directly (as shown in the examples above).
 
 ## Project Structure
 
@@ -200,6 +287,7 @@ src/
 │   └── urlState.ts                 # URL state management
 ├── hooks/
 │   ├── useFragmentReveal.ts        # Hover animation hook (copy this for React projects)
+│   ├── useFragmentSize.ts          # Responsive container sizing hook (optional)
 │   └── useReducedMotion.ts         # Reduced motion media query hook
 ├── app/
 │   └── components/

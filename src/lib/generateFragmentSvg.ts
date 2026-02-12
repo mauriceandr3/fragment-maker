@@ -93,9 +93,13 @@ export interface GenerateFragmentDiffSvgOptions {
  */
 export interface GenerateFragmentDiffFromConfigsOptions {
   /** The "From" configuration (pattern shown by default) */
-  fromConfig: Omit<FragmentConfig, 'seedParam'>;
+  fromConfig: FragmentConfig;
   /** The "To" configuration (pattern shown on hover) */
-  toConfig: Omit<FragmentConfig, 'seedParam'>;
+  toConfig: FragmentConfig;
+  /** Optional seed string for the "From" pattern (e.g. article title). Overrides the seedParam in fromConfig. */
+  fromSeed?: string;
+  /** Optional seed string for the "To" pattern. Overrides the seedParam in toConfig. */
+  toSeed?: string;
 }
 
 // ============================================================================
@@ -619,7 +623,12 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
  * Cells unique to To get data-g="b" (hidden, animate on).
  */
 export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFromConfigsOptions): string {
-  const { fromConfig, toConfig } = options;
+  const { fromSeed, toSeed } = options;
+  const { seedParam: fromSeedParam = 'frequency', ...fromRest } = options.fromConfig;
+  const { seedParam: toSeedParam = 'frequency', ...toRest } = options.toConfig;
+
+  const fromConfig = fromSeed ? applySeededParam(fromRest, fromSeed, fromSeedParam) : fromRest;
+  const toConfig = toSeed ? applySeededParam(toRest, toSeed, toSeedParam) : toRest;
 
   // Use fromConfig for canvas/color settings (shared)
   const dims = computeDimensions(fromConfig);

@@ -47,17 +47,17 @@ export function useFragmentReveal(
 
   const tick = useCallback(() => {
     const s = stateRef.current;
-    const maxLen = Math.max(s.aRects.length, s.bRects.length);
-    const batchSize = Math.max(1, Math.ceil(maxLen / TARGET_FRAMES));
+    const aBatchSize = Math.max(1, Math.ceil(s.aRects.length / TARGET_FRAMES));
+    const bBatchSize = Math.max(1, Math.ceil(s.bRects.length / TARGET_FRAMES));
 
     if (s.direction === 'forward') {
-      const aEnd = Math.max(s.aCount - batchSize, 0);
+      const aEnd = Math.max(s.aCount - aBatchSize, 0);
       for (let i = s.aCount - 1; i >= aEnd; i--) {
         s.aRects[s.aOrder[i]].style.opacity = '0';
       }
       s.aCount = aEnd;
 
-      const bEnd = Math.min(s.bCount + batchSize, s.bRects.length);
+      const bEnd = Math.min(s.bCount + bBatchSize, s.bRects.length);
       for (let i = s.bCount; i < bEnd; i++) {
         s.bRects[s.bOrder[i]].style.opacity = '1';
       }
@@ -70,13 +70,13 @@ export function useFragmentReveal(
         s.animFrameId = null;
       }
     } else if (s.direction === 'backward') {
-      const bEnd = Math.max(s.bCount - batchSize, 0);
+      const bEnd = Math.max(s.bCount - bBatchSize, 0);
       for (let i = s.bCount - 1; i >= bEnd; i--) {
         s.bRects[s.bOrder[i]].style.opacity = '0';
       }
       s.bCount = bEnd;
 
-      const aEnd = Math.min(s.aCount + batchSize, s.aRects.length);
+      const aEnd = Math.min(s.aCount + aBatchSize, s.aRects.length);
       for (let i = s.aCount; i < aEnd; i++) {
         s.aRects[s.aOrder[i]].style.opacity = '';
       }
