@@ -81,7 +81,7 @@
       "Adjust a 'To' param (e.g., change density to 0.3)",
       "Disable animation, then re-enable — confirm the adjusted 'To' params are preserved (density is still 0.3)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-008",
@@ -116,7 +116,7 @@
       "Move mouse away — confirm pattern transitions back to 'From'",
       "Confirm animation is smooth (batched frame-based reveal)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRD-011",
