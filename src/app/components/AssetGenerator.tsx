@@ -4,7 +4,7 @@ import { useFragmentState } from "@/hooks/useFragmentState";
 import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { useCanvasRenderer } from "@/hooks/useCanvasRenderer";
 import { useFragmentActions } from "@/hooks/useFragmentActions";
-import { useFragmentReveal } from "@/hooks/useFragmentReveal";
+import { useFragmentReveal } from "@/implementation-files/useFragmentReveal";
 import { PreviewPanel } from "./fragment/PreviewPanel";
 import { CanvasSettingsPanel } from "./fragment/CanvasSettingsPanel";
 import { AnimationPanel } from "./fragment/AnimationPanel";
@@ -38,7 +38,11 @@ export function AssetGenerator() {
   });
 
   const { onMouseEnter: animationMouseEnter, onMouseLeave: animationMouseLeave } =
-    useFragmentReveal(animationContainerRef, state.animationEnabled);
+    useFragmentReveal(
+      animationContainerRef,
+      state.debounced.animationDuration,
+      state.animationEnabled
+    );
 
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">

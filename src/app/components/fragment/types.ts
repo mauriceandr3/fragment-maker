@@ -1,4 +1,4 @@
-import { type FillType } from "@/lib/generateFragmentSvg";
+import { type FillType } from "@/implementation-files/generateFragmentSvg";
 
 export interface GeneratorParams {
   threshold: number;

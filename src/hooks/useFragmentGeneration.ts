@@ -4,7 +4,7 @@ import {
   generateFragmentSvgDirect,
   generateFragmentDiffFromConfigs,
 } from "@/lib/generateFragmentSvgGrid";
-import { generateGrid as generateGridCore } from "@/lib/generateFragmentSvg";
+import { generateGrid as generateGridCore } from "@/implementation-files/generateFragmentSvg";
 import type { FragmentState } from "./useFragmentState";
 
 export function useFragmentGeneration(state: FragmentState) {

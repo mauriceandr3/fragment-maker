@@ -15,6 +15,9 @@
  *
  * ## Exports
  * - `generateFragmentSvg` - Main function for website use
+ * - `FragmentConfig` - Configuration type for generator parameters
+ * - `FragmentExport` - Complete JSON export structure type
+ * - `AnimationSettings` - Animation settings type (for v2.1.0+ exports)
  * - `generateGrid`, `gridToSvg` - Internal functions (for tool use only)
  */
 
@@ -100,6 +103,42 @@ export interface GenerateFragmentDiffFromConfigsOptions {
   fromSeed?: string;
   /** Optional seed string for the "To" pattern. Overrides the seedParam in toConfig. */
   toSeed?: string;
+}
+
+/**
+ * Animation settings exported in JSON format (v2.1.0+).
+ * Nested structure for forwards compatibility with future animation settings.
+ */
+export interface AnimationSettings {
+  /** Animation duration in milliseconds (100-5000, default: 600) */
+  duration: number;
+}
+
+/**
+ * Complete JSON export structure from Fragment Maker.
+ * Use this type when importing exported JSON files in your application.
+ *
+ * @example
+ * ```typescript
+ * import type { FragmentExport } from './generateFragmentSvg';
+ *
+ * const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
+ *
+ * // Access animation duration (v2.1.0+)
+ * const duration = fragmentExport.animation?.duration ?? 600;
+ * ```
+ */
+export interface FragmentExport {
+  /** Export format version (e.g., "2.1.0") */
+  version: string;
+  /** ISO timestamp of export */
+  exportedAt: string;
+  /** Main fragment configuration (the "From" pattern when animation is enabled) */
+  config: FragmentConfig;
+  /** Optional animation settings (v2.1.0+). Present only when animation is enabled. */
+  animation?: AnimationSettings;
+  /** Optional "To" configuration for animation. Present only when animation is enabled. */
+  toConfig?: FragmentConfig;
 }
 
 // ============================================================================

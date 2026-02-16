@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo } from "react";
-import { type SeedableParam } from "@/lib/generateFragmentSvg";
+import { type SeedableParam } from "@/implementation-files/generateFragmentSvg";
 import { TOOLTIP_DELAY, TOUCH_LONG_PRESS_DELAY } from "./types";
 
 interface GridSkeletonProps {

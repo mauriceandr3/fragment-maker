@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { useReducedMotion } from './useReducedMotion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface AnimState {
   aRects: SVGRectElement[];
@@ -12,8 +12,6 @@ interface AnimState {
   animFrameId: number | null;
 }
 
-const TARGET_FRAMES = 20;
-
 function shuffleArray(arr: number[]): number[] {
   const result = [...arr];
   for (let i = result.length - 1; i > 0; i--) {
@@ -25,6 +23,7 @@ function shuffleArray(arr: number[]): number[] {
 
 export function useFragmentReveal(
   containerRef: React.RefObject<HTMLDivElement | null>,
+  durationMs: number = 600,
   enabled: boolean = true
 ) {
   const stateRef = useRef<AnimState>({
@@ -47,6 +46,8 @@ export function useFragmentReveal(
 
   const tick = useCallback(() => {
     const s = stateRef.current;
+    // Calculate frames based on duration at 60fps
+    const TARGET_FRAMES = Math.max(1, Math.ceil(durationMs / 16.67));
     const aBatchSize = Math.max(1, Math.ceil(s.aRects.length / TARGET_FRAMES));
     const bBatchSize = Math.max(1, Math.ceil(s.bRects.length / TARGET_FRAMES));
 
@@ -89,7 +90,7 @@ export function useFragmentReveal(
         s.animFrameId = null;
       }
     }
-  }, []);
+  }, [durationMs]);
 
   const ensureRects = useCallback((): boolean => {
     const s = stateRef.current;

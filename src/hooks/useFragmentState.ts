@@ -8,7 +8,7 @@ import {
 } from "@/lib/dimensionUtils";
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
 import { type GeneratorParams, DEBOUNCE_DELAY } from "@/app/components/fragment/types";
-import type { CropDirection } from "@/lib/generateFragmentSvg";
+import type { CropDirection } from "@/implementation-files/generateFragmentSvg";
 
 // Parse URL params once at module load time (before any React renders)
 const initialUrlState = parseUrlToState();
@@ -30,6 +30,10 @@ export function useFragmentState() {
   const [widthInputError, setWidthInputError] = useState<string | null>(null);
   const [heightInputValue, setHeightInputValue] = useState<string>(String(initialUrlState.canvasHeight ?? DEFAULT_HEIGHT));
   const [heightInputError, setHeightInputError] = useState<string | null>(null);
+  const [durationInputValue, setDurationInputValue] = useState<string>(
+    String((initialUrlState.animationDuration ?? 600) / 1000) // Display as seconds
+  );
+  const [durationInputError, setDurationInputError] = useState<string | null>(null);
 
   // Cropping
   const [allowCropping, setAllowCropping] = useState(initialUrlState.allowCropping ?? false);
@@ -83,6 +87,13 @@ export function useFragmentState() {
 
   // Animation preview state
   const [animationEnabled, setAnimationEnabled] = useState(initialUrlState.animationEnabled ?? false);
+  const [animationDuration, setAnimationDuration] = useState(initialUrlState.animationDuration ?? 600);
+
+  // Sync duration input value when state changes externally
+  useEffect(() => {
+    setDurationInputValue(String(animationDuration / 1000));
+    setDurationInputError(null);
+  }, [animationDuration]);
 
   // "To" params for animation (null when not initialized)
   const [toParams, setToParams] = useState<GeneratorParams | null>(
@@ -102,6 +113,7 @@ export function useFragmentState() {
   const [debouncedAllowCropping, setDebouncedAllowCropping] = useState(allowCropping);
   const [debouncedCropDirection, setDebouncedCropDirection] = useState(cropDirection);
   const [debouncedAnimationEnabled, setDebouncedAnimationEnabled] = useState(animationEnabled);
+  const [debouncedAnimationDuration, setDebouncedAnimationDuration] = useState(animationDuration);
   const [debouncedToParams, setDebouncedToParams] = useState<GeneratorParams | null>(toParams);
 
   // Debounce effects
@@ -168,6 +180,11 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [animationEnabled]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedAnimationDuration(animationDuration), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [animationDuration]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -191,6 +208,7 @@ export function useFragmentState() {
       backgroundColor: debouncedBackground,
       invertColors: debouncedInvertColors,
       animationEnabled: debouncedAnimationEnabled,
+      animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,
     };
     updateUrlFromState(state);
@@ -205,6 +223,7 @@ export function useFragmentState() {
     debouncedBackground,
     debouncedInvertColors,
     debouncedAnimationEnabled,
+    debouncedAnimationDuration,
     debouncedToParams,
   ]);
 
@@ -249,6 +268,9 @@ export function useFragmentState() {
     isCollapsed, setIsCollapsed,
     viewMode, setViewMode,
     animationEnabled, setAnimationEnabled,
+    animationDuration, setAnimationDuration,
+    durationInputValue, setDurationInputValue,
+    durationInputError, setDurationInputError,
     toParams, setToParams,
     validCellSizes,
 
@@ -264,6 +286,7 @@ export function useFragmentState() {
       allowCropping: debouncedAllowCropping,
       cropDirection: debouncedCropDirection,
       animationEnabled: debouncedAnimationEnabled,
+      animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,
     },
 

@@ -16,7 +16,7 @@ import {
   generateFragmentSvgDirect,
   generateFragmentDiffSvg,
   generateFragmentDiffFromConfigs,
-} from './generateFragmentSvg';
+} from '../implementation-files/generateFragmentSvg';
 
 // Re-export types that the tool needs
 export type { FragmentConfig, SeedableParam, FillType, CropDirection, GenerateFragmentDiffSvgOptions, GenerateFragmentDiffFromConfigsOptions };

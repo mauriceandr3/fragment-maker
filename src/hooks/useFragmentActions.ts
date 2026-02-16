@@ -1,5 +1,5 @@
 import React from "react";
-import { type FillType } from "@/lib/generateFragmentSvg";
+import { type FillType } from "@/implementation-files/generateFragmentSvg";
 import { getColorRgb } from "@/lib/colorUtils";
 import {
   MIN_CANVAS_DIMENSION,
@@ -23,6 +23,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAllowCropping, setCropDirection, setInvertColors,
     setParams,
     setAnimationEnabled,
+    setAnimationDuration,
     setToParams,
     clearUrlParams,
     foregroundColor, backgroundColor, cellSize,
@@ -78,6 +79,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
       invertFill: false,
     });
     setAnimationEnabled(false);
+    setAnimationDuration(600);
     setToParams(null);
     clearUrlParams();
   };
@@ -164,8 +166,11 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping: boolean;
         cropDirection?: 'width' | 'height';
       };
+      animation?: {
+        duration: number;
+      };
     } = {
-      version: '2.0.0',
+      version: '2.1.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -186,6 +191,12 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
       },
+      // Add animation settings when enabled
+      ...(animationEnabled ? {
+        animation: {
+          duration: state.animationDuration,
+        },
+      } : {}),
       // Include toConfig when animation is enabled (presence implies animation enabled)
       ...(animationEnabled && toParams ? {
         toConfig: {
@@ -332,6 +343,18 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           setAnimationEnabled(false);
           // Note: Legacy animationSeedA/animationSeedB fields are ignored gracefully
         }
+
+        // Import animation settings (2.1.0+)
+        if (data.animation && typeof data.animation === 'object') {
+          const duration = clamp(
+            data.animation.duration,
+            100,  // MIN_ANIMATION_DURATION
+            5000, // MAX_ANIMATION_DURATION
+            600   // DEFAULT
+          );
+          setAnimationDuration(Math.round(duration));
+        }
+        // If no animation object, duration stays at default or URL-initialized value
 
       } catch {
         alert('Failed to parse settings file. Please ensure it is valid JSON.');

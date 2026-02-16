@@ -1,4 +1,4 @@
-import { type FillType } from './generateFragmentSvg';
+import { type FillType } from '../implementation-files/generateFragmentSvg';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -43,6 +43,7 @@ export interface UrlSerializableState {
   backgroundColor: string;
   invertColors: boolean;
   animationEnabled: boolean;
+  animationDuration: number; // milliseconds
   toParams: GeneratorParamsUrl | null;
 }
 
@@ -68,6 +69,7 @@ const PARAM_KEYS = {
   backgroundColor: 'bg',
   invertColors: 'ic',
   animationEnabled: 'ae',
+  animationDuration: 'ad',
   // To params (for animation)
   toThreshold: 'to_t',
   toGamma: 'to_g',
@@ -103,6 +105,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   backgroundColor: '#000000',
   invertColors: false,
   animationEnabled: false,
+  animationDuration: 600, // 600ms = 0.6s
   toParams: null,
 };
 
@@ -144,6 +147,7 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
 
   // Animation
   addIfChanged(PARAM_KEYS.animationEnabled, state.animationEnabled ? '1' : '0', DEFAULTS.animationEnabled ? '1' : '0');
+  addIfChanged(PARAM_KEYS.animationDuration, String(state.animationDuration), String(DEFAULTS.animationDuration));
 
   // To params (only when animation is enabled and toParams exists)
   if (state.animationEnabled && state.toParams) {
@@ -255,6 +259,9 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   // Animation
   const ae = parseBool(sp.get('ae'));
   if (ae !== undefined) result.animationEnabled = ae;
+
+  const ad = clampNum(sp.get('ad'), 100, 5000); // Min 0.1s, max 5s
+  if (ad !== undefined) result.animationDuration = Math.round(ad);
 
   // To params (for animation)
   const toT = sp.get(PARAM_KEYS.toThreshold);

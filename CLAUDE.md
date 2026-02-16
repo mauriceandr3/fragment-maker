@@ -2,9 +2,10 @@
 
 This project allows one to generate and animate SVG patterns based on user-configurable parameters. To use the config, clients need to copy certain files from the repo and integrate them into their codebase. The main files are:
 
-1. `src/lib/generateFragmentSvg.ts` — Core generator 
-2. `src/hooks/useFragmentReveal.ts` — (for animation: Animation hook (React))
-3. `src/hooks/useReducedMotion.ts` — (for animation: Dependency of the above)
+1. `src/implementation-files/generateFragmentSvg.ts` — Core generator
+2. `src/implementation-files/useFragmentReveal.ts` — (for animation: Animation hook (React))
+3. `src/implementation-files/useFragmentSize.ts` — (for responsive sizing: Responsive container sizing hook (React))
+4. `src/hooks/useReducedMotion.ts` — (for animation: Dependency of useFragmentReveal)
 
 These files should therefore only contain code relevant to the generator and animation logic. They should not contain any UI-specific code or styling, which should be confined to the components in `src/app/components/`.
 

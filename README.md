@@ -52,6 +52,7 @@ Open http://localhost:5173 to use the interactive tool locally.
 | `canvasHeight` | number | Canvas height in pixels (default: 1056) |
 | `allowCropping` | boolean | Enable partial cells at edges |
 | `cropDirection` | width, height | Which axis to crop |
+| `animationDuration` | 100-5000 | Animation duration in milliseconds (default: 600) |
 
 ## Website Integration
 
@@ -59,9 +60,9 @@ The core generator is a **self-contained, dependency-free module** designed to b
 
 | Feature | File(s) to copy | Framework |
 |---------|-----------------|-----------|
-| SVG generation | `src/lib/generateFragmentSvg.ts` | Any |
-| Hover animation | + `src/hooks/useFragmentReveal.ts`, `useReducedMotion.ts` | React |
-| Responsive sizing | + `src/hooks/useFragmentSize.ts` | React |
+| SVG generation | `src/implementation-files/generateFragmentSvg.ts` | Any |
+| Hover animation | + `src/implementation-files/useFragmentReveal.ts`, `useReducedMotion.ts` | React |
+| Responsive sizing | + `src/implementation-files/useFragmentSize.ts` | React |
 
 ### Static SVG
 
@@ -106,7 +107,7 @@ Available seedable parameters: `threshold`, `gamma`, `frequency`, `contrast`, `d
 
 Animate between two patterns on hover — the "from" pattern morphs into the "to" pattern by toggling individual cells. This uses a single SVG with `data-g` attributes, so there's no stacking or opacity conflicts with opaque backgrounds.
 
-The two patterns come from independent configs designed in the Fragment Maker UI. When animation is enabled, the exported JSON contains both `config` (from) and `toConfig` (to).
+The two patterns come from independent configs designed in the Fragment Maker UI. When animation is enabled, the exported JSON contains both `config` (from), `toConfig` (to), and `animation` (settings like duration).
 
 #### How it works
 
@@ -115,9 +116,11 @@ The two patterns come from independent configs designed in the Fragment Maker UI
    - Cells only in **from** → `data-g="a"` (visible initially)
    - Cells only in **to** → `data-g="b"` (hidden initially, `opacity: 0`)
 2. `useFragmentReveal` queries these rects from the DOM
-3. On **mouseEnter**: from-rects turn off and to-rects turn on in shuffled batches (~20 animation frames)
+3. On **mouseEnter**: from-rects turn off and to-rects turn on in shuffled batches over the specified duration
 4. On **mouseLeave**: reverses the animation
 5. Respects `prefers-reduced-motion` (instant swap instead of animation)
+
+The animation duration is configurable (default: 600ms). Exported configs include `animation: { duration: 600 }` when animation is enabled.
 
 #### React
 
@@ -139,7 +142,10 @@ function FragmentCard() {
     []
   );
 
-  const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, true);
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
+    containerRef,
+    fragmentExport.animation?.duration ?? 600  // Optional: control animation speed
+  );
 
   return (
     <div
@@ -196,7 +202,10 @@ function BlogPostCard({ title }: { title: string }) {
     [title]
   );
 
-  const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, true);
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
+    containerRef,
+    fragmentExport.animation?.duration ?? 600
+  );
 
   return (
     <div
@@ -268,7 +277,10 @@ function ResponsiveAnimatedCard({ title }: { title: string }) {
     });
   }, [size, title]);
 
-  const { onMouseEnter, onMouseLeave } = useFragmentReveal(containerRef, !!svg);
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
+    containerRef,
+    fragmentExport.animation?.duration ?? 600
+  );
 
   return (
     <div
@@ -286,14 +298,15 @@ function ResponsiveAnimatedCard({ title }: { title: string }) {
 
 ```
 src/
-├── lib/
+├── implementation-files/
 │   ├── generateFragmentSvg.ts      # Core generator (copy this to your website)
+│   ├── useFragmentReveal.ts        # Hover animation hook (copy this for React projects)
+│   └── useFragmentSize.ts          # Responsive container sizing hook (optional)
+├── lib/
 │   ├── generateFragmentSvgGrid.ts  # Grid variation utilities
 │   ├── dimensionUtils.ts           # Canvas dimension helpers
 │   └── urlState.ts                 # URL state management
 ├── hooks/
-│   ├── useFragmentReveal.ts        # Hover animation hook (copy this for React projects)
-│   ├── useFragmentSize.ts          # Responsive container sizing hook (optional)
 │   └── useReducedMotion.ts         # Reduced motion media query hook
 ├── app/
 │   └── components/
