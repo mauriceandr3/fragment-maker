@@ -155,7 +155,7 @@
       "Text input has a 500-character limit",
       "Component styling matches existing panel style (ParametersPanel)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "UI-2",

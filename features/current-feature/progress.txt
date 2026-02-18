@@ -172,3 +172,25 @@ Files changed:
 Verified: build passes
 
 Next: UI-1 - Create TextConfigPanel component
+
+## UI-1 - TextConfigPanel Component ✓
+
+Created src/app/components/fragment/TextConfigPanel.tsx
+
+Key decisions:
+- Matches ParametersPanel styling (bg-black/40, rounded-2xl, border-white/20, etc.)
+- Reusable ButtonGroup component for alignment toggles
+- Reusable ParamSlider component (same as ParametersPanel)
+- Textarea for multi-line text input w/ 500-char limit
+- Character height slider: 5-100 range
+- H-align & V-align as 3-button groups (Left/Center/Right, Top/Center/Bottom)
+- Word wrap checkbox
+- Invert checkbox with "Text as negative space" explanation
+
+Files changed:
+- src/app/components/fragment/TextConfigPanel.tsx (new)
+- features/current-feature/PRD.json (marked passing)
+
+Verified: vite build passes
+
+Next: UI-2 - Add state type selector above parameter panels
