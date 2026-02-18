@@ -63,7 +63,7 @@
       "Multiple consecutive newlines create proportional vertical gaps",
       "Newlines are encoded as %0A in URL params and \\n in JSON export"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-3",

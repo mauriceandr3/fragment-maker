@@ -45,3 +45,25 @@ Verified via Playwright browser tests:
 Note: Also implements GRID-2 thru GRID-6 (spacing, alignment, wrap, invert) but those need separate verification
 
 Next: GRID-2 - verify scaled spacing implementation
+
+## GRID-2 - Scaled Spacing ✓
+
+Verified existing implementation in generateTextGrid.ts
+
+Key verification:
+- charSpacing = 1 * scale (line 183)
+- lineSpacing = 2 * scale (line 184)
+- Newlines handled via text.split('\n') (line 200)
+
+Files changed:
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser console tests:
+- 1x scale: 1 cell char gap, 2 cell line gap ✓
+- 3x scale: 3 cell char gap, 6 cell line gap ✓
+- Newlines create new lines (totalLines=2 for "A\nB") ✓
+- Multiple newlines create proportional gaps ("A\n\nB" → B at row 14) ✓
+
+Note: URL encoding (%0A) and JSON export (\\n) verification deferred to URL-1/EXPORT-1
+
+Next: GRID-3 - verify horizontal alignment
