@@ -91,6 +91,21 @@ const PARAM_KEYS = {
   toFillAmount: 'to_fa',
   toFillType: 'to_ft',
   toInvertFill: 'to_if',
+  // Text state params
+  fromStateType: 'fst',
+  toStateType: 'tst',
+  fromText: 'ftxt',
+  toText: 'ttxt',
+  fromCharHeight: 'fch',
+  toCharHeight: 'tch',
+  fromAlignment: 'fal',
+  toAlignment: 'tal',
+  fromVerticalAlignment: 'fva',
+  toVerticalAlignment: 'tva',
+  fromWordWrap: 'fww',
+  toWordWrap: 'tww',
+  fromInvert: 'fin',
+  toInvert: 'tin',
 } as const;
 
 // Default text configuration
@@ -186,6 +201,31 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     params.set(PARAM_KEYS.toFillAmount, String(tp.fillAmount));
     params.set(PARAM_KEYS.toFillType, tp.fillType);
     params.set(PARAM_KEYS.toInvertFill, tp.invertFill ? '1' : '0');
+  }
+
+  // Text state params (only when state type is 'text')
+  if (state.fromStateType === 'text') {
+    params.set(PARAM_KEYS.fromStateType, 'text');
+    const tc = state.fromTextConfig;
+    // Text content URI-encoded, limited to 500 chars (newlines become %0A automatically)
+    if (tc.text) params.set(PARAM_KEYS.fromText, tc.text.slice(0, 500));
+    params.set(PARAM_KEYS.fromCharHeight, String(tc.charHeight));
+    addIfChanged(PARAM_KEYS.fromAlignment, tc.alignment, DEFAULT_TEXT_CONFIG.alignment);
+    addIfChanged(PARAM_KEYS.fromVerticalAlignment, tc.verticalAlignment, DEFAULT_TEXT_CONFIG.verticalAlignment);
+    addIfChanged(PARAM_KEYS.fromWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
+    addIfChanged(PARAM_KEYS.fromInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
+  }
+
+  // To text state (only when animation enabled and toStateType is 'text')
+  if (state.animationEnabled && state.toStateType === 'text') {
+    params.set(PARAM_KEYS.toStateType, 'text');
+    const tc = state.toTextConfig;
+    if (tc.text) params.set(PARAM_KEYS.toText, tc.text.slice(0, 500));
+    params.set(PARAM_KEYS.toCharHeight, String(tc.charHeight));
+    addIfChanged(PARAM_KEYS.toAlignment, tc.alignment, DEFAULT_TEXT_CONFIG.alignment);
+    addIfChanged(PARAM_KEYS.toVerticalAlignment, tc.verticalAlignment, DEFAULT_TEXT_CONFIG.verticalAlignment);
+    addIfChanged(PARAM_KEYS.toWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
+    addIfChanged(PARAM_KEYS.toInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
   }
 
   return params.toString();
@@ -306,6 +346,48 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       invertFill: parseBool(sp.get(PARAM_KEYS.toInvertFill)) ?? DEFAULTS.invertFill,
     };
     result.toParams = toParams;
+  }
+
+  // Text state params - from state
+  const fst = sp.get(PARAM_KEYS.fromStateType);
+  if (fst === 'text') {
+    result.fromStateType = 'text';
+    const ftxt = sp.get(PARAM_KEYS.fromText);
+    const fch = clampNum(sp.get(PARAM_KEYS.fromCharHeight), 5, 100);
+    const fal = sp.get(PARAM_KEYS.fromAlignment);
+    const fva = sp.get(PARAM_KEYS.fromVerticalAlignment);
+    const fww = parseBool(sp.get(PARAM_KEYS.fromWordWrap));
+    const fin = parseBool(sp.get(PARAM_KEYS.fromInvert));
+
+    result.fromTextConfig = {
+      text: ftxt ? ftxt.slice(0, 500) : '',
+      charHeight: fch ?? DEFAULT_TEXT_CONFIG.charHeight,
+      alignment: (fal === 'left' || fal === 'center' || fal === 'right') ? fal : DEFAULT_TEXT_CONFIG.alignment,
+      verticalAlignment: (fva === 'top' || fva === 'center' || fva === 'bottom') ? fva : DEFAULT_TEXT_CONFIG.verticalAlignment,
+      wordWrap: fww ?? DEFAULT_TEXT_CONFIG.wordWrap,
+      invert: fin ?? DEFAULT_TEXT_CONFIG.invert,
+    };
+  }
+
+  // Text state params - to state
+  const tst = sp.get(PARAM_KEYS.toStateType);
+  if (tst === 'text') {
+    result.toStateType = 'text';
+    const ttxt = sp.get(PARAM_KEYS.toText);
+    const tch = clampNum(sp.get(PARAM_KEYS.toCharHeight), 5, 100);
+    const tal = sp.get(PARAM_KEYS.toAlignment);
+    const tva = sp.get(PARAM_KEYS.toVerticalAlignment);
+    const tww = parseBool(sp.get(PARAM_KEYS.toWordWrap));
+    const tin = parseBool(sp.get(PARAM_KEYS.toInvert));
+
+    result.toTextConfig = {
+      text: ttxt ? ttxt.slice(0, 500) : '',
+      charHeight: tch ?? DEFAULT_TEXT_CONFIG.charHeight,
+      alignment: (tal === 'left' || tal === 'center' || tal === 'right') ? tal : DEFAULT_TEXT_CONFIG.alignment,
+      verticalAlignment: (tva === 'top' || tva === 'center' || tva === 'bottom') ? tva : DEFAULT_TEXT_CONFIG.verticalAlignment,
+      wordWrap: tww ?? DEFAULT_TEXT_CONFIG.wordWrap,
+      invert: tin ?? DEFAULT_TEXT_CONFIG.invert,
+    };
   }
 
   return result;

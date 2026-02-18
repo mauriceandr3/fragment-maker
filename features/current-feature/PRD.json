@@ -240,7 +240,7 @@
       "Loading a URL with text params restores the full text configuration",
       "URLs without text params default to pattern state type (backward compatible)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-VIEW-1",

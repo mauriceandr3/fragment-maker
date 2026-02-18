@@ -115,13 +115,17 @@ export function useFragmentState() {
 
   // State types for from/to slots ('pattern' or 'text')
   // When animation is disabled, fromStateType is used as the single state type
-  const [fromStateType, setFromStateType] = useState<StateType>('pattern');
-  const [toStateType, setToStateType] = useState<StateType>('pattern');
+  const [fromStateType, setFromStateType] = useState<StateType>(initialUrlState.fromStateType ?? 'pattern');
+  const [toStateType, setToStateType] = useState<StateType>(initialUrlState.toStateType ?? 'pattern');
 
   // Text configurations for from/to slots
   // When animation is disabled, fromTextConfig is used as the single text config
-  const [fromTextConfig, setFromTextConfig] = useState<TextConfig>({ ...DEFAULT_TEXT_CONFIG });
-  const [toTextConfig, setToTextConfig] = useState<TextConfig>({ ...DEFAULT_TEXT_CONFIG });
+  const [fromTextConfig, setFromTextConfig] = useState<TextConfig>(
+    initialUrlState.fromTextConfig ?? { ...DEFAULT_TEXT_CONFIG }
+  );
+  const [toTextConfig, setToTextConfig] = useState<TextConfig>(
+    initialUrlState.toTextConfig ?? { ...DEFAULT_TEXT_CONFIG }
+  );
 
   // --- Debounced state ---
   const [debouncedParams, setDebouncedParams] = useState(params);

@@ -292,4 +292,28 @@ Verified via Playwright browser testing:
 - Alignment buttons show correct active state (right/bottom for test) ✓
 - Word wrap/invert checkboxes show correct state ✓
 
-Next: URL-1 - Add URL parameters for text state
+## URL-1 - URL Persistence for Text State ✓
+
+Added URL params for text state persistence in urlState.ts and useFragmentState.ts
+
+Key changes:
+- New URL param keys: fst/tst (state type), ftxt/ttxt (text), fch/tch (charHeight), fal/tal (alignment), fva/tva (verticalAlignment), fww/tww (wordWrap), fin/tin (invert)
+- serializeStateToUrl: only includes text params when state type is 'text'
+- parseUrlToState: parses text params with validation (500 char limit, 5-100 charHeight, valid alignment values)
+- useFragmentState: initializes from URL params
+
+Files changed:
+- src/lib/urlState.ts (added param keys, serialization, parsing)
+- src/hooks/useFragmentState.ts (init from URL params)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser testing:
+- fst=text / tst=text for state type ✓
+- ftxt/ttxt URI-encoded (newlines as %0A) ✓
+- Text limited to 500 chars ✓
+- fch/tch, fal/tal, fva/tva, fww/tww, fin/tin all persist ✓
+- Pattern state = no text params in URL ✓
+- URL reload restores full config ✓
+- Backward compatible (no text params → pattern) ✓
+
+Next: GRID-VIEW-1 or VALID-1
