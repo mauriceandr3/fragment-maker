@@ -7,8 +7,19 @@ import {
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
-import { type GeneratorParams, DEBOUNCE_DELAY } from "@/app/components/fragment/types";
+import { type GeneratorParams, type StateType, DEBOUNCE_DELAY } from "@/app/components/fragment/types";
+import type { TextConfig } from "@/implementation-files/generateTextGrid";
 import type { CropDirection } from "@/implementation-files/generateFragmentSvg";
+
+// Default text configuration
+const DEFAULT_TEXT_CONFIG: TextConfig = {
+  text: '',
+  charHeight: 15,
+  alignment: 'center',
+  verticalAlignment: 'center',
+  wordWrap: true,
+  invert: false,
+};
 
 // Parse URL params once at module load time (before any React renders)
 const initialUrlState = parseUrlToState();
@@ -102,6 +113,16 @@ export function useFragmentState() {
     } : null
   );
 
+  // State types for from/to slots ('pattern' or 'text')
+  // When animation is disabled, fromStateType is used as the single state type
+  const [fromStateType, setFromStateType] = useState<StateType>('pattern');
+  const [toStateType, setToStateType] = useState<StateType>('pattern');
+
+  // Text configurations for from/to slots
+  // When animation is disabled, fromTextConfig is used as the single text config
+  const [fromTextConfig, setFromTextConfig] = useState<TextConfig>({ ...DEFAULT_TEXT_CONFIG });
+  const [toTextConfig, setToTextConfig] = useState<TextConfig>({ ...DEFAULT_TEXT_CONFIG });
+
   // --- Debounced state ---
   const [debouncedParams, setDebouncedParams] = useState(params);
   const [debouncedForeground, setDebouncedForeground] = useState(foregroundColor);
@@ -115,6 +136,10 @@ export function useFragmentState() {
   const [debouncedAnimationEnabled, setDebouncedAnimationEnabled] = useState(animationEnabled);
   const [debouncedAnimationDuration, setDebouncedAnimationDuration] = useState(animationDuration);
   const [debouncedToParams, setDebouncedToParams] = useState<GeneratorParams | null>(toParams);
+  const [debouncedFromStateType, setDebouncedFromStateType] = useState<StateType>(fromStateType);
+  const [debouncedToStateType, setDebouncedToStateType] = useState<StateType>(toStateType);
+  const [debouncedFromTextConfig, setDebouncedFromTextConfig] = useState<TextConfig>(fromTextConfig);
+  const [debouncedToTextConfig, setDebouncedToTextConfig] = useState<TextConfig>(toTextConfig);
 
   // Debounce effects
   useEffect(() => {
@@ -185,6 +210,24 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [animationDuration]);
 
+  // Debounce state types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFromStateType(fromStateType);
+      setDebouncedToStateType(toStateType);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [fromStateType, toStateType]);
+
+  // Debounce text configs
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFromTextConfig(fromTextConfig);
+      setDebouncedToTextConfig(toTextConfig);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [fromTextConfig, toTextConfig]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -210,6 +253,10 @@ export function useFragmentState() {
       animationEnabled: debouncedAnimationEnabled,
       animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,
+      fromStateType: debouncedFromStateType,
+      toStateType: debouncedToStateType,
+      fromTextConfig: debouncedFromTextConfig,
+      toTextConfig: debouncedToTextConfig,
     };
     updateUrlFromState(state);
   }, [
@@ -225,6 +272,10 @@ export function useFragmentState() {
     debouncedAnimationEnabled,
     debouncedAnimationDuration,
     debouncedToParams,
+    debouncedFromStateType,
+    debouncedToStateType,
+    debouncedFromTextConfig,
+    debouncedToTextConfig,
   ]);
 
   // --- Derived values ---
@@ -273,6 +324,10 @@ export function useFragmentState() {
     durationInputError, setDurationInputError,
     toParams, setToParams,
     validCellSizes,
+    fromStateType, setFromStateType,
+    toStateType, setToStateType,
+    fromTextConfig, setFromTextConfig,
+    toTextConfig, setToTextConfig,
 
     // Debounced values
     debounced: {
@@ -288,6 +343,10 @@ export function useFragmentState() {
       animationEnabled: debouncedAnimationEnabled,
       animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,
+      fromStateType: debouncedFromStateType,
+      toStateType: debouncedToStateType,
+      fromTextConfig: debouncedFromTextConfig,
+      toTextConfig: debouncedToTextConfig,
     },
 
     // Derived

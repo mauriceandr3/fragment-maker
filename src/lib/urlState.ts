@@ -1,4 +1,5 @@
 import { type FillType } from '../implementation-files/generateFragmentSvg';
+import type { TextConfig } from '../implementation-files/generateTextGrid';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -7,6 +8,8 @@ import {
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
 } from './dimensionUtils';
+
+export type StateType = 'pattern' | 'text';
 
 export interface GeneratorParamsUrl {
   threshold: number;
@@ -45,6 +48,12 @@ export interface UrlSerializableState {
   animationEnabled: boolean;
   animationDuration: number; // milliseconds
   toParams: GeneratorParamsUrl | null;
+  // State types for pattern/text switching (defaults to 'pattern' when absent)
+  fromStateType: StateType;
+  toStateType: StateType;
+  // Text configurations (only relevant when state type is 'text')
+  fromTextConfig: TextConfig;
+  toTextConfig: TextConfig;
 }
 
 // Short URL keys for each state field
@@ -84,6 +93,16 @@ const PARAM_KEYS = {
   toInvertFill: 'to_if',
 } as const;
 
+// Default text configuration
+const DEFAULT_TEXT_CONFIG: TextConfig = {
+  text: '',
+  charHeight: 15,
+  alignment: 'center',
+  verticalAlignment: 'center',
+  wordWrap: true,
+  invert: false,
+};
+
 // Defaults (seed excluded — it's random by nature)
 const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   threshold: 0.5,
@@ -107,6 +126,10 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   animationEnabled: false,
   animationDuration: 600, // 600ms = 0.6s
   toParams: null,
+  fromStateType: 'pattern',
+  toStateType: 'pattern',
+  fromTextConfig: DEFAULT_TEXT_CONFIG,
+  toTextConfig: DEFAULT_TEXT_CONFIG,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {

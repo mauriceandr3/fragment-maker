@@ -137,7 +137,7 @@
       "When animation is disabled, the 'from' state becomes the single displayed state (consistent with existing params behavior). The 'to' config is preserved but hidden.",
       "When animation is re-enabled, both states return with their previous configurations intact"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "UI-1",

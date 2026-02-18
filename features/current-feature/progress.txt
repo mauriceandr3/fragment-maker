@@ -151,3 +151,24 @@ Files changed:
 - features/current-feature/PRD.json (marked passing)
 
 Next: TYPE-2 - Extend useFragmentState for stateType/textConfig management
+
+## TYPE-2 - State Type Management in useFragmentState ✓
+
+Extended useFragmentState hook to manage stateType and textConfig for from/to states.
+
+Key decisions:
+- fromStateType/toStateType default to 'pattern'
+- fromTextConfig/toTextConfig use DEFAULT_TEXT_CONFIG (text='', charHeight=15, alignment='center', verticalAlignment='center', wordWrap=true, invert=false)
+- When animation disabled, 'from' state used as single state (matches existing params behavior)
+- State types/configs preserved independently - toggling animation doesn't lose configs
+- Added debounced versions for all new state
+- Extended UrlSerializableState type for URL sync (actual URL serialization deferred to URL-1)
+
+Files changed:
+- src/hooks/useFragmentState.ts (added state, debounce, return values)
+- src/lib/urlState.ts (extended UrlSerializableState type, added defaults)
+- features/current-feature/PRD.json (marked passing)
+
+Verified: build passes
+
+Next: UI-1 - Create TextConfigPanel component
