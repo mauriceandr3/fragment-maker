@@ -12,15 +12,17 @@ import {
   type CropDirection,
   type GenerateFragmentDiffSvgOptions,
   type GenerateFragmentDiffFromConfigsOptions,
+  type GenerateDiffFromGridsOptions,
   PARAM_RANGES,
   generateFragmentSvgDirect,
   generateFragmentDiffSvg,
   generateFragmentDiffFromConfigs,
+  generateDiffFromGrids,
 } from '../implementation-files/generateFragmentSvg';
 
 // Re-export types that the tool needs
-export type { FragmentConfig, SeedableParam, FillType, CropDirection, GenerateFragmentDiffSvgOptions, GenerateFragmentDiffFromConfigsOptions };
-export { PARAM_RANGES, generateFragmentSvgDirect, generateFragmentDiffSvg, generateFragmentDiffFromConfigs };
+export type { FragmentConfig, SeedableParam, FillType, CropDirection, GenerateFragmentDiffSvgOptions, GenerateFragmentDiffFromConfigsOptions, GenerateDiffFromGridsOptions };
+export { PARAM_RANGES, generateFragmentSvgDirect, generateFragmentDiffSvg, generateFragmentDiffFromConfigs, generateDiffFromGrids };
 
 /**
  * Generates an array of configurations with one parameter varying across its range.

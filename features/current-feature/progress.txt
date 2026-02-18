@@ -218,3 +218,30 @@ Verified via Playwright:
 - Mixed states (From=Pattern, To=Text) work ✓
 
 Next: ANIM-1 - Modify SVG generation to support text grids as from/to states
+
+## ANIM-1 & ANIM-2 - Animation Integration ✓
+
+Integrated text grids into SVG generation for animation support.
+
+Key changes:
+- Added generateDiffFromGrids() to generateFragmentSvg.ts: grid-agnostic diff SVG generator
+- Modified useFragmentGeneration.ts:
+  - regenerateGrid() now checks fromStateType for text vs pattern
+  - diffSvg memo handles all 4 combos: Pattern↔Pattern, Pattern↔Text, Text↔Pattern, Text↔Text
+  - generateSVG() supports text grid export via gridToSvg()
+- Re-exported new function via generateFragmentSvgGrid.ts
+
+Files changed:
+- src/implementation-files/generateFragmentSvg.ts (added generateDiffFromGrids + types)
+- src/lib/generateFragmentSvgGrid.ts (re-export)
+- src/hooks/useFragmentGeneration.ts (text grid support)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser testing:
+- Non-animated text view: "HELLO" renders as bitmap ✓
+- Text→Pattern: animation works (HELLO→pattern) ✓
+- Text→Text: animation works (HELLO→WORLD) ✓
+- Pattern→Text: animation works (pattern→WORLD) ✓
+- Pattern→Pattern: unchanged behavior ✓
+
+Next: EXPORT-1 - Update export format to v2.2.0

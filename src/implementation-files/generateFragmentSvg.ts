@@ -651,6 +651,95 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
 }
 
 /**
+ * Options for generating a diff SVG from raw boolean grids.
+ * Used when grids come from different sources (pattern generator, text generator, etc.)
+ */
+export interface GenerateDiffFromGridsOptions {
+  /** The "From" grid (pattern shown by default) */
+  gridFrom: boolean[][];
+  /** The "To" grid (pattern shown on hover) */
+  gridTo: boolean[][];
+  /** Grid columns */
+  cols: number;
+  /** Grid rows */
+  rows: number;
+  /** Cell size in pixels */
+  cellSize: number;
+  /** Canvas width in pixels */
+  width: number;
+  /** Canvas height in pixels */
+  height: number;
+  /** Foreground color (hex) */
+  foregroundColor: string;
+  /** Background color (hex) */
+  backgroundColor: string;
+  /** Allow cropping mode */
+  allowCropping?: boolean;
+  /** Which axis to crop */
+  cropDirection?: CropDirection;
+}
+
+/**
+ * Generates a diff SVG from two pre-computed boolean grids.
+ * Grid-agnostic: works with pattern grids, text grids, or any boolean[][] source.
+ *
+ * Cells shared by both grids are static. Cells unique to From get data-g="a" (visible, animate off).
+ * Cells unique to To get data-g="b" (hidden, animate on).
+ */
+export function generateDiffFromGrids(options: GenerateDiffFromGridsOptions): string {
+  const {
+    gridFrom,
+    gridTo,
+    cols,
+    rows,
+    cellSize,
+    width,
+    height,
+    foregroundColor,
+    backgroundColor,
+    allowCropping = false,
+    cropDirection = 'height',
+  } = options;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
+
+  for (let y = 0; y < Math.min(rows, gridFrom.length, gridTo.length); y++) {
+    for (let x = 0; x < Math.min(cols, gridFrom[y]?.length || 0, gridTo[y]?.length || 0); x++) {
+      const inFrom = gridFrom[y][x];
+      const inTo = gridTo[y][x];
+      if (!inFrom && !inTo) continue;
+
+      let rectWidth = cellSize;
+      let rectHeight = cellSize;
+
+      if (allowCropping) {
+        if (cropDirection === 'width' && x === cols - 1) {
+          rectWidth = Math.min(cellSize, width - x * cellSize);
+        }
+        if (cropDirection === 'height' && y === rows - 1) {
+          rectHeight = Math.min(cellSize, height - y * cellSize);
+        }
+      }
+      if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
+
+      if (inFrom && inTo) {
+        svg += `<rect ${pos}/>`;
+      } else if (inFrom) {
+        svg += `<rect ${pos} data-g="a"/>`;
+      } else {
+        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
+      }
+    }
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+/**
  * Generates a diff SVG from two full configuration objects.
  * Used when the From and To panels have independently configured generator params.
  *

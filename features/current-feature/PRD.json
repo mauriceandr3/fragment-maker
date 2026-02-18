@@ -183,7 +183,7 @@
       "Hover animation works for all four combinations (wave BFS reveal)",
       "Non-animated single view works with text state type (renders text grid as static SVG)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "ANIM-2",
@@ -195,7 +195,7 @@
       "Invert mode works in static view",
       "SVG can be exported (download and copy-to-clipboard)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "EXPORT-1",
