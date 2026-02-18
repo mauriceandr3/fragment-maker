@@ -20,3 +20,28 @@ Verified via Playwright browser tests:
 - Glyphs render recognizably (tested 'A' visually)
 
 Next: GRID-1 - generateTextGrid.ts
+
+## GRID-1 - Text Grid Generator ✓
+
+Created src/implementation-files/generateTextGrid.ts
+
+Key decisions:
+- TextConfig interface + TextGridResult return type w/ validation metadata
+- Uses selectFont from bitmapFonts.ts for font+scale selection
+- Grid dimensions match requested cols×rows exactly
+- Tracks unsupported chars, totalLines, visibleLines, gridTooSmall for VALID-1
+
+Files changed:
+- src/implementation-files/generateTextGrid.ts (new)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser tests:
+- Empty/space-only text → all-false grid (all-true when inverted)
+- Unsupported chars tracked (tested ~, ^)
+- Case insensitive (lowercase==uppercase grids)
+- Grid dimensions match request
+- gridTooSmall=true when charHeight<5
+
+Note: Also implements GRID-2 thru GRID-6 (spacing, alignment, wrap, invert) but those need separate verification
+
+Next: GRID-2 - verify scaled spacing implementation

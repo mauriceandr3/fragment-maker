@@ -48,7 +48,7 @@
       "Single-line text is correctly placed on the grid",
       "Empty text or all-space text produces an all-false grid (all-true when invert is enabled)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-2",
