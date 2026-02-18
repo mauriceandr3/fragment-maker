@@ -194,3 +194,27 @@ Files changed:
 Verified: vite build passes
 
 Next: UI-2 - Add state type selector above parameter panels
+
+## UI-2 - State Type Selector ✓
+
+Added StateTypeSelector component and integrated into AssetGenerator.tsx
+
+Key decisions:
+- New StateTypeSelector component: compact toggle (Pattern/Text) w/ matching panel styling
+- Animation disabled: single selector above single panel (uses fromStateType)
+- Animation enabled: two selectors in grid layout, one per column (From/To)
+- Conditional render: Pattern→ParametersPanel, Text→TextConfigPanel
+
+Files changed:
+- src/app/components/fragment/StateTypeSelector.tsx (new)
+- src/app/components/AssetGenerator.tsx (integrated selectors + TextConfigPanel import)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright:
+- Single selector in non-animated mode ✓
+- Two selectors side-by-side in animated mode ✓
+- Pattern selection shows ParametersPanel ✓
+- Text selection shows TextConfigPanel ✓
+- Mixed states (From=Pattern, To=Text) work ✓
+
+Next: ANIM-1 - Modify SVG generation to support text grids as from/to states

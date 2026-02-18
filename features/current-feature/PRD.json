@@ -169,7 +169,7 @@
       "Selecting 'Text' renders the TextConfigPanel for that slot",
       "Mixed states work: e.g., From=Text, To=Pattern shows TextConfigPanel on left and ParametersPanel on right"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "ANIM-1",
