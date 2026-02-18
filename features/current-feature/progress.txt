@@ -82,3 +82,18 @@ Verified via Playwright browser console tests:
 - Independent line alignment: 'A' (3 cols) centers at 23, 'AB' (7 cols) centers at 21 ✓
 
 Next: GRID-4 - verify vertical alignment
+
+## GRID-4 - Vertical Alignment ✓
+
+Verified existing implementation in generateTextGrid.ts (lines 299-312)
+
+Files changed:
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser console tests:
+- Top alignment: 'A' starts at row 0 ✓
+- Center alignment: 'A' (5 rows) centers at row 12 in 30-row grid (floor((30-5)/2)=12) ✓
+- Bottom alignment: 'A' ends at row 29 (last row of 30-row grid) ✓
+- Multi-line center: 'A\\nB' (12 rows total: 2*5+2 spacing) centers at row 9 ✓
+
+Next: GRID-5 - verify word wrapping

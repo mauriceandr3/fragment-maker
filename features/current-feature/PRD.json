@@ -87,7 +87,7 @@
       "Bottom alignment: last line ends at the bottom edge of the grid",
       "Vertical alignment works correctly with multi-line text"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-5",
