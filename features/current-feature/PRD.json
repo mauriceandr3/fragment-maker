@@ -15,7 +15,7 @@
       "Glyph dimension validation: a runtime assertion or TypeScript type constraint verifies each glyph array matches its font's canonical row/column counts",
       "Glyphs produce recognizable characters when rendered as pixel grids"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "FONT-2",
@@ -33,7 +33,7 @@
       "Target height < 5 returns null/error (minimum font 3x5 doesn't fit)",
       "Integer scaling means each font pixel becomes a scale*scale block of cells"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-1",

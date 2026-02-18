@@ -1,0 +1,22 @@
+# Text Animation Feature Progress
+
+## FONT-1 & FONT-2 - Bitmap Fonts + Selection Algorithm ✓
+
+Created src/implementation-files/bitmapFonts.ts
+
+Key decisions:
+- All three font sizes (3x5, 5x7, 7x9) in single file
+- Glyph validation runs at module load (runtime assertion)
+- Helper function p() converts string patterns to boolean arrays for readability
+- selectFont() included in same file since tightly coupled
+
+Files changed:
+- src/implementation-files/bitmapFonts.ts (new)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser tests:
+- 54 glyphs per font (26 letters + 10 digits + 17 punct + space)
+- All selectFont test cases pass per PRD spec
+- Glyphs render recognizably (tested 'A' visually)
+
+Next: GRID-1 - generateTextGrid.ts
