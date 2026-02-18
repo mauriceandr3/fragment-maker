@@ -100,7 +100,7 @@
       "When word wrap is disabled, text that exceeds grid width is truncated at character boundaries (never mid-glyph)",
       "Word wrap interacts correctly with explicit \\n line breaks"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-6",

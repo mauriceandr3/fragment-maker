@@ -97,3 +97,20 @@ Verified via Playwright browser console tests:
 - Multi-line center: 'A\\nB' (12 rows total: 2*5+2 spacing) centers at row 9 ✓
 
 Next: GRID-5 - verify word wrapping
+
+## GRID-5 - Word Wrapping ✓
+
+Verified existing implementation in generateTextGrid.ts (lines 206-266)
+
+Files changed:
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser console tests:
+- wordWrap=true: "HELLO WORLD" in 25-col grid → 2 lines (HELLO, WORLD) ✓
+- Wrapped lines respect alignment: both lines centered at col 3 ✓
+- Long word truncation: "ABCDEFGHIJKLMNOP" in 20-col grid → truncated to 5 chars ✓
+- wordWrap=false: "HELLO WORLD" in 25-col grid → 1 line (truncated) ✓
+- Newline interaction: "HELLO WORLD\nFOO BAR" → 4 lines (wraps + explicit break) ✓
+- No mid-glyph truncation: "ABCDE" in 17-col grid → "ABCD" rendered, cols 15-16 empty ✓
+
+Next: GRID-6 - verify invert mode
