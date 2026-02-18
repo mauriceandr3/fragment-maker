@@ -75,7 +75,7 @@
       "Right alignment: text ends at the right edge of the grid",
       "Each line is independently aligned (e.g., a short line and a long line both center correctly)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "GRID-4",

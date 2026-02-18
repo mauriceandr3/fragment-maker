@@ -67,3 +67,18 @@ Verified via Playwright browser console tests:
 Note: URL encoding (%0A) and JSON export (\\n) verification deferred to URL-1/EXPORT-1
 
 Next: GRID-3 - verify horizontal alignment
+
+## GRID-3 - Horizontal Alignment ✓
+
+Verified existing implementation in generateTextGrid.ts (lines 321-333)
+
+Files changed:
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser console tests:
+- Left alignment: 'A' starts at col 0 ✓
+- Center alignment: 'A' (3 cols) centers at col 23 in 50-col grid ✓
+- Right alignment: 'A' ends at col 49 (right edge) ✓
+- Independent line alignment: 'A' (3 cols) centers at 23, 'AB' (7 cols) centers at 21 ✓
+
+Next: GRID-4 - verify vertical alignment
