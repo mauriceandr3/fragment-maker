@@ -1,0 +1,271 @@
+[
+  {
+    "id": "FONT-1",
+    "category": "Bitmap Font Definitions",
+    "description": "Create bitmap font definitions for 3x5, 5x7, and 7x9 canonical sizes in src/implementation-files/bitmapFonts.ts. Each glyph is a boolean 2D array. Supported characters: A-Z (uppercase), 0-9, common punctuation (. , ! ? - ' \" : ; / ( ) & @ # + =), and space.",
+    "steps_to_verify": [
+      "File exists at src/implementation-files/bitmapFonts.ts",
+      "All three font sizes (3x5, 5x7, 7x9) are defined",
+      "Each font size has glyph definitions for all 26 uppercase letters (A-Z)",
+      "Each font size has glyph definitions for digits 0-9",
+      "Each font size has glyph definitions for all specified punctuation: . , ! ? - ' \" : ; / ( ) & @ # + =",
+      "Each font size has a space glyph (all-false array of appropriate width)",
+      "Glyph arrays match their canonical dimensions (e.g., 3x5 glyphs are 5 rows of 3 booleans)",
+      "All fonts are monospace: every character within a font size has the same width matching the canonical width (3, 5, or 7 columns)",
+      "Glyph dimension validation: a runtime assertion or TypeScript type constraint verifies each glyph array matches its font's canonical row/column counts",
+      "Glyphs produce recognizable characters when rendered as pixel grids"
+    ],
+    "passes": false
+  },
+  {
+    "id": "FONT-2",
+    "category": "Bitmap Font Definitions",
+    "description": "Implement font selection algorithm that maximizes actual rendered height without exceeding the target. For each font (7x9, 5x7, 3x5), compute scale = floor(targetHeight / fontHeight) and actualHeight = fontHeight * scale. Select the font+scale combo with the largest actualHeight. Tiebreak: prefer the higher-resolution (larger canonical) font.",
+    "steps_to_verify": [
+      "Target height 5 selects 3x5 at 1x (actual: 5)",
+      "Target height 7 selects 5x7 at 1x (actual: 7)",
+      "Target height 8 selects 5x7 at 1x (actual: 7) — 5x7@1x=7 beats 3x5@1x=5",
+      "Target height 9 selects 7x9 at 1x (actual: 9)",
+      "Target height 10 selects 3x5 at 2x (actual: 10) — 3x5@2x=10 beats 7x9@1x=9",
+      "Target height 14 selects 5x7 at 2x (actual: 14) — 5x7@2x=14 beats 3x5@2x=10 and 7x9@1x=9",
+      "Target height 18 selects 7x9 at 2x (actual: 18)",
+      "Target height 27 selects 7x9 at 3x (actual: 27)",
+      "Target height < 5 returns null/error (minimum font 3x5 doesn't fit)",
+      "Integer scaling means each font pixel becomes a scale*scale block of cells"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-1",
+    "category": "Text Grid Generation",
+    "description": "Create src/implementation-files/generateTextGrid.ts that converts text + config into a boolean[][] grid. Input: text string, character height, grid dimensions (cols x rows), alignment, vertical alignment, word wrap flag, invert flag. Output: boolean[][] of same shape as pattern grids.",
+    "steps_to_verify": [
+      "File exists at src/implementation-files/generateTextGrid.ts",
+      "Function accepts text config and grid dimensions, returns boolean[][] grid plus validation metadata (unsupported characters list, total vs visible line counts) for use by VALID-1",
+      "Output grid has dimensions matching cols x rows",
+      "Text is converted to uppercase before rendering",
+      "Characters not in the font are skipped (with unsupported chars tracked for validation)",
+      "Single-line text is correctly placed on the grid",
+      "Empty text or all-space text produces an all-false grid (all-true when invert is enabled)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-2",
+    "category": "Text Grid Generation",
+    "description": "Implement text layout with scaled spacing: (1 * scale) cells gap between characters horizontally, (2 * scale) cells gap between lines vertically. Spacing scales with the font scale factor to maintain consistent visual proportions. Support real newline characters from textarea input.",
+    "steps_to_verify": [
+      "At 1x scale: adjacent characters have exactly 1 cell of empty space between them",
+      "At 1x scale: adjacent text lines have exactly 2 cells of empty space between them",
+      "At 3x scale: adjacent characters have exactly 3 cells of empty space between them",
+      "At 3x scale: adjacent text lines have exactly 6 cells of empty space between them",
+      "Newline characters in text input (from textarea Enter key) create a new line",
+      "Multiple consecutive newlines create proportional vertical gaps",
+      "Newlines are encoded as %0A in URL params and \\n in JSON export"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-3",
+    "category": "Text Grid Generation",
+    "description": "Implement horizontal alignment (left, center, right) for text lines within the grid.",
+    "steps_to_verify": [
+      "Left alignment: text starts at column 0 (or left edge)",
+      "Center alignment: text is horizontally centered in the grid",
+      "Right alignment: text ends at the right edge of the grid",
+      "Each line is independently aligned (e.g., a short line and a long line both center correctly)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-4",
+    "category": "Text Grid Generation",
+    "description": "Implement vertical alignment (top, center, bottom) for the entire text block within the grid.",
+    "steps_to_verify": [
+      "Top alignment: first line starts at row 0 (or top edge)",
+      "Center alignment: text block is vertically centered in the grid",
+      "Bottom alignment: last line ends at the bottom edge of the grid",
+      "Vertical alignment works correctly with multi-line text"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-5",
+    "category": "Text Grid Generation",
+    "description": "Implement optional word wrapping that breaks text at word boundaries to fit within grid width.",
+    "steps_to_verify": [
+      "When word wrap is enabled, long lines wrap at word boundaries (spaces)",
+      "Wrapped lines respect horizontal alignment setting",
+      "Words that are wider than the grid width render as many characters as fit (truncated at character boundary, same as no-wrap behavior)",
+      "When word wrap is disabled, text that exceeds grid width is truncated at character boundaries (never mid-glyph)",
+      "Word wrap interacts correctly with explicit \\n line breaks"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-6",
+    "category": "Text Grid Generation",
+    "description": "Implement invert mode: when enabled, the grid is fully filled (all true) and text characters become 'holes' (false cells).",
+    "steps_to_verify": [
+      "When invert is false, text cells are true and background cells are false (normal)",
+      "When invert is true, background cells are true and text cells are false (negative space)",
+      "Invert works correctly with all alignment and wrapping options"
+    ],
+    "passes": false
+  },
+  {
+    "id": "TYPE-1",
+    "category": "State Type System",
+    "description": "Add a 'stateType' concept to the type system. Each animation slot (from/to) and the single non-animated view can be either 'pattern' or 'text'. Add TextConfig type with fields: text (string), charHeight (number), alignment ('left'|'center'|'right'), verticalAlignment ('top'|'center'|'bottom'), wordWrap (boolean), invert (boolean).",
+    "steps_to_verify": [
+      "StateType type exists: 'pattern' | 'text'",
+      "TextConfig interface is defined with all six fields",
+      "Types are exported and accessible to components and hooks"
+    ],
+    "passes": false
+  },
+  {
+    "id": "TYPE-2",
+    "category": "State Type System",
+    "description": "Extend useFragmentState to manage stateType and textConfig for both from and to states. When animation is disabled, manage a single stateType/textConfig. When animation is enabled, manage fromStateType/fromTextConfig and toStateType/toTextConfig independently.",
+    "steps_to_verify": [
+      "State includes fromStateType (default: 'pattern') and toStateType (default: 'pattern')",
+      "State includes fromTextConfig and toTextConfig with sensible defaults",
+      "When animation is disabled, a single stateType/textConfig is used",
+      "Changing state type between 'pattern' and 'text' preserves the other type's config",
+      "TextConfig defaults: text='', charHeight=15, alignment='center', verticalAlignment='center', wordWrap=true, invert=false",
+      "When animation is disabled, the 'from' state becomes the single displayed state (consistent with existing params behavior). The 'to' config is preserved but hidden.",
+      "When animation is re-enabled, both states return with their previous configurations intact"
+    ],
+    "passes": false
+  },
+  {
+    "id": "UI-1",
+    "category": "Text Config Panel",
+    "description": "Create a TextConfigPanel component in src/app/components/fragment/ with controls for: text input (textarea), character height (slider, 5-100), horizontal alignment (button group: Left/Center/Right), vertical alignment (button group: Top/Center/Bottom), word wrap (checkbox), invert (checkbox).",
+    "steps_to_verify": [
+      "TextConfigPanel component renders all six controls",
+      "Text input is a multi-line textarea",
+      "Character height slider ranges from 5 to 100",
+      "Horizontal alignment shows three options as a button group",
+      "Vertical alignment shows three options as a button group",
+      "Word wrap is a checkbox",
+      "Invert is a checkbox with label explaining 'text as negative space'",
+      "All controls update state and trigger grid regeneration via existing 100ms debounce in useFragmentState",
+      "Text input has a 500-character limit",
+      "Component styling matches existing panel style (ParametersPanel)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "UI-2",
+    "category": "State Type Selector",
+    "description": "Add a state type selector (Pattern / Text toggle) above each parameter panel slot. When animation is disabled, show one selector above the single panel. When animation is enabled, show one selector above each of the From and To panels. Selecting 'Pattern' shows ParametersPanel; selecting 'Text' shows TextConfigPanel.",
+    "steps_to_verify": [
+      "State type selector renders as a toggle/radio with 'Pattern' and 'Text' options",
+      "When animation is disabled: one selector is shown, controlling the single panel",
+      "When animation is enabled: two selectors shown, one for From and one for To",
+      "Selecting 'Pattern' renders the ParametersPanel for that slot",
+      "Selecting 'Text' renders the TextConfigPanel for that slot",
+      "Mixed states work: e.g., From=Text, To=Pattern shows TextConfigPanel on left and ParametersPanel on right"
+    ],
+    "passes": false
+  },
+  {
+    "id": "ANIM-1",
+    "category": "Animation Integration",
+    "description": "Modify SVG generation to support text grids as from/to states. When a state type is 'text', generate the boolean[][] grid via generateTextGrid instead of generateGrid. Pass the resulting grid into the existing diff SVG mechanism (data-g='a'/'b' attributes).",
+    "steps_to_verify": [
+      "Pattern->Pattern: behavior unchanged from current implementation",
+      "Pattern->Text: pattern grid as 'from', text grid as 'to', diff SVG generated correctly",
+      "Text->Pattern: text grid as 'from', pattern grid as 'to', diff SVG generated correctly",
+      "Text->Text: both grids from text, diff SVG generated correctly",
+      "Hover animation works for all four combinations (wave BFS reveal)",
+      "Non-animated single view works with text state type (renders text grid as static SVG)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "ANIM-2",
+    "category": "Animation Integration",
+    "description": "When animation is disabled and state type is 'text', generate a static SVG from the text grid using the existing gridToSvg function.",
+    "steps_to_verify": [
+      "Single text state renders as a static SVG with text pixels as foreground rects",
+      "Canvas settings (dimensions, cell size, colors) are applied correctly",
+      "Invert mode works in static view",
+      "SVG can be exported (download and copy-to-clipboard)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "EXPORT-1",
+    "category": "Export/Import Format",
+    "description": "Update export format to version 2.2.0. Add optional fields: fromStateType, toStateType, fromTextConfig, toTextConfig. State type fields only present when value is 'text' (absent defaults to 'pattern' for backward compatibility). TextConfig fields only present when respective state type is 'text'.",
+    "steps_to_verify": [
+      "Exported JSON version is '2.2.0'",
+      "When both states are 'pattern', export is identical to v2.1.0 format (no state type fields)",
+      "When from state is 'text', export includes 'fromStateType': 'text' and 'fromTextConfig' object",
+      "When to state is 'text', export includes 'toStateType': 'text' and 'toTextConfig' object",
+      "fromTextConfig/toTextConfig includes all six text config fields"
+    ],
+    "passes": false
+  },
+  {
+    "id": "EXPORT-2",
+    "category": "Export/Import Format",
+    "description": "Update import to handle v2.2.0 format. Gracefully handle missing state type fields (default to 'pattern'). Validate textConfig fields on import. Maintain full backward compatibility with v2.1.0 imports.",
+    "steps_to_verify": [
+      "Importing a v2.1.0 JSON works unchanged (all states default to 'pattern')",
+      "Importing a v2.2.0 JSON with text states restores state types and text configs",
+      "Importing a v2.2.0 JSON with only pattern states works correctly",
+      "Invalid textConfig values are handled gracefully (clamped or defaulted)",
+      "Round-trip: export then import preserves all text configuration"
+    ],
+    "passes": false
+  },
+  {
+    "id": "URL-1",
+    "category": "URL Persistence",
+    "description": "Add URL parameters for text state: fst/tst (state type), ftxt/ttxt (text content, URI-encoded), fch/tch (character height), fal/tal (alignment), fva/tva (vertical alignment), fww/tww (word wrap, 0/1), fin/tin (invert, 0/1). Only include when state type is 'text'.",
+    "steps_to_verify": [
+      "Text state type is persisted to URL as fst=text or tst=text",
+      "Text content is URI-encoded in ftxt/ttxt params (newlines encoded as %0A)",
+      "Text content is limited to 500 characters (matching textarea limit)",
+      "Character height persisted as fch/tch",
+      "Alignment persisted as fal/tal (left/center/right)",
+      "Vertical alignment persisted as fva/tva (top/center/bottom)",
+      "Word wrap persisted as fww/tww (0 or 1)",
+      "Invert persisted as fin/tin (0 or 1)",
+      "When state type is 'pattern', no text params are included in URL",
+      "Loading a URL with text params restores the full text configuration",
+      "URLs without text params default to pattern state type (backward compatible)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "GRID-VIEW-1",
+    "category": "Grid View Restriction",
+    "description": "Disable grid view when any state type is 'text'. Show a message: 'Grid view not available for text states.' in place of the grid.",
+    "steps_to_verify": [
+      "When from or to state type is 'text', grid view toggle is disabled or hidden",
+      "If grid view was active and user switches a state to 'text', view switches to single",
+      "Message 'Grid view not available for text states.' is displayed when grid view would be shown",
+      "Grid view works normally when both states are 'pattern'"
+    ],
+    "passes": false
+  },
+  {
+    "id": "VALID-1",
+    "category": "Validation",
+    "description": "Show real-time validation messages in the text config panel: (1) 'Text truncated: X of Y lines visible' when text overflows vertically, (2) 'Grid too small for this character size' when minimum font (3x5) doesn't fit at scale 1, (3) 'Unsupported characters: ...' for characters without glyph definitions.",
+    "steps_to_verify": [
+      "When text lines exceed grid height, truncation warning shows with correct counts",
+      "When grid is too small for any font (height < 5 cells), size warning is shown",
+      "When text contains unsupported characters, they are listed in the warning",
+      "Validation updates in real-time as text or settings change",
+      "Multiple validation messages can be shown simultaneously",
+      "No validation messages shown when text fits correctly with all supported characters"
+    ],
+    "passes": false
+  }
+]

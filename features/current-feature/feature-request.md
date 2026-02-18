@@ -30,16 +30,7 @@ Text input is converted to uppercase before rendering.
 
 ### Font size and scaling
 
-The user specifies a **character height in cells** (e.g., 15 cells). The system picks the largest canonical font definition that can be integer-scaled to fit:
-
-| Target height | Selected font | Scale | Actual height |
-|---------------|---------------|-------|---------------|
-| 5             | 3×5           | 1×    | 5 cells       |
-| 7             | 5×7           | 1×    | 7 cells       |
-| 10            | 5×7           | 2×    | 14 → 10? (picks best fit) |
-| 14            | 5×7           | 2×    | 14 cells      |
-| 18            | 7×9           | 2×    | 18 cells      |
-| 27            | 7×9           | 3×    | 27 cells      |
+The user specifies a **character height in cells** (e.g., 15 cells). The system selects the font+scale combination that **maximizes actual rendered height** without exceeding the target. For each font, compute `scale = floor(targetHeight / fontHeight)` and `actualHeight = fontHeight * scale`. Pick the combo with the largest `actualHeight`. Tiebreak: prefer the higher-resolution font. See revised table in Clarifications section below.
 
 Scaling is pure integer multiplication — each font pixel becomes a scale×scale block of cells. This preserves the pixel art aesthetic.
 
@@ -61,6 +52,8 @@ What matters is the **grid resolution** (cols × rows = canvasWidth/cellSize × 
 - **Vertical alignment**: Top / Center / Bottom
 - **Word wrap**: Optional — wraps at word boundaries within grid width
 - **Invert**: Text is "holes" in a filled background (all cells on, text cells off)
+- **Character spacing**: `1 * scale` cells gap between adjacent characters (scales with font)
+- **Line spacing**: `2 * scale` cells gap between adjacent lines (scales with font)
 
 ### Validation feedback
 
@@ -171,3 +164,50 @@ New implementation files:
 2. **Text as a new state type** (not overlay/mask) — clean separation, animation system unchanged
 3. **Integer scaling only** — preserves pixel art look at all sizes
 4. **Uppercase only** — reduces font definition surface area, matches the bold geometric aesthetic
+5. **Monospace fonts** — all characters within a font size have the same width (matching their canonical width: 3, 5, or 7 columns). Simplifies layout math and matches the pixel-grid aesthetic.
+
+## Clarifications (post-review)
+
+### Font selection algorithm (revised)
+
+The algorithm should **maximize actual rendered height** (closest to target without exceeding it), not blindly prefer the largest canonical font. For each font, compute `scale = floor(targetHeight / fontHeight)` and `actualHeight = fontHeight * scale`. Pick the font+scale combo with the largest `actualHeight`. Tiebreak: prefer the higher-resolution font.
+
+| Target height | 7x9 (scale, actual) | 5x7 (scale, actual) | 3x5 (scale, actual) | Winner |
+|---------------|----------------------|----------------------|----------------------|--------|
+| 5             | 0, 0                | 0, 0                | 1, 5                | 3x5@1x |
+| 7             | 0, 0                | 1, 7                | 1, 5                | 5x7@1x |
+| 9             | 1, 9                | 1, 7                | 1, 5                | 7x9@1x |
+| 10            | 1, 9                | 1, 7                | 2, 10               | 3x5@2x |
+| 14            | 1, 9                | 2, 14               | 2, 10               | 5x7@2x |
+| 18            | 2, 18               | 2, 14               | 3, 15               | 7x9@2x |
+| 27            | 3, 27               | 3, 21               | 5, 25               | 7x9@3x |
+
+### Spacing scales with font
+
+Character and line spacing must scale with the font scale factor to maintain consistent visual proportions:
+- **Character spacing**: `1 * scale` cells between adjacent characters
+- **Line spacing**: `2 * scale` cells between adjacent lines
+
+### Empty text and edge cases
+
+- **Empty text** (`""`) or **all-space text**: produces an all-false grid. With invert enabled, this becomes an all-true grid (solid fill).
+- **Single character**: alignment works normally — the character is positioned according to horizontal and vertical alignment settings.
+- **Text wider than grid (word wrap off)**: truncated at character boundaries — partial characters at the right edge are never rendered.
+
+### Newlines in text
+
+The textarea produces real newline characters (pressing Enter). These are:
+- Encoded as `%0A` in URL params (`ftxt`/`ttxt`)
+- Stored as standard `\n` escape sequences in JSON export
+
+### Max text length
+
+Text input is capped at **500 characters** to keep URLs manageable.
+
+### Animation toggle behavior with text states
+
+When animation is disabled, the **from** state becomes the single displayed state (consistent with existing behavior where `params` is the active config). The "to" config is preserved but hidden. When animation is re-enabled, both states return with their previous configurations intact.
+
+### Debouncing
+
+Text input uses the same 100ms debounce mechanism already in `useFragmentState` for SVG regeneration. No additional debounce needed.
