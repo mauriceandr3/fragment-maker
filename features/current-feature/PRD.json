@@ -252,7 +252,7 @@
       "Message 'Grid view not available for text states.' is displayed when grid view would be shown",
       "Grid view works normally when both states are 'pattern'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "VALID-1",

@@ -316,4 +316,24 @@ Verified via Playwright browser testing:
 - URL reload restores full config ✓
 - Backward compatible (no text params → pattern) ✓
 
-Next: GRID-VIEW-1 or VALID-1
+## GRID-VIEW-1 - Grid View Restriction ✓
+
+Disabled grid view when any state type is 'text'.
+
+Key changes:
+- Added hasTextState check: fromStateType === 'text' || (animationEnabled && toStateType === 'text')
+- useEffect auto-switches to 'single' view when text state selected while in grid view
+- Grid button disabled + cursor-not-allowed + tooltip when hasTextState
+- Fallback message "Grid view not available for text states." if grid view somehow shown with text
+
+Files changed:
+- src/app/components/fragment/PreviewPanel.tsx (grid restriction logic)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser testing:
+- Pattern+Pattern: grid view works normally ✓
+- From=Text: grid button disabled ✓
+- Animation + To=Text: grid button disabled ✓
+- Grid active → switch to Text: auto-switches to single view ✓
+
+Next: VALID-1
