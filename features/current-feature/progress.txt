@@ -114,3 +114,40 @@ Verified via Playwright browser console tests:
 - No mid-glyph truncation: "ABCDE" in 17-col grid → "ABCD" rendered, cols 15-16 empty ✓
 
 Next: GRID-6 - verify invert mode
+
+## GRID-6 - Invert Mode ✓
+
+Verified existing implementation in generateTextGrid.ts
+
+Key verification:
+- createFilledGrid() used for inverted grids (line 287)
+- renderGlyph() handles invert via `!pixelOn` (line 96)
+- Empty/space-only text returns all-true grid when inverted (line 189)
+
+Files changed:
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser console tests:
+- Normal: 'A' renders 12 true cells (glyph pixels) in 100-cell grid ✓
+- Invert: 'A' renders 88 true cells (grid - glyph pixels) ✓
+- normal + inverted = 100 (perfect complement) ✓
+- Invert + h-align left/center/right: complementary grids ✓
+- Invert + v-align top/center/bottom: complementary grids ✓
+- Invert + word wrap: complementary grids ✓
+
+Next: TYPE-1 - State Type System
+
+## TYPE-1 - State Type System ✓
+
+Added type definitions for state type switching between pattern and text modes.
+
+Key decisions:
+- StateType defined in types.ts: 'pattern' | 'text'
+- TextConfig re-exported from generateTextGrid.ts (already had all 6 fields)
+- HorizontalAlignment, VerticalAlignment also re-exported for completeness
+
+Files changed:
+- src/app/components/fragment/types.ts (added StateType, re-exports)
+- features/current-feature/PRD.json (marked passing)
+
+Next: TYPE-2 - Extend useFragmentState for stateType/textConfig management

@@ -111,7 +111,7 @@
       "When invert is true, background cells are true and text cells are false (negative space)",
       "Invert works correctly with all alignment and wrapping options"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "TYPE-1",
@@ -122,7 +122,7 @@
       "TextConfig interface is defined with all six fields",
       "Types are exported and accessible to components and hooks"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "TYPE-2",
