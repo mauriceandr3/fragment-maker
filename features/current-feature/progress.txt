@@ -336,4 +336,29 @@ Verified via Playwright browser testing:
 - Animation + To=Text: grid button disabled ✓
 - Grid active → switch to Text: auto-switches to single view ✓
 
-Next: VALID-1
+## VALID-1 - Validation Messages ✓
+
+Added real-time validation messages to TextConfigPanel.
+
+Key changes:
+- TextConfigPanel now accepts cols/rows props for grid dimensions
+- useMemo computes validation by calling generateTextGrid()
+- Three validation messages displayed when applicable:
+  - "Grid too small for this character size." (gridTooSmall)
+  - "Text truncated: X of Y lines visible." (totalLines > visibleLines)
+  - "Unsupported characters: ..." (unsupportedChars.length > 0)
+- Styled as amber warning boxes matching existing panel aesthetic
+
+Files changed:
+- src/app/components/fragment/TextConfigPanel.tsx (added validation)
+- src/app/components/AssetGenerator.tsx (pass gridDimensions to TextConfigPanel)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser testing:
+- Truncation warning shows correct line counts ✓
+- Unsupported chars (e.g., ~) listed in warning ✓
+- Multiple warnings shown simultaneously ✓
+- No warnings when text fits with all supported chars ✓
+- Real-time updates as text/settings change ✓
+
+All PRD items complete!

@@ -1,9 +1,13 @@
+import { useMemo } from "react";
 import type { TextConfig, HorizontalAlignment, VerticalAlignment } from "./types";
+import { generateTextGrid } from "@/implementation-files/generateTextGrid";
 
 interface TextConfigPanelProps {
   config: TextConfig;
   setConfig: (config: TextConfig) => void;
   title?: string;
+  cols: number;
+  rows: number;
 }
 
 const MAX_TEXT_LENGTH = 500;
@@ -69,12 +73,24 @@ function ButtonGroup<T extends string>({
   );
 }
 
-export function TextConfigPanel({ config, setConfig, title = "Text" }: TextConfigPanelProps) {
+export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows }: TextConfigPanelProps) {
   const handleTextChange = (text: string) => {
     // Enforce 500-character limit
     const limitedText = text.slice(0, MAX_TEXT_LENGTH);
     setConfig({ ...config, text: limitedText });
   };
+
+  // Compute validation by running generateTextGrid
+  const validation = useMemo(() => {
+    const result = generateTextGrid(config, cols, rows);
+    return {
+      gridTooSmall: result.gridTooSmall,
+      unsupportedChars: result.unsupportedChars,
+      totalLines: result.totalLines,
+      visibleLines: result.visibleLines,
+      isTruncated: result.totalLines > result.visibleLines && result.totalLines > 0,
+    };
+  }, [config, cols, rows]);
 
   return (
     <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
@@ -155,6 +171,27 @@ export function TextConfigPanel({ config, setConfig, title = "Text" }: TextConfi
           <span className="text-xs text-white/40">Text as negative space</span>
         </div>
       </label>
+
+      {/* Validation Messages */}
+      {(validation.gridTooSmall || validation.isTruncated || validation.unsupportedChars.length > 0) && (
+        <div className="space-y-2 pt-2">
+          {validation.gridTooSmall && (
+            <div className="text-xs text-amber-400/90 bg-amber-400/10 rounded-lg px-3 py-2">
+              Grid too small for this character size.
+            </div>
+          )}
+          {validation.isTruncated && (
+            <div className="text-xs text-amber-400/90 bg-amber-400/10 rounded-lg px-3 py-2">
+              Text truncated: {validation.visibleLines} of {validation.totalLines} lines visible.
+            </div>
+          )}
+          {validation.unsupportedChars.length > 0 && (
+            <div className="text-xs text-amber-400/90 bg-amber-400/10 rounded-lg px-3 py-2">
+              Unsupported characters: {validation.unsupportedChars.join(' ')}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

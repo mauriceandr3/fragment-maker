@@ -266,6 +266,6 @@
       "Multiple validation messages can be shown simultaneously",
       "No validation messages shown when text fits correctly with all supported characters"
     ],
-    "passes": false
+    "passes": true
   }
 ]

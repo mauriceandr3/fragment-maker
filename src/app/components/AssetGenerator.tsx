@@ -118,6 +118,8 @@ export function AssetGenerator() {
                         config={state.fromTextConfig}
                         setConfig={state.setFromTextConfig}
                         title="From"
+                        cols={state.gridDimensions.cols}
+                        rows={state.gridDimensions.rows}
                       />
                     )}
                   </div>
@@ -139,6 +141,8 @@ export function AssetGenerator() {
                         config={state.toTextConfig}
                         setConfig={state.setToTextConfig}
                         title="To"
+                        cols={state.gridDimensions.cols}
+                        rows={state.gridDimensions.rows}
                       />
                     )}
                   </div>
@@ -160,6 +164,8 @@ export function AssetGenerator() {
                       config={state.fromTextConfig}
                       setConfig={state.setFromTextConfig}
                       title="Text"
+                      cols={state.gridDimensions.cols}
+                      rows={state.gridDimensions.rows}
                     />
                   )}
                 </div>
