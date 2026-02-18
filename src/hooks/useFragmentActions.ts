@@ -25,6 +25,8 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAnimationEnabled,
     setAnimationDuration,
     setToParams,
+    setFromStateType, setToStateType,
+    setFromTextConfig, setToTextConfig,
     clearUrlParams,
     foregroundColor, backgroundColor, cellSize,
     canvasWidth, canvasHeight, allowCropping, cropDirection,
@@ -342,6 +344,79 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           setAnimationDuration(Math.round(duration));
         }
         // If no animation object, duration stays at default or URL-initialized value
+
+        // Import text state types and configs (v2.2.0+)
+        // Missing state type fields default to 'pattern' for backward compatibility
+        const validAlignments = ['left', 'center', 'right'];
+        const validVerticalAlignments = ['top', 'center', 'bottom'];
+
+        // Helper to validate and build TextConfig with defaults
+        const parseTextConfig = (textConfig: unknown): {
+          text: string;
+          charHeight: number;
+          alignment: 'left' | 'center' | 'right';
+          verticalAlignment: 'top' | 'center' | 'bottom';
+          wordWrap: boolean;
+          invert: boolean;
+        } => {
+          const defaultConfig = {
+            text: '',
+            charHeight: 15,
+            alignment: 'center' as const,
+            verticalAlignment: 'center' as const,
+            wordWrap: true,
+            invert: false,
+          };
+
+          if (!textConfig || typeof textConfig !== 'object') {
+            return defaultConfig;
+          }
+
+          const cfg = textConfig as Record<string, unknown>;
+
+          // Validate and clamp text (max 500 chars)
+          let text = '';
+          if (typeof cfg.text === 'string') {
+            text = cfg.text.slice(0, 500);
+          }
+
+          // Validate charHeight (5-100)
+          const charHeight = Math.round(clamp(cfg.charHeight, 5, 100, 15));
+
+          // Validate alignment
+          const alignment = validAlignments.includes(cfg.alignment as string)
+            ? (cfg.alignment as 'left' | 'center' | 'right')
+            : 'center';
+
+          // Validate verticalAlignment
+          const verticalAlignment = validVerticalAlignments.includes(cfg.verticalAlignment as string)
+            ? (cfg.verticalAlignment as 'top' | 'center' | 'bottom')
+            : 'center';
+
+          // Validate booleans
+          const wordWrap = typeof cfg.wordWrap === 'boolean' ? cfg.wordWrap : true;
+          const invert = typeof cfg.invert === 'boolean' ? cfg.invert : false;
+
+          return { text, charHeight, alignment, verticalAlignment, wordWrap, invert };
+        };
+
+        // Import fromStateType
+        if (data.fromStateType === 'text') {
+          setFromStateType('text');
+          setFromTextConfig(parseTextConfig(data.fromTextConfig));
+        } else {
+          // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
+          setFromStateType('pattern');
+        }
+
+        // Import toStateType
+        if (data.toStateType === 'text') {
+          setToStateType('text');
+          setToTextConfig(parseTextConfig(data.toTextConfig));
+        } else {
+          // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
+          setToStateType('pattern');
+        }
 
       } catch {
         alert('Failed to parse settings file. Please ensure it is valid JSON.');

@@ -221,7 +221,7 @@
       "Invalid textConfig values are handled gracefully (clamped or defaulted)",
       "Round-trip: export then import preserves all text configuration"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "URL-1",

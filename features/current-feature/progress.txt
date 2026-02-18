@@ -268,3 +268,28 @@ Verified via Playwright browser testing:
 - All 6 text config fields exported correctly ✓
 
 Next: EXPORT-2 - Update import to handle v2.2.0 format
+
+## EXPORT-2 - Import v2.2.0 Format ✓
+
+Updated importSettingsFromJson() in useFragmentActions.ts for text state import.
+
+Key changes:
+- Added setFromStateType, setToStateType, setFromTextConfig, setToTextConfig to destructured state
+- parseTextConfig() helper validates and builds TextConfig with defaults for invalid values
+- Missing fromStateType/toStateType default to 'pattern' (v2.1.0 backward compat)
+- Text validation: text clamped to 500 chars, charHeight clamped 5-100
+- Alignment validation: left/center/right for horizontal, top/center/bottom for vertical
+- Boolean fields default to wordWrap=true, invert=false if missing/invalid
+
+Files changed:
+- src/hooks/useFragmentActions.ts (updated importSettingsFromJson)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser testing:
+- v2.1.0 import: defaults to pattern state, all params imported ✓
+- v2.2.0 text import: fromStateType='text', all textConfig fields restored ✓
+- v2.2.0 animation+text: toStateType='text', toTextConfig restored ✓
+- Alignment buttons show correct active state (right/bottom for test) ✓
+- Word wrap/invert checkboxes show correct state ✓
+
+Next: URL-1 - Add URL parameters for text state
