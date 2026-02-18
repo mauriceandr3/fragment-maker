@@ -245,3 +245,26 @@ Verified via Playwright browser testing:
 - Pattern→Pattern: unchanged behavior ✓
 
 Next: EXPORT-1 - Update export format to v2.2.0
+
+## EXPORT-1 - Export Format v2.2.0 ✓
+
+Updated exportSettingsAsJson() in useFragmentActions.ts for text state support.
+
+Key changes:
+- Version bumped from '2.1.0' to '2.2.0'
+- fromStateType/toStateType only included when value is 'text' (backward compat)
+- fromTextConfig/toTextConfig included when respective state type is 'text'
+- TextConfig includes all 6 fields: text, charHeight, alignment, verticalAlignment, wordWrap, invert
+
+Files changed:
+- src/hooks/useFragmentActions.ts (updated exportSettingsAsJson)
+- features/current-feature/PRD.json (marked passing)
+
+Verified via Playwright browser testing:
+- Pattern+Pattern: version=2.2.0, no state type fields ✓
+- Text (from): includes fromStateType='text' + fromTextConfig ✓
+- Text (to): includes toStateType='text' + toTextConfig ✓
+- Animation enabled: toConfig + animation fields present ✓
+- All 6 text config fields exported correctly ✓
+
+Next: EXPORT-2 - Update import to handle v2.2.0 format

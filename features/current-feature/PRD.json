@@ -208,7 +208,7 @@
       "When to state is 'text', export includes 'toStateType': 'text' and 'toTextConfig' object",
       "fromTextConfig/toTextConfig includes all six text config fields"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "EXPORT-2",

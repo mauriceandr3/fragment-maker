@@ -123,54 +123,13 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   };
 
   const exportSettingsAsJson = () => {
-    const { animationEnabled, toParams } = state;
+    const { animationEnabled, toParams, fromStateType, toStateType, fromTextConfig, toTextConfig } = state;
 
-    const exportData: {
-      version: string;
-      exportedAt: string;
-      config: {
-        threshold: number;
-        gamma: number;
-        frequency: number;
-        contrast: number;
-        seed: number;
-        directionalNeighbors: number;
-        directionDensity: number;
-        fillAmount: number;
-        fillType: FillType;
-        invertFill: boolean;
-        foregroundColor: string;
-        backgroundColor: string;
-        cellSize: number;
-        canvasWidth: number;
-        canvasHeight: number;
-        allowCropping: boolean;
-        cropDirection?: 'width' | 'height';
-      };
-      toConfig?: {
-        threshold: number;
-        gamma: number;
-        frequency: number;
-        contrast: number;
-        seed: number;
-        directionalNeighbors: number;
-        directionDensity: number;
-        fillAmount: number;
-        fillType: FillType;
-        invertFill: boolean;
-        foregroundColor: string;
-        backgroundColor: string;
-        cellSize: number;
-        canvasWidth: number;
-        canvasHeight: number;
-        allowCropping: boolean;
-        cropDirection?: 'width' | 'height';
-      };
-      animation?: {
-        duration: number;
-      };
-    } = {
-      version: '2.1.0',
+    // Build the export data object
+    // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
+    // Text config fields only included when respective state type is 'text'
+    const exportData: Record<string, unknown> = {
+      version: '2.2.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -191,36 +150,64 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
       },
-      // Add animation settings when enabled
-      ...(animationEnabled ? {
-        animation: {
-          duration: state.animationDuration,
-        },
-      } : {}),
-      // Include toConfig when animation is enabled (presence implies animation enabled)
-      ...(animationEnabled && toParams ? {
-        toConfig: {
-          threshold: toParams.threshold,
-          gamma: toParams.gamma,
-          frequency: toParams.frequency,
-          contrast: toParams.contrast,
-          seed: toParams.seed,
-          directionalNeighbors: toParams.directionalNeighbors,
-          directionDensity: toParams.directionDensity,
-          fillAmount: toParams.fillAmount,
-          fillType: toParams.fillType,
-          invertFill: toParams.invertFill,
-          // Shared settings (included for type consistency)
-          foregroundColor,
-          backgroundColor,
-          cellSize,
-          canvasWidth,
-          canvasHeight,
-          allowCropping,
-          ...(allowCropping ? { cropDirection } : {}),
-        },
-      } : {}),
     };
+
+    // Add animation settings when enabled
+    if (animationEnabled) {
+      exportData.animation = {
+        duration: state.animationDuration,
+      };
+    }
+
+    // Include toConfig when animation is enabled (presence implies animation enabled)
+    if (animationEnabled && toParams) {
+      exportData.toConfig = {
+        threshold: toParams.threshold,
+        gamma: toParams.gamma,
+        frequency: toParams.frequency,
+        contrast: toParams.contrast,
+        seed: toParams.seed,
+        directionalNeighbors: toParams.directionalNeighbors,
+        directionDensity: toParams.directionDensity,
+        fillAmount: toParams.fillAmount,
+        fillType: toParams.fillType,
+        invertFill: toParams.invertFill,
+        // Shared settings (included for type consistency)
+        foregroundColor,
+        backgroundColor,
+        cellSize,
+        canvasWidth,
+        canvasHeight,
+        allowCropping,
+        ...(allowCropping ? { cropDirection } : {}),
+      };
+    }
+
+    // Add fromStateType only when it's 'text' (absent defaults to 'pattern')
+    if (fromStateType === 'text') {
+      exportData.fromStateType = 'text';
+      exportData.fromTextConfig = {
+        text: fromTextConfig.text,
+        charHeight: fromTextConfig.charHeight,
+        alignment: fromTextConfig.alignment,
+        verticalAlignment: fromTextConfig.verticalAlignment,
+        wordWrap: fromTextConfig.wordWrap,
+        invert: fromTextConfig.invert,
+      };
+    }
+
+    // Add toStateType only when it's 'text' (absent defaults to 'pattern')
+    if (toStateType === 'text') {
+      exportData.toStateType = 'text';
+      exportData.toTextConfig = {
+        text: toTextConfig.text,
+        charHeight: toTextConfig.charHeight,
+        alignment: toTextConfig.alignment,
+        verticalAlignment: toTextConfig.verticalAlignment,
+        wordWrap: toTextConfig.wordWrap,
+        invert: toTextConfig.invert,
+      };
+    }
 
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
