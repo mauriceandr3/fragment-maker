@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 import type { TextConfig, HorizontalAlignment, VerticalAlignment } from "./types";
-import { generateTextGrid } from "@/implementation-files/generateTextGrid";
+import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
+import { FONTS } from "@/lib/bitmapFonts";
+
+const fonts: FontData = FONTS;
 
 interface TextConfigPanelProps {
   config: TextConfig;
@@ -82,7 +85,7 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
 
   // Compute validation by running generateTextGrid
   const validation = useMemo(() => {
-    const result = generateTextGrid(config, cols, rows);
+    const result = generateTextGrid(config, cols, rows, fonts);
     return {
       gridTooSmall: result.gridTooSmall,
       unsupportedChars: result.unsupportedChars,

@@ -6,8 +6,12 @@ import {
   generateDiffFromGrids,
 } from "@/lib/generateFragmentSvgGrid";
 import { generateGrid as generateGridCore, gridToSvg } from "@/implementation-files/generateFragmentSvg";
-import { generateTextGrid } from "@/implementation-files/generateTextGrid";
+import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
+import { FONTS } from "@/lib/bitmapFonts";
 import type { FragmentState } from "./useFragmentState";
+
+// Cast FONTS to FontData since they share the same runtime shape
+const fonts: FontData = FONTS;
 
 export function useFragmentGeneration(state: FragmentState) {
   const {
@@ -40,7 +44,7 @@ export function useFragmentGeneration(state: FragmentState) {
 
     let newGrid: boolean[][];
     if (fromStateType === 'text') {
-      const result = generateTextGrid(fromTextConfig, cols, rows);
+      const result = generateTextGrid(fromTextConfig, cols, rows, fonts);
       newGrid = result.grid;
     } else {
       newGrid = generateGridCore(
@@ -69,7 +73,7 @@ export function useFragmentGeneration(state: FragmentState) {
       if (cols <= 0 || rows <= 0) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
       }
-      const result = generateTextGrid(fromTextConfig, cols, rows);
+      const result = generateTextGrid(fromTextConfig, cols, rows, fonts);
       return gridToSvg(
         result.grid,
         cols,
@@ -166,7 +170,7 @@ export function useFragmentGeneration(state: FragmentState) {
 
     // Generate "from" grid
     if (fromIsText) {
-      const result = generateTextGrid(debounced.fromTextConfig, cols, rows);
+      const result = generateTextGrid(debounced.fromTextConfig, cols, rows, fonts);
       gridFrom = result.grid;
     } else {
       gridFrom = generateGridCore(
@@ -180,7 +184,7 @@ export function useFragmentGeneration(state: FragmentState) {
 
     // Generate "to" grid
     if (toIsText) {
-      const result = generateTextGrid(debounced.toTextConfig, cols, rows);
+      const result = generateTextGrid(debounced.toTextConfig, cols, rows, fonts);
       gridTo = result.grid;
     } else {
       gridTo = generateGridCore(

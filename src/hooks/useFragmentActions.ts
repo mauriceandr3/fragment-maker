@@ -1,5 +1,7 @@
 import React from "react";
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
+import { serializeFonts, type FontData } from "@/implementation-files/generateTextGrid";
+import { FONTS } from "@/lib/bitmapFonts";
 import { getColorRgb } from "@/lib/colorUtils";
 import {
   MIN_CANVAS_DIMENSION,
@@ -183,6 +185,12 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
       };
+    }
+
+    // Include full font data when any state uses text (enables consumers to
+    // change text, charHeight, etc. without needing a separate font file)
+    if (fromStateType === 'text' || toStateType === 'text') {
+      exportData.fonts = serializeFonts(FONTS as FontData);
     }
 
     // Add fromStateType only when it's 'text' (absent defaults to 'pattern')

@@ -3,13 +3,62 @@
  *
  * Converts text + configuration into a boolean[][] grid compatible
  * with the Fragment pattern system.
+ *
+ * This is a self-contained module. Font data is passed in as a parameter
+ * (typically from the exported config JSON). No external font file needed.
  */
-
-import { selectFont, getFont, isCharSupported, type FontSize } from './bitmapFonts';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+/** A glyph is a 2D boolean array: rows × columns. true = filled pixel */
+export type Glyph = boolean[][];
+
+/** Map of characters to their glyph definitions */
+export type GlyphMap = Record<string, Glyph>;
+
+/** Font definition with metadata */
+export interface BitmapFont {
+  /** Canonical width (columns) */
+  width: number;
+  /** Canonical height (rows) */
+  height: number;
+  /** Character to glyph mapping */
+  glyphs: GlyphMap;
+}
+
+/** Available font sizes */
+export type FontSize = '3x5' | '5x7' | '7x9';
+
+/** Font data: all three font sizes with their glyph definitions */
+export type FontData = Record<FontSize, BitmapFont>;
+
+/** Result of font selection */
+export interface FontSelection {
+  /** Selected font size */
+  fontSize: FontSize;
+  /** Scale factor (1, 2, 3, ...) */
+  scale: number;
+  /** Actual rendered height in cells */
+  actualHeight: number;
+}
+
+/**
+ * Serialized glyph: each row is a string where '#' = filled, ' ' = empty.
+ * Used in JSON config for compact, human-readable font data.
+ */
+export type SerializedGlyph = string[];
+
+/** Serialized font: glyphs stored as string arrays instead of boolean arrays */
+export interface SerializedBitmapFont {
+  width: number;
+  height: number;
+  glyphs: Record<string, SerializedGlyph>;
+}
+
+/** Serialized font data as it appears in the JSON config */
+export type SerializedFontData = Record<FontSize, SerializedBitmapFont>;
 
 export type HorizontalAlignment = 'left' | 'center' | 'right';
 export type VerticalAlignment = 'top' | 'center' | 'bottom';
@@ -43,12 +92,114 @@ export interface TextGridResult {
 }
 
 // ============================================================================
-// Core Implementation
+// Font Serialization (for JSON config)
 // ============================================================================
 
 /**
- * Creates an empty grid (all false) of specified dimensions.
+ * Parses serialized font data from a JSON config into runtime FontData.
+ * Converts string-based glyphs ('#' = true, ' ' = false) to boolean[][].
  */
+export function parseFonts(serialized: SerializedFontData): FontData {
+  const result: Partial<FontData> = {};
+  const sizes: FontSize[] = ['3x5', '5x7', '7x9'];
+
+  for (const size of sizes) {
+    const serializedFont = serialized[size];
+    const glyphs: GlyphMap = {};
+
+    for (const [char, rows] of Object.entries(serializedFont.glyphs)) {
+      glyphs[char] = rows.map(row => row.split('').map(c => c === '#'));
+    }
+
+    result[size] = {
+      width: serializedFont.width,
+      height: serializedFont.height,
+      glyphs,
+    };
+  }
+
+  return result as FontData;
+}
+
+/**
+ * Serializes runtime FontData into the compact string format for JSON config.
+ * Each glyph row becomes a string where true = '#', false = ' '.
+ */
+export function serializeFonts(fonts: FontData): SerializedFontData {
+  const result: Partial<SerializedFontData> = {};
+  const sizes: FontSize[] = ['3x5', '5x7', '7x9'];
+
+  for (const size of sizes) {
+    const font = fonts[size];
+    const glyphs: Record<string, SerializedGlyph> = {};
+
+    for (const [char, glyph] of Object.entries(font.glyphs)) {
+      glyphs[char] = glyph.map(row => row.map(v => v ? '#' : ' ').join(''));
+    }
+
+    result[size] = {
+      width: font.width,
+      height: font.height,
+      glyphs,
+    };
+  }
+
+  return result as SerializedFontData;
+}
+
+// ============================================================================
+// Font Selection Algorithm
+// ============================================================================
+
+/**
+ * Selects the best font + scale combination to maximize rendered height
+ * without exceeding the target height.
+ *
+ * Algorithm:
+ * For each font (7x9, 5x7, 3x5), compute:
+ *   scale = floor(targetHeight / fontHeight)
+ *   actualHeight = fontHeight * scale
+ * Select the font+scale combo with the largest actualHeight.
+ * Tiebreak: prefer the higher-resolution (larger canonical) font.
+ *
+ * Returns null if targetHeight < 5 (minimum font 3x5 doesn't fit at scale 1).
+ */
+export function selectFont(targetHeight: number): FontSelection | null {
+  if (targetHeight < 5) {
+    return null;
+  }
+
+  const fontSizes: FontSize[] = ['7x9', '5x7', '3x5'];
+  const fontHeights: Record<FontSize, number> = {
+    '7x9': 9,
+    '5x7': 7,
+    '3x5': 5,
+  };
+
+  let bestSelection: FontSelection | null = null;
+
+  for (const fontSize of fontSizes) {
+    const fontHeight = fontHeights[fontSize];
+    const scale = Math.floor(targetHeight / fontHeight);
+
+    if (scale >= 1) {
+      const actualHeight = fontHeight * scale;
+
+      // Better if: larger actualHeight, or same actualHeight with higher-resolution font.
+      // Since we iterate from highest resolution to lowest, we use > (strict) for tiebreak.
+      if (bestSelection === null || actualHeight > bestSelection.actualHeight) {
+        bestSelection = { fontSize, scale, actualHeight };
+      }
+    }
+  }
+
+  return bestSelection;
+}
+
+// ============================================================================
+// Core Implementation
+// ============================================================================
+
 function createEmptyGrid(cols: number, rows: number): boolean[][] {
   const grid: boolean[][] = [];
   for (let y = 0; y < rows; y++) {
@@ -57,9 +208,6 @@ function createEmptyGrid(cols: number, rows: number): boolean[][] {
   return grid;
 }
 
-/**
- * Creates a filled grid (all true) of specified dimensions.
- */
 function createFilledGrid(cols: number, rows: number): boolean[][] {
   const grid: boolean[][] = [];
   for (let y = 0; y < rows; y++) {
@@ -68,15 +216,6 @@ function createFilledGrid(cols: number, rows: number): boolean[][] {
   return grid;
 }
 
-/**
- * Renders a single glyph onto the grid at the specified position with scaling.
- * @param grid The grid to render onto (mutated in place)
- * @param glyph The boolean[][] glyph to render
- * @param startX The starting X position (column)
- * @param startY The starting Y position (row)
- * @param scale The scaling factor (each glyph pixel becomes scale×scale cells)
- * @param invert Whether to render as negative space (false cells in filled grid)
- */
 function renderGlyph(
   grid: boolean[][],
   glyph: boolean[][],
@@ -91,11 +230,8 @@ function renderGlyph(
   for (let gy = 0; gy < glyph.length; gy++) {
     for (let gx = 0; gx < glyph[gy].length; gx++) {
       const pixelOn = glyph[gy][gx];
-      // In normal mode, set true for filled pixels
-      // In invert mode, set false for filled pixels (they become holes)
       const cellValue = invert ? !pixelOn : pixelOn;
 
-      // Scale the pixel: each glyph pixel becomes scale×scale cells
       for (let sy = 0; sy < scale; sy++) {
         for (let sx = 0; sx < scale; sx++) {
           const cellX = startX + gx * scale + sx;
@@ -111,22 +247,29 @@ function renderGlyph(
 }
 
 /**
- * Calculates the pixel width of a line of text (excluding trailing space).
+ * Checks if a character is supported by the given fonts.
+ */
+function isCharSupported(char: string, fonts: FontData): boolean {
+  return char.toUpperCase() in fonts['3x5'].glyphs;
+}
+
+/**
+ * Calculates the pixel width of a line of text.
  */
 function calculateLineWidth(
   line: string,
-  fontSize: FontSize,
-  scale: number
+  font: BitmapFont,
+  scale: number,
+  fonts: FontData
 ): number {
-  const font = getFont(fontSize);
-  const charSpacing = 1 * scale; // 1 cell gap between chars at 1x scale
+  const charSpacing = 1 * scale;
   const glyphWidth = font.width * scale;
 
   let width = 0;
   let charCount = 0;
 
   for (const char of line.toUpperCase()) {
-    if (!isCharSupported(char)) continue;
+    if (!isCharSupported(char, fonts)) continue;
     if (charCount > 0) {
       width += charSpacing;
     }
@@ -143,12 +286,14 @@ function calculateLineWidth(
  * @param config Text configuration
  * @param cols Number of columns in the output grid
  * @param rows Number of rows in the output grid
+ * @param fonts Font data (from parseFonts() or directly from BitmapFont definitions)
  * @returns TextGridResult with grid and validation metadata
  */
 export function generateTextGrid(
   config: TextConfig,
   cols: number,
-  rows: number
+  rows: number,
+  fonts: FontData
 ): TextGridResult {
   const { text, charHeight, alignment, verticalAlignment, wordWrap, invert } = config;
 
@@ -156,7 +301,7 @@ export function generateTextGrid(
   const unsupportedChars: string[] = [];
   const upperText = text.toUpperCase();
   for (const char of upperText) {
-    if (char !== '\n' && !isCharSupported(char) && !unsupportedChars.includes(char)) {
+    if (char !== '\n' && !isCharSupported(char, fonts) && !unsupportedChars.includes(char)) {
       unsupportedChars.push(char);
     }
   }
@@ -177,11 +322,11 @@ export function generateTextGrid(
   }
 
   const { fontSize, scale } = fontSelection;
-  const font = getFont(fontSize);
+  const font = fonts[fontSize];
   const glyphWidth = font.width * scale;
   const glyphHeight = font.height * scale;
-  const charSpacing = 1 * scale; // 1 cell gap at 1x
-  const lineSpacing = 2 * scale; // 2 cell gap at 1x
+  const charSpacing = 1 * scale;
+  const lineSpacing = 2 * scale;
 
   // Handle empty text or all-space text
   const trimmedText = text.trim();
@@ -204,32 +349,28 @@ export function generateTextGrid(
 
   for (const rawLine of rawLines) {
     if (wordWrap) {
-      // Word wrap: break at word boundaries to fit within grid width
       const words = rawLine.split(' ');
       let currentLine = '';
 
       for (const word of words) {
         const testLine = currentLine === '' ? word : `${currentLine} ${word}`;
-        const testWidth = calculateLineWidth(testLine, fontSize, scale);
+        const testWidth = calculateLineWidth(testLine, font, scale, fonts);
 
         if (testWidth <= cols) {
           currentLine = testLine;
         } else {
-          // Current line is full, push it and start new line with this word
           if (currentLine !== '') {
             processedLines.push(currentLine);
           }
 
-          // Check if single word fits
-          const wordWidth = calculateLineWidth(word, fontSize, scale);
+          const wordWidth = calculateLineWidth(word, font, scale, fonts);
           if (wordWidth <= cols) {
             currentLine = word;
           } else {
-            // Word is too long, truncate at character boundary
             let truncatedWord = '';
             for (const char of word) {
               const newWord = truncatedWord + char;
-              const newWidth = calculateLineWidth(newWord, fontSize, scale);
+              const newWidth = calculateLineWidth(newWord, font, scale, fonts);
               if (newWidth <= cols) {
                 truncatedWord = newWord;
               } else {
@@ -242,19 +383,16 @@ export function generateTextGrid(
         }
       }
 
-      // Push remaining content
       if (currentLine !== '') {
         processedLines.push(currentLine);
       } else if (rawLine === '') {
-        // Preserve empty lines from explicit newlines
         processedLines.push('');
       }
     } else {
-      // No word wrap: truncate at character boundary
       let truncatedLine = '';
       for (const char of rawLine) {
         const testLine = truncatedLine + char;
-        const testWidth = calculateLineWidth(testLine, fontSize, scale);
+        const testWidth = calculateLineWidth(testLine, font, scale, fonts);
         if (testWidth <= cols) {
           truncatedLine = testLine;
         } else {
@@ -267,13 +405,11 @@ export function generateTextGrid(
 
   const totalLines = processedLines.length;
 
-  // Calculate total text block height
   const calculateBlockHeight = (lineCount: number): number => {
     if (lineCount === 0) return 0;
     return lineCount * glyphHeight + (lineCount - 1) * lineSpacing;
   };
 
-  // Determine how many lines fit
   let visibleLines = 0;
   for (let i = 1; i <= totalLines; i++) {
     if (calculateBlockHeight(i) <= rows) {
@@ -283,7 +419,6 @@ export function generateTextGrid(
     }
   }
 
-  // Create grid
   const grid = invert ? createFilledGrid(cols, rows) : createEmptyGrid(cols, rows);
 
   if (visibleLines === 0) {
@@ -296,7 +431,6 @@ export function generateTextGrid(
     };
   }
 
-  // Calculate vertical starting position
   const blockHeight = calculateBlockHeight(visibleLines);
   let startY: number;
   switch (verticalAlignment) {
@@ -311,14 +445,12 @@ export function generateTextGrid(
       break;
   }
 
-  // Render each visible line
   const linesToRender = processedLines.slice(0, visibleLines);
 
   for (let lineIndex = 0; lineIndex < linesToRender.length; lineIndex++) {
     const line = linesToRender[lineIndex];
-    const lineWidth = calculateLineWidth(line, fontSize, scale);
+    const lineWidth = calculateLineWidth(line, font, scale, fonts);
 
-    // Calculate horizontal starting position
     let startX: number;
     switch (alignment) {
       case 'left':
@@ -332,13 +464,11 @@ export function generateTextGrid(
         break;
     }
 
-    // Calculate Y position for this line
     const lineY = startY + lineIndex * (glyphHeight + lineSpacing);
 
-    // Render each character
     let currentX = startX;
     for (const char of line.toUpperCase()) {
-      if (!isCharSupported(char)) continue;
+      if (!isCharSupported(char, fonts)) continue;
 
       const glyph = font.glyphs[char];
       if (glyph) {

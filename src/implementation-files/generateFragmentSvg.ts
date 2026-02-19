@@ -2,24 +2,26 @@
  * Fragment SVG Generator
  *
  * A self-contained module for generating Fragment pattern SVGs.
- * No dependencies required - copy this file to your website repo.
+ * For pattern-only configs, this file has no dependencies.
+ * For text configs, also copy `generateTextGrid.ts`.
  *
  * ## Website Usage
  * ```typescript
- * import { generateFragmentSvg, type GenerateFragmentSvgOptions, type FragmentConfig } from './generateFragmentSvg';
+ * import { generateSvgFromExport, type FragmentExport } from './generateFragmentSvg';
  *
- * const config = await fetch('/config.json').then(r => r.json());
- * const svg = generateFragmentSvg({ seed: 'my-seed-string', config: config.config });
- * document.getElementById('container').innerHTML = svg;
+ * const exportData: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
+ * document.getElementById('container').innerHTML = generateSvgFromExport(exportData);
  * ```
  *
  * ## Exports
- * - `generateFragmentSvg` - Main function for website use
- * - `FragmentConfig` - Configuration type for generator parameters
- * - `FragmentExport` - Complete JSON export structure type
- * - `AnimationSettings` - Animation settings type (for v2.1.0+ exports)
- * - `generateGrid`, `gridToSvg` - Internal functions (for tool use only)
+ * - `generateSvgFromExport` - Generate SVG from exported JSON (handles text + pattern)
+ * - `generateDiffSvgFromExport` - Generate animated diff SVG from exported JSON
+ * - `generateFragmentSvg` - Lower-level: pattern SVG from config + optional seed
+ * - `generateFragmentDiffFromConfigs` - Lower-level: pattern diff from two configs
+ * - `FragmentConfig`, `FragmentExport` - Configuration types
  */
+
+import { parseFonts, generateTextGrid, type SerializedFontData, type TextConfig } from './generateTextGrid';
 
 // ============================================================================
 // Types
@@ -129,7 +131,7 @@ export interface AnimationSettings {
  * ```
  */
 export interface FragmentExport {
-  /** Export format version (e.g., "2.1.0") */
+  /** Export format version (e.g., "2.2.0") */
   version: string;
   /** ISO timestamp of export */
   exportedAt: string;
@@ -139,6 +141,16 @@ export interface FragmentExport {
   animation?: AnimationSettings;
   /** Optional "To" configuration for animation. Present only when animation is enabled. */
   toConfig?: FragmentConfig;
+  /** Font data for text rendering (v2.2.0+). Present when any state uses text. */
+  fonts?: SerializedFontData;
+  /** State type for the "From" state (v2.2.0+). Defaults to 'pattern' if absent. */
+  fromStateType?: 'pattern' | 'text';
+  /** State type for the "To" state (v2.2.0+). Defaults to 'pattern' if absent. */
+  toStateType?: 'pattern' | 'text';
+  /** Text configuration for the "From" state (v2.2.0+). */
+  fromTextConfig?: TextConfig;
+  /** Text configuration for the "To" state (v2.2.0+). */
+  toTextConfig?: TextConfig;
 }
 
 // ============================================================================
@@ -806,4 +818,130 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
 
   svg += '</svg>';
   return svg;
+}
+
+// ============================================================================
+// High-Level API (accepts full export JSON)
+// ============================================================================
+
+/**
+ * Generates a static SVG from an exported Fragment Maker JSON config.
+ * Handles both pattern and text states automatically — the consumer
+ * does not need to know which state type the config uses.
+ *
+ * @param exportData - The full JSON export from Fragment Maker
+ * @param options.seed - Optional seed string for per-item variation (pattern states only)
+ * @returns SVG string
+ *
+ * @example
+ * ```typescript
+ * const exportData = await fetch('/fragment-config.json').then(r => r.json());
+ * document.getElementById('hero').innerHTML = generateSvgFromExport(exportData);
+ * ```
+ */
+export function generateSvgFromExport(
+  exportData: FragmentExport,
+  options?: { seed?: string }
+): string {
+  const { config, fromStateType, fromTextConfig, fonts } = exportData;
+
+  if (fromStateType === 'text' && fromTextConfig && fonts) {
+    const dims = computeDimensions(config);
+    const parsedFonts = parseFonts(fonts);
+    const { grid } = generateTextGrid(fromTextConfig, dims.cols, dims.rows, parsedFonts);
+    return gridToSvg(
+      grid, dims.cols, dims.rows,
+      config.cellSize, dims.width,
+      config.foregroundColor, config.backgroundColor,
+      dims.height,
+      { allowCropping: config.allowCropping, cropDirection: config.cropDirection }
+    );
+  }
+
+  return generateFragmentSvg({ config, seed: options?.seed });
+}
+
+/**
+ * Generates an animated diff SVG from an exported Fragment Maker JSON config.
+ * Handles all four state type combinations (pattern↔pattern, text↔pattern,
+ * pattern↔text, text↔text) automatically.
+ *
+ * Returns an SVG with `data-g="a"` and `data-g="b"` attributes for animation.
+ * Use with `useFragmentReveal` for React, or manipulate the rects directly.
+ *
+ * @param exportData - The full JSON export from Fragment Maker (must have animation enabled)
+ * @param options.fromSeed - Optional seed for the "from" pattern (pattern states only)
+ * @param options.toSeed - Optional seed for the "to" pattern (pattern states only)
+ * @returns SVG string, or empty string if animation is not enabled
+ *
+ * @example
+ * ```typescript
+ * const exportData = await fetch('/fragment-config.json').then(r => r.json());
+ * const svg = generateDiffSvgFromExport(exportData);
+ * container.innerHTML = svg;
+ * ```
+ */
+export function generateDiffSvgFromExport(
+  exportData: FragmentExport,
+  options?: { fromSeed?: string; toSeed?: string }
+): string {
+  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig } = exportData;
+
+  if (!toConfig && !(toStateType === 'text' && toTextConfig)) return '';
+
+  const fromIsText = fromStateType === 'text';
+  const toIsText = toStateType === 'text';
+
+  // Both patterns: use the optimized config-based path
+  if (!fromIsText && !toIsText && toConfig) {
+    return generateFragmentDiffFromConfigs({
+      fromConfig: config,
+      toConfig,
+      fromSeed: options?.fromSeed,
+      toSeed: options?.toSeed,
+    });
+  }
+
+  // At least one state is text — use grid-based approach
+  const dims = computeDimensions(config);
+  if (dims.cols <= 0 || dims.rows <= 0) return '';
+
+  let gridFrom: boolean[][];
+  let gridTo: boolean[][];
+
+  if (fromIsText && fromTextConfig && fonts) {
+    const parsedFonts = parseFonts(fonts);
+    gridFrom = generateTextGrid(fromTextConfig, dims.cols, dims.rows, parsedFonts).grid;
+  } else {
+    const fromConfig = options?.fromSeed
+      ? applySeededParam(config, options.fromSeed, config.seedParam ?? 'frequency')
+      : config;
+    gridFrom = gridFromConfig(fromConfig, dims);
+  }
+
+  if (toIsText && toTextConfig && fonts) {
+    const parsedFonts = parseFonts(fonts);
+    gridTo = generateTextGrid(toTextConfig, dims.cols, dims.rows, parsedFonts).grid;
+  } else if (toConfig) {
+    const resolvedToConfig = options?.toSeed
+      ? applySeededParam(toConfig, options.toSeed, toConfig.seedParam ?? 'frequency')
+      : toConfig;
+    gridTo = gridFromConfig(resolvedToConfig, dims);
+  } else {
+    return '';
+  }
+
+  return generateDiffFromGrids({
+    gridFrom,
+    gridTo,
+    cols: dims.cols,
+    rows: dims.rows,
+    cellSize: config.cellSize,
+    width: dims.width,
+    height: dims.height,
+    foregroundColor: config.foregroundColor,
+    backgroundColor: config.backgroundColor,
+    allowCropping: config.allowCropping,
+    cropDirection: config.cropDirection,
+  });
 }

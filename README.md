@@ -56,95 +56,70 @@ Open http://localhost:5173 to use the interactive tool locally.
 
 ## Website Integration
 
-The core generator is a **self-contained, dependency-free module** designed to be copied to other projects. The features below are independent and composable — pick what you need:
+Copy the implementation files to your project. The high-level API (`generateSvgFromExport`, `generateDiffSvgFromExport`) accepts the exported JSON directly and handles everything — pattern, text, or any combination — so your component code stays the same regardless of config type.
 
 | Feature | File(s) to copy | Framework |
 |---------|-----------------|-----------|
-| SVG generation | `src/implementation-files/generateFragmentSvg.ts` | Any |
-| Hover animation | + `src/implementation-files/useFragmentReveal.ts`, `useReducedMotion.ts` | React |
-| Responsive sizing | + `src/implementation-files/useFragmentSize.ts` | React |
+| SVG generation (required) | `generateFragmentSvg.ts` + `generateTextGrid.ts` | Any |
+| Hover animation | + `useFragmentReveal.ts` + `useReducedMotion.ts` | React |
+| Responsive sizing | + `useFragmentSize.ts` | React |
+
+All files are in `src/implementation-files/`. The two core files are always copied together (`generateFragmentSvg.ts` imports from `generateTextGrid.ts`).
 
 ### Static SVG
 
-The simplest use case: generate a single static SVG from your exported config.
+Works for both pattern and text configs — no conditional logic needed.
 
 ```typescript
-import { generateFragmentSvg, type FragmentConfig } from './generateFragmentSvg';
+import { generateSvgFromExport, type FragmentExport } from './generateFragmentSvg';
 
-const fragmentExport = await fetch('/fragment-config.json').then(r => r.json());
+const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
 
-// Fixed dimensions from config
-document.getElementById('hero').innerHTML = generateFragmentSvg({
-  config: fragmentExport.config,
-});
+document.getElementById('hero').innerHTML = generateSvgFromExport(fragmentExport);
 ```
 
 ### Per-item Seeding
 
-Pass a `seed` string to vary the pattern deterministically per item. The seed is hashed and used to modify one parameter (default: `frequency`). Same string = same SVG, every time.
+Pass a `seed` string to vary pattern configs deterministically per item. Same string = same SVG, every time.
 
 ```typescript
-// Each article gets a unique but stable pattern
-document.getElementById('thumbnail').innerHTML = generateFragmentSvg({
+document.getElementById('thumbnail').innerHTML = generateSvgFromExport(fragmentExport, {
   seed: article.title,
-  config: fragmentExport.config,
 });
 ```
 
-You can change which parameter varies by setting `seedParam` in your config:
-
-```json
-{
-  "config": {
-    "seedParam": "threshold"
-  }
-}
-```
-
-Available seedable parameters: `threshold`, `gamma`, `frequency`, `contrast`, `directionalNeighbors`, `directionDensity`, `fillAmount`
+You can change which parameter varies by setting `seedParam` in your config. Available: `threshold`, `gamma`, `frequency` (default), `contrast`, `directionalNeighbors`, `directionDensity`, `fillAmount`
 
 ### Hover Animation
 
-Animate between two patterns on hover — the "from" pattern morphs into the "to" pattern by toggling individual cells. This uses a single SVG with `data-g` attributes, so there's no stacking or opacity conflicts with opaque backgrounds.
-
-The two patterns come from independent configs designed in the Fragment Maker UI. When animation is enabled, the exported JSON contains both `config` (from), `toConfig` (to), and `animation` (settings like duration).
+Animate between two states on hover. The "from" state morphs into the "to" state by toggling individual cells. Works with all combinations: pattern↔pattern, text↔pattern, text↔text.
 
 #### How it works
 
-1. `generateFragmentDiffFromConfigs` generates two grids (one per config) and renders a single SVG:
-   - Cells in **both** grids → always visible (no attribute)
+1. `generateDiffSvgFromExport` renders a single SVG with `data-g` attributes:
+   - Cells in **both** states → always visible
    - Cells only in **from** → `data-g="a"` (visible initially)
-   - Cells only in **to** → `data-g="b"` (hidden initially, `opacity: 0`)
-2. `useFragmentReveal` queries these rects from the DOM
-3. On **mouseEnter**: from-rects turn off and to-rects turn on in shuffled batches over the specified duration
-4. On **mouseLeave**: reverses the animation
-5. Respects `prefers-reduced-motion` (instant swap instead of animation)
-
-The animation duration is configurable (default: 600ms). Exported configs include `animation: { duration: 600 }` when animation is enabled.
+   - Cells only in **to** → `data-g="b"` (hidden initially)
+2. `useFragmentReveal` animates these rects on hover (shuffled batches)
+3. Respects `prefers-reduced-motion` (instant swap)
 
 #### React
 
 ```tsx
 import { useRef, useMemo } from 'react';
-import { generateFragmentDiffFromConfigs } from './generateFragmentSvg';
-import { useFragmentReveal } from './hooks/useFragmentReveal';
+import { generateDiffSvgFromExport, type FragmentExport } from './generateFragmentSvg';
+import { useFragmentReveal } from './useFragmentReveal';
 
-const fragmentExport = await fetch('/fragment-config.json').then(r => r.json());
+const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
 
 function FragmentCard() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const svg = useMemo(
-    () => generateFragmentDiffFromConfigs({
-      fromConfig: fragmentExport.config,
-      toConfig: fragmentExport.toConfig,
-    }),
-    []
-  );
+  const svg = useMemo(() => generateDiffSvgFromExport(fragmentExport), []);
 
   const { onMouseEnter, onMouseLeave } = useFragmentReveal(
     containerRef,
-    fragmentExport.animation?.duration ?? 600  // Optional: control animation speed
+    fragmentExport.animation?.duration ?? 600
   );
 
   return (
@@ -158,46 +133,18 @@ function FragmentCard() {
 }
 ```
 
-#### Vanilla JS
+#### With per-item seeding
 
-The SVG generation is framework-agnostic. For vanilla JS, manipulate the `data-g` rects yourself:
-
-```js
-import { generateFragmentDiffFromConfigs } from './generateFragmentSvg';
-
-const svg = generateFragmentDiffFromConfigs({
-  fromConfig: fragmentExport.config,
-  toConfig: fragmentExport.toConfig,
-});
-container.innerHTML = svg;
-
-const svgEl = container.querySelector('svg');
-const aRects = svgEl.querySelectorAll('rect[data-g="a"]');
-const bRects = svgEl.querySelectorAll('rect[data-g="b"]');
-
-// On hover: hide from, show to
-aRects.forEach(r => r.style.opacity = '0');
-bRects.forEach(r => r.style.opacity = '1');
-
-// On leave: show from, hide to
-aRects.forEach(r => r.style.opacity = '');
-bRects.forEach(r => r.style.opacity = '0');
-```
-
-#### Combining animation with per-item seeding
-
-Pass `fromSeed`/`toSeed` to give each item a unique animated pair. Both patterns are derived from the same configs but varied by the seed string:
+Pass `fromSeed`/`toSeed` to give each item a unique animated pair (pattern configs only):
 
 ```tsx
 function BlogPostCard({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const svg = useMemo(
-    () => generateFragmentDiffFromConfigs({
-      fromConfig: fragmentExport.config,
-      toConfig: fragmentExport.toConfig,
-      fromSeed: title,              // Unique "from" pattern per post
-      toSeed: title + '-hover',     // Unique "to" pattern per post
+    () => generateDiffSvgFromExport(fragmentExport, {
+      fromSeed: title,
+      toSeed: title + '-hover',
     }),
     [title]
   );
@@ -218,33 +165,51 @@ function BlogPostCard({ title }: { title: string }) {
 }
 ```
 
+#### Vanilla JS
+
+```js
+import { generateDiffSvgFromExport } from './generateFragmentSvg';
+
+container.innerHTML = generateDiffSvgFromExport(fragmentExport);
+
+const svgEl = container.querySelector('svg');
+const aRects = svgEl.querySelectorAll('rect[data-g="a"]');
+const bRects = svgEl.querySelectorAll('rect[data-g="b"]');
+
+// On hover: hide from, show to
+aRects.forEach(r => r.style.opacity = '0');
+bRects.forEach(r => r.style.opacity = '1');
+
+// On leave: show from, hide to
+aRects.forEach(r => r.style.opacity = '');
+bRects.forEach(r => r.style.opacity = '0');
+```
+
 ### Responsive Container Sizing
 
-By default, the SVG is generated at the fixed `canvasWidth`/`canvasHeight` from your config. If you need the SVG to fill a dynamically-sized container (e.g. a fluid card layout), use `useFragmentSize` to observe the container and regenerate the SVG at the right dimensions.
-
-The hook watches the container with a `ResizeObserver` and returns its size, but only triggers a re-render when the size changes by at least one full `cellSize` — avoiding unnecessary SVG regeneration on sub-pixel resize events.
-
-Works with both static and animated SVGs:
+Use `useFragmentSize` to regenerate the SVG when the container resizes. It only triggers when the size changes by at least one `cellSize`.
 
 ```tsx
 import { useRef, useMemo } from 'react';
-import { generateFragmentSvg } from './generateFragmentSvg';
-import { useFragmentSize } from './hooks/useFragmentSize';
+import { generateSvgFromExport, type FragmentExport } from './generateFragmentSvg';
+import { useFragmentSize } from './useFragmentSize';
 
-const fragmentExport = await fetch('/fragment-config.json').then(r => r.json());
-
-// Static SVG that fills its container
 function ResponsiveFragment({ seed }: { seed: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useFragmentSize(containerRef, fragmentExport.config.cellSize);
 
-  const svg = useMemo(() => {
-    if (!size) return '';
-    return generateFragmentSvg({
-      seed,
+  const responsiveExport = useMemo(() => {
+    if (!size) return null;
+    return {
+      ...fragmentExport,
       config: { ...fragmentExport.config, canvasWidth: size.width, canvasHeight: size.height },
-    });
-  }, [size, seed]);
+    };
+  }, [size]);
+
+  const svg = useMemo(() => {
+    if (!responsiveExport) return '';
+    return generateSvgFromExport(responsiveExport, { seed });
+  }, [responsiveExport, seed]);
 
   return (
     <div
@@ -259,23 +224,32 @@ function ResponsiveFragment({ seed }: { seed: string }) {
 For animated + responsive, combine `useFragmentSize` with `useFragmentReveal`:
 
 ```tsx
-import { generateFragmentDiffFromConfigs } from './generateFragmentSvg';
-import { useFragmentReveal } from './hooks/useFragmentReveal';
-import { useFragmentSize } from './hooks/useFragmentSize';
+import { generateDiffSvgFromExport } from './generateFragmentSvg';
+import { useFragmentReveal } from './useFragmentReveal';
+import { useFragmentSize } from './useFragmentSize';
 
 function ResponsiveAnimatedCard({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useFragmentSize(containerRef, fragmentExport.config.cellSize);
 
+  const responsiveExport = useMemo(() => {
+    if (!size) return null;
+    return {
+      ...fragmentExport,
+      config: { ...fragmentExport.config, canvasWidth: size.width, canvasHeight: size.height },
+      ...(fragmentExport.toConfig && {
+        toConfig: { ...fragmentExport.toConfig, canvasWidth: size.width, canvasHeight: size.height },
+      }),
+    };
+  }, [size]);
+
   const svg = useMemo(() => {
-    if (!size) return '';
-    return generateFragmentDiffFromConfigs({
-      fromConfig: { ...fragmentExport.config, canvasWidth: size.width, canvasHeight: size.height },
-      toConfig: { ...fragmentExport.toConfig, canvasWidth: size.width, canvasHeight: size.height },
+    if (!responsiveExport) return '';
+    return generateDiffSvgFromExport(responsiveExport, {
       fromSeed: title,
       toSeed: title + '-hover',
     });
-  }, [size, title]);
+  }, [responsiveExport, title]);
 
   const { onMouseEnter, onMouseLeave } = useFragmentReveal(
     containerRef,
@@ -294,15 +268,25 @@ function ResponsiveAnimatedCard({ title }: { title: string }) {
 }
 ```
 
+### Text Config Editability
+
+When a config uses text, the exported JSON includes full font data (all characters at all three sizes, ~12KB). Consumers can freely modify these fields in the exported JSON without re-exporting:
+
+- **`fromTextConfig.text`** / **`toTextConfig.text`** — any text using A-Z, 0-9, and common punctuation
+- **`charHeight`** — character height in cells (font selection runs at render time)
+- **`alignment`**, **`verticalAlignment`**, **`wordWrap`**, **`invert`** — layout parameters
+
 ## Project Structure
 
 ```
 src/
 ├── implementation-files/
 │   ├── generateFragmentSvg.ts      # Core generator (copy this to your website)
+│   ├── generateTextGrid.ts         # Text-to-grid renderer (copy for text support)
 │   ├── useFragmentReveal.ts        # Hover animation hook (copy this for React projects)
 │   └── useFragmentSize.ts          # Responsive container sizing hook (optional)
 ├── lib/
+│   ├── bitmapFonts.ts              # Bitmap font definitions (internal, not copied)
 │   ├── generateFragmentSvgGrid.ts  # Grid variation utilities
 │   ├── dimensionUtils.ts           # Canvas dimension helpers
 │   └── urlState.ts                 # URL state management
