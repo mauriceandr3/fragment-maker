@@ -831,6 +831,7 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
  *
  * @param exportData - The full JSON export from Fragment Maker
  * @param options.seed - Optional seed string for per-item variation (pattern states only)
+ * @param options.text - Optional text override (text states only). Replaces textConfig.text at render time.
  * @returns SVG string
  *
  * @example
@@ -841,14 +842,17 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
  */
 export function generateSvgFromExport(
   exportData: FragmentExport,
-  options?: { seed?: string }
+  options?: { seed?: string; text?: string }
 ): string {
   const { config, fromStateType, fromTextConfig, fonts } = exportData;
 
   if (fromStateType === 'text' && fromTextConfig && fonts) {
     const dims = computeDimensions(config);
     const parsedFonts = parseFonts(fonts);
-    const { grid } = generateTextGrid(fromTextConfig, dims.cols, dims.rows, parsedFonts);
+    const effectiveTextConfig = options?.text !== undefined
+      ? { ...fromTextConfig, text: options.text }
+      : fromTextConfig;
+    const { grid } = generateTextGrid(effectiveTextConfig, dims.cols, dims.rows, parsedFonts);
     return gridToSvg(
       grid, dims.cols, dims.rows,
       config.cellSize, dims.width,
@@ -872,6 +876,8 @@ export function generateSvgFromExport(
  * @param exportData - The full JSON export from Fragment Maker (must have animation enabled)
  * @param options.fromSeed - Optional seed for the "from" pattern (pattern states only)
  * @param options.toSeed - Optional seed for the "to" pattern (pattern states only)
+ * @param options.fromText - Optional text override for the "from" state (text states only)
+ * @param options.toText - Optional text override for the "to" state (text states only)
  * @returns SVG string, or empty string if animation is not enabled
  *
  * @example
@@ -883,7 +889,7 @@ export function generateSvgFromExport(
  */
 export function generateDiffSvgFromExport(
   exportData: FragmentExport,
-  options?: { fromSeed?: string; toSeed?: string }
+  options?: { fromSeed?: string; toSeed?: string; fromText?: string; toText?: string }
 ): string {
   const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig } = exportData;
 
@@ -911,7 +917,10 @@ export function generateDiffSvgFromExport(
 
   if (fromIsText && fromTextConfig && fonts) {
     const parsedFonts = parseFonts(fonts);
-    gridFrom = generateTextGrid(fromTextConfig, dims.cols, dims.rows, parsedFonts).grid;
+    const effectiveFromTextConfig = options?.fromText !== undefined
+      ? { ...fromTextConfig, text: options.fromText }
+      : fromTextConfig;
+    gridFrom = generateTextGrid(effectiveFromTextConfig, dims.cols, dims.rows, parsedFonts).grid;
   } else {
     const fromConfig = options?.fromSeed
       ? applySeededParam(config, options.fromSeed, config.seedParam ?? 'frequency')
@@ -921,7 +930,10 @@ export function generateDiffSvgFromExport(
 
   if (toIsText && toTextConfig && fonts) {
     const parsedFonts = parseFonts(fonts);
-    gridTo = generateTextGrid(toTextConfig, dims.cols, dims.rows, parsedFonts).grid;
+    const effectiveToTextConfig = options?.toText !== undefined
+      ? { ...toTextConfig, text: options.toText }
+      : toTextConfig;
+    gridTo = generateTextGrid(effectiveToTextConfig, dims.cols, dims.rows, parsedFonts).grid;
   } else if (toConfig) {
     const resolvedToConfig = options?.toSeed
       ? applySeededParam(toConfig, options.toSeed, toConfig.seedParam ?? 'frequency')

@@ -56,29 +56,33 @@ Open http://localhost:5173 to use the interactive tool locally.
 
 ## Website Integration
 
-Copy the implementation files to your project. The high-level API (`generateSvgFromExport`, `generateDiffSvgFromExport`) accepts the exported JSON directly and handles everything — pattern, text, or any combination — so your component code stays the same regardless of config type.
+Copy **one file** to your project:
 
-| Feature | File(s) to copy | Framework |
-|---------|-----------------|-----------|
-| SVG generation (required) | `generateFragmentSvg.ts` + `generateTextGrid.ts` | Any |
-| Hover animation | + `useFragmentReveal.ts` + `useReducedMotion.ts` | React |
-| Responsive sizing | + `useFragmentSize.ts` | React |
+```bash
+npm run bundle   # generates bundle/fragment-maker.ts
+```
 
-All files are in `src/implementation-files/`. The two core files are always copied together (`generateFragmentSvg.ts` imports from `generateTextGrid.ts`).
+Copy `bundle/fragment-maker.ts` into your project. It contains everything: SVG generation, text rendering, hover animation (React), and responsive sizing (React).
+
+The high-level API (`generateSvgFromExport`, `generateDiffSvgFromExport`) accepts the exported JSON directly and handles everything — pattern, text, or any combination — so your component code stays the same regardless of config type.
+
+> **Advanced:** The source files are in `src/implementation-files/` if you prefer to copy individual modules instead of the bundle.
 
 ### Static SVG
 
 Works for both pattern and text configs — no conditional logic needed.
 
 ```typescript
-import { generateSvgFromExport, type FragmentExport } from './generateFragmentSvg';
+import { generateSvgFromExport, type FragmentExport } from './fragment-maker';
 
 const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
 
 document.getElementById('hero').innerHTML = generateSvgFromExport(fragmentExport);
 ```
 
-### Per-item Seeding
+### Per-item Variation
+
+#### Pattern configs — seeding
 
 Pass a `seed` string to vary pattern configs deterministically per item. Same string = same SVG, every time.
 
@@ -89,6 +93,16 @@ document.getElementById('thumbnail').innerHTML = generateSvgFromExport(fragmentE
 ```
 
 You can change which parameter varies by setting `seedParam` in your config. Available: `threshold`, `gamma`, `frequency` (default), `contrast`, `directionalNeighbors`, `directionDensity`, `fillAmount`
+
+#### Text configs — text override
+
+Pass a `text` string to override the rendered text at runtime:
+
+```typescript
+document.getElementById('greeting').innerHTML = generateSvgFromExport(fragmentExport, {
+  text: user.name,
+});
+```
 
 ### Hover Animation
 
@@ -107,8 +121,7 @@ Animate between two states on hover. The "from" state morphs into the "to" state
 
 ```tsx
 import { useRef, useMemo } from 'react';
-import { generateDiffSvgFromExport, type FragmentExport } from './generateFragmentSvg';
-import { useFragmentReveal } from './useFragmentReveal';
+import { generateDiffSvgFromExport, useFragmentReveal, type FragmentExport } from './fragment-maker';
 
 const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
 
@@ -133,11 +146,12 @@ function FragmentCard() {
 }
 ```
 
-#### With per-item seeding
+#### With per-item variation
 
-Pass `fromSeed`/`toSeed` to give each item a unique animated pair (pattern configs only):
+Pass `fromSeed`/`toSeed` to give each item a unique animated pair (pattern states), and/or `fromText`/`toText` to override text at runtime (text states):
 
 ```tsx
+// Pattern seeding — each title gets a unique pattern pair
 function BlogPostCard({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -165,10 +179,39 @@ function BlogPostCard({ title }: { title: string }) {
 }
 ```
 
+```tsx
+// Text override — animate from a seeded pattern to the first letter of the title
+function ArticleCard({ title }: { title: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const svg = useMemo(
+    () => generateDiffSvgFromExport(fragmentExport, {
+      fromSeed: title,
+      toText: title.charAt(0),
+    }),
+    [title]
+  );
+
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
+    containerRef,
+    fragmentExport.animation?.duration ?? 600
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+```
+
 #### Vanilla JS
 
 ```js
-import { generateDiffSvgFromExport } from './generateFragmentSvg';
+import { generateDiffSvgFromExport } from './fragment-maker';
 
 container.innerHTML = generateDiffSvgFromExport(fragmentExport);
 
@@ -191,8 +234,7 @@ Use `useFragmentSize` to regenerate the SVG when the container resizes. It only 
 
 ```tsx
 import { useRef, useMemo } from 'react';
-import { generateSvgFromExport, type FragmentExport } from './generateFragmentSvg';
-import { useFragmentSize } from './useFragmentSize';
+import { generateSvgFromExport, useFragmentSize, type FragmentExport } from './fragment-maker';
 
 function ResponsiveFragment({ seed }: { seed: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -224,9 +266,7 @@ function ResponsiveFragment({ seed }: { seed: string }) {
 For animated + responsive, combine `useFragmentSize` with `useFragmentReveal`:
 
 ```tsx
-import { generateDiffSvgFromExport } from './generateFragmentSvg';
-import { useFragmentReveal } from './useFragmentReveal';
-import { useFragmentSize } from './useFragmentSize';
+import { generateDiffSvgFromExport, useFragmentReveal, useFragmentSize } from './fragment-maker';
 
 function ResponsiveAnimatedCard({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -276,17 +316,28 @@ When a config uses text, the exported JSON includes full font data (all characte
 - **`charHeight`** — character height in cells (font selection runs at render time)
 - **`alignment`**, **`verticalAlignment`**, **`wordWrap`**, **`invert`** — layout parameters
 
+Alternatively, use the `text` / `fromText` / `toText` options to override text at render time without modifying the JSON:
+
+```typescript
+generateSvgFromExport(exportData, { text: 'Hello' });
+generateDiffSvgFromExport(exportData, { fromText: 'Hello', toText: 'World' });
+```
+
 ## Project Structure
 
 ```
+bundle/
+└── fragment-maker.ts               # ← Copy this one file to your project
+scripts/
+└── bundle.mjs                      # Build script that generates the bundle
 src/
-├── implementation-files/
-│   ├── generateFragmentSvg.ts      # Core generator (copy this to your website)
-│   ├── generateTextGrid.ts         # Text-to-grid renderer (copy for text support)
-│   ├── useFragmentReveal.ts        # Hover animation hook (copy this for React projects)
-│   └── useFragmentSize.ts          # Responsive container sizing hook (optional)
+├── implementation-files/            # Source modules (bundled into fragment-maker.ts)
+│   ├── generateFragmentSvg.ts      # Core SVG generator
+│   ├── generateTextGrid.ts         # Text-to-grid renderer
+│   ├── useFragmentReveal.ts        # Hover animation hook (React)
+│   └── useFragmentSize.ts          # Responsive container sizing hook (React)
 ├── lib/
-│   ├── bitmapFonts.ts              # Bitmap font definitions (internal, not copied)
+│   ├── bitmapFonts.ts              # Bitmap font definitions (internal)
 │   ├── generateFragmentSvgGrid.ts  # Grid variation utilities
 │   ├── dimensionUtils.ts           # Canvas dimension helpers
 │   └── urlState.ts                 # URL state management
@@ -305,6 +356,7 @@ src/
 ```bash
 npm run dev      # Start dev server
 npm run build    # Production build
+npm run bundle   # Regenerate bundle/fragment-maker.ts
 ```
 
 ## License
