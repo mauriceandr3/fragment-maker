@@ -99,6 +99,7 @@ export function useFragmentState() {
   // Animation preview state
   const [animationEnabled, setAnimationEnabled] = useState(initialUrlState.animationEnabled ?? false);
   const [animationDuration, setAnimationDuration] = useState(initialUrlState.animationDuration ?? 600);
+  const [showEndState, setShowEndState] = useState(initialUrlState.showEndState ?? false);
 
   // Sync duration input value when state changes externally
   useEffect(() => {
@@ -144,6 +145,7 @@ export function useFragmentState() {
   const [debouncedToStateType, setDebouncedToStateType] = useState<StateType>(toStateType);
   const [debouncedFromTextConfig, setDebouncedFromTextConfig] = useState<TextConfig>(fromTextConfig);
   const [debouncedToTextConfig, setDebouncedToTextConfig] = useState<TextConfig>(toTextConfig);
+  const [debouncedShowEndState, setDebouncedShowEndState] = useState(showEndState);
 
   // Debounce effects
   useEffect(() => {
@@ -232,6 +234,11 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [fromTextConfig, toTextConfig]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedShowEndState(showEndState), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [showEndState]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -261,6 +268,7 @@ export function useFragmentState() {
       toStateType: debouncedToStateType,
       fromTextConfig: debouncedFromTextConfig,
       toTextConfig: debouncedToTextConfig,
+      showEndState: debouncedShowEndState,
     };
     updateUrlFromState(state);
   }, [
@@ -280,6 +288,7 @@ export function useFragmentState() {
     debouncedToStateType,
     debouncedFromTextConfig,
     debouncedToTextConfig,
+    debouncedShowEndState,
   ]);
 
   // --- Derived values ---
@@ -326,6 +335,7 @@ export function useFragmentState() {
     animationDuration, setAnimationDuration,
     durationInputValue, setDurationInputValue,
     durationInputError, setDurationInputError,
+    showEndState, setShowEndState,
     toParams, setToParams,
     validCellSizes,
     fromStateType, setFromStateType,
@@ -351,6 +361,7 @@ export function useFragmentState() {
       toStateType: debouncedToStateType,
       fromTextConfig: debouncedFromTextConfig,
       toTextConfig: debouncedToTextConfig,
+      showEndState: debouncedShowEndState,
     },
 
     // Derived

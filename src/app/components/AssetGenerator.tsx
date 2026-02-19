@@ -94,7 +94,7 @@ export function AssetGenerator() {
 
               {/* Shared sections - always full width */}
               <CanvasSettingsPanel state={state} />
-              <AnimationPanel state={state} />
+              <AnimationPanel state={state} actions={actions} />
               <ColorsPanel state={state} />
 
               {/* Parameters panels - side-by-side when animation enabled */}

@@ -54,6 +54,8 @@ export interface UrlSerializableState {
   // Text configurations (only relevant when state type is 'text')
   fromTextConfig: TextConfig;
   toTextConfig: TextConfig;
+  // Show end state preview alongside the main animation preview
+  showEndState: boolean;
 }
 
 // Short URL keys for each state field
@@ -106,6 +108,7 @@ const PARAM_KEYS = {
   toWordWrap: 'tww',
   fromInvert: 'fin',
   toInvert: 'tin',
+  showEndState: 'se',
 } as const;
 
 // Default text configuration
@@ -145,6 +148,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   toStateType: 'pattern',
   fromTextConfig: DEFAULT_TEXT_CONFIG,
   toTextConfig: DEFAULT_TEXT_CONFIG,
+  showEndState: false,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -186,6 +190,11 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   // Animation
   addIfChanged(PARAM_KEYS.animationEnabled, state.animationEnabled ? '1' : '0', DEFAULTS.animationEnabled ? '1' : '0');
   addIfChanged(PARAM_KEYS.animationDuration, String(state.animationDuration), String(DEFAULTS.animationDuration));
+
+  // Show end state (only when animation is enabled)
+  if (state.animationEnabled) {
+    addIfChanged(PARAM_KEYS.showEndState, state.showEndState ? '1' : '0', '0');
+  }
 
   // To params (only when animation is enabled and toParams exists)
   if (state.animationEnabled && state.toParams) {
@@ -325,6 +334,9 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
 
   const ad = clampNum(sp.get('ad'), 100, 5000); // Min 0.1s, max 5s
   if (ad !== undefined) result.animationDuration = Math.round(ad);
+
+  const se = parseBool(sp.get(PARAM_KEYS.showEndState));
+  if (se !== undefined) result.showEndState = se;
 
   // To params (for animation)
   const toT = sp.get(PARAM_KEYS.toThreshold);

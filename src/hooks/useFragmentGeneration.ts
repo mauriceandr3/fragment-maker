@@ -211,6 +211,51 @@ export function useFragmentGeneration(state: FragmentState) {
     });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
+  // Generate static SVG for the "to" state (used by Show End State preview)
+  const toStateSvg = useMemo(() => {
+    if (!debounced.animationEnabled || !debounced.toParams || !debounced.showEndState) return '';
+
+    const { cols, rows } = gridDimensions;
+    if (cols <= 0 || rows <= 0) return '';
+
+    const toIsText = debounced.toStateType === 'text';
+
+    if (toIsText) {
+      const result = generateTextGrid(debounced.toTextConfig, cols, rows, fonts);
+      return gridToSvg(
+        result.grid,
+        cols,
+        rows,
+        debounced.cellSize,
+        debounced.canvasWidth,
+        displayForeground,
+        displayBackground,
+        debounced.canvasHeight,
+        { allowCropping: debounced.allowCropping, cropDirection: debounced.cropDirection }
+      );
+    }
+
+    return generateFragmentSvgDirect({
+      threshold: debounced.toParams.threshold,
+      gamma: debounced.toParams.gamma,
+      frequency: debounced.toParams.frequency,
+      contrast: debounced.toParams.contrast,
+      seed: debounced.toParams.seed,
+      directionalNeighbors: debounced.toParams.directionalNeighbors,
+      directionDensity: debounced.toParams.directionDensity,
+      fillAmount: debounced.toParams.fillAmount,
+      fillType: debounced.toParams.fillType,
+      invertFill: debounced.toParams.invertFill,
+      foregroundColor: displayForeground,
+      backgroundColor: displayBackground,
+      cellSize: debounced.cellSize,
+      canvasWidth: debounced.canvasWidth,
+      canvasHeight: debounced.canvasHeight,
+      allowCropping: debounced.allowCropping,
+      cropDirection: debounced.cropDirection,
+    });
+  }, [debounced, displayForeground, displayBackground, gridDimensions]);
+
   // Grid view variations
   const gridVariations = useMemo(() => {
     const baseConfig = {
@@ -280,6 +325,7 @@ export function useFragmentGeneration(state: FragmentState) {
     grid,
     generateSVG,
     diffSvg,
+    toStateSvg,
     gridVariations,
     gridSvgs,
     deferredGridSvgs,

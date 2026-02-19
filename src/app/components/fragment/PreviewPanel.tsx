@@ -92,19 +92,45 @@ export function PreviewPanel({
       )}
       {(allowCropping || validCellSizes.length > 0) && viewMode === 'single' && (
         animationEnabled && diffSvg ? (
-          <div
-            ref={animationContainerRef}
-            onMouseEnter={animationMouseEnter}
-            onMouseLeave={animationMouseLeave}
-            className="border border-white/10 shadow-2xl"
-            style={{
-              transform: `scale(${params.scale})`,
-              transformOrigin: 'top left',
-              width: canvasWidth,
-              height: canvasHeight,
-            }}
-            dangerouslySetInnerHTML={{ __html: diffSvg }}
-          />
+          <div className={`flex items-start gap-6 ${canvasWidth >= canvasHeight ? 'flex-col' : 'flex-row'}`}>
+            <div className="flex flex-col items-center gap-2">
+              {state.showEndState && (
+                <span className="text-xs text-white/40 uppercase tracking-wider">From (hover to animate)</span>
+              )}
+              <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale }}>
+                <div
+                  ref={animationContainerRef}
+                  onMouseEnter={animationMouseEnter}
+                  onMouseLeave={animationMouseLeave}
+                  className="border border-white/10 shadow-2xl"
+                  style={{
+                    transform: `scale(${params.scale})`,
+                    transformOrigin: 'top left',
+                    width: canvasWidth,
+                    height: canvasHeight,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: diffSvg }}
+                />
+              </div>
+            </div>
+            {state.showEndState && generation.toStateSvg && (
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs text-white/40 uppercase tracking-wider">To</span>
+                <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale }}>
+                  <div
+                    className="border border-white/10 shadow-2xl"
+                    style={{
+                      transform: `scale(${params.scale})`,
+                      transformOrigin: 'top left',
+                      width: canvasWidth,
+                      height: canvasHeight,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: generation.toStateSvg }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <canvas
             ref={canvasRef}

@@ -59,6 +59,24 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setToParams(generateRandomParams());
   };
 
+  const swapFromTo = () => {
+    const currentToParams = state.toParams;
+    if (!currentToParams) return;
+
+    const currentParams = state.params;
+    const currentFromStateType = state.fromStateType;
+    const currentToStateType = state.toStateType;
+    const currentFromTextConfig = state.fromTextConfig;
+    const currentToTextConfig = state.toTextConfig;
+
+    setParams(currentToParams);
+    setToParams(currentParams);
+    setFromStateType(currentToStateType);
+    setToStateType(currentFromStateType);
+    setFromTextConfig(currentToTextConfig);
+    setToTextConfig(currentFromTextConfig);
+  };
+
   const resetToDefaults = () => {
     setForegroundColor("#FCFCFC");
     setBackgroundColor("#000000");
@@ -85,6 +103,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAnimationEnabled(false);
     setAnimationDuration(600);
     setToParams(null);
+    state.setShowEndState(false);
     clearUrlParams();
   };
 
@@ -438,6 +457,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   return {
     randomizeParams,
     randomizeToParams,
+    swapFromTo,
     resetToDefaults,
     exportToSVG,
     copyToClipboard,
