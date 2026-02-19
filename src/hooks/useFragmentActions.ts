@@ -1,5 +1,7 @@
 import React from "react";
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
+import { serializeFonts, type FontData } from "@/implementation-files/generateTextGrid";
+import { FONTS } from "@/lib/bitmapFonts";
 import { getColorRgb } from "@/lib/colorUtils";
 import {
   MIN_CANVAS_DIMENSION,
@@ -25,6 +27,8 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAnimationEnabled,
     setAnimationDuration,
     setToParams,
+    setFromStateType, setToStateType,
+    setFromTextConfig, setToTextConfig,
     clearUrlParams,
     foregroundColor, backgroundColor, cellSize,
     canvasWidth, canvasHeight, allowCropping, cropDirection,
@@ -55,6 +59,24 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setToParams(generateRandomParams());
   };
 
+  const swapFromTo = () => {
+    const currentToParams = state.toParams;
+    if (!currentToParams) return;
+
+    const currentParams = state.params;
+    const currentFromStateType = state.fromStateType;
+    const currentToStateType = state.toStateType;
+    const currentFromTextConfig = state.fromTextConfig;
+    const currentToTextConfig = state.toTextConfig;
+
+    setParams(currentToParams);
+    setToParams(currentParams);
+    setFromStateType(currentToStateType);
+    setToStateType(currentFromStateType);
+    setFromTextConfig(currentToTextConfig);
+    setToTextConfig(currentFromTextConfig);
+  };
+
   const resetToDefaults = () => {
     setForegroundColor("#FCFCFC");
     setBackgroundColor("#000000");
@@ -81,6 +103,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAnimationEnabled(false);
     setAnimationDuration(600);
     setToParams(null);
+    state.setShowEndState(false);
     clearUrlParams();
   };
 
@@ -123,54 +146,13 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   };
 
   const exportSettingsAsJson = () => {
-    const { animationEnabled, toParams } = state;
+    const { animationEnabled, toParams, fromStateType, toStateType, fromTextConfig, toTextConfig } = state;
 
-    const exportData: {
-      version: string;
-      exportedAt: string;
-      config: {
-        threshold: number;
-        gamma: number;
-        frequency: number;
-        contrast: number;
-        seed: number;
-        directionalNeighbors: number;
-        directionDensity: number;
-        fillAmount: number;
-        fillType: FillType;
-        invertFill: boolean;
-        foregroundColor: string;
-        backgroundColor: string;
-        cellSize: number;
-        canvasWidth: number;
-        canvasHeight: number;
-        allowCropping: boolean;
-        cropDirection?: 'width' | 'height';
-      };
-      toConfig?: {
-        threshold: number;
-        gamma: number;
-        frequency: number;
-        contrast: number;
-        seed: number;
-        directionalNeighbors: number;
-        directionDensity: number;
-        fillAmount: number;
-        fillType: FillType;
-        invertFill: boolean;
-        foregroundColor: string;
-        backgroundColor: string;
-        cellSize: number;
-        canvasWidth: number;
-        canvasHeight: number;
-        allowCropping: boolean;
-        cropDirection?: 'width' | 'height';
-      };
-      animation?: {
-        duration: number;
-      };
-    } = {
-      version: '2.1.0',
+    // Build the export data object
+    // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
+    // Text config fields only included when respective state type is 'text'
+    const exportData: Record<string, unknown> = {
+      version: '2.2.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -191,36 +173,70 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
       },
-      // Add animation settings when enabled
-      ...(animationEnabled ? {
-        animation: {
-          duration: state.animationDuration,
-        },
-      } : {}),
-      // Include toConfig when animation is enabled (presence implies animation enabled)
-      ...(animationEnabled && toParams ? {
-        toConfig: {
-          threshold: toParams.threshold,
-          gamma: toParams.gamma,
-          frequency: toParams.frequency,
-          contrast: toParams.contrast,
-          seed: toParams.seed,
-          directionalNeighbors: toParams.directionalNeighbors,
-          directionDensity: toParams.directionDensity,
-          fillAmount: toParams.fillAmount,
-          fillType: toParams.fillType,
-          invertFill: toParams.invertFill,
-          // Shared settings (included for type consistency)
-          foregroundColor,
-          backgroundColor,
-          cellSize,
-          canvasWidth,
-          canvasHeight,
-          allowCropping,
-          ...(allowCropping ? { cropDirection } : {}),
-        },
-      } : {}),
     };
+
+    // Add animation settings when enabled
+    if (animationEnabled) {
+      exportData.animation = {
+        duration: state.animationDuration,
+      };
+    }
+
+    // Include toConfig when animation is enabled (presence implies animation enabled)
+    if (animationEnabled && toParams) {
+      exportData.toConfig = {
+        threshold: toParams.threshold,
+        gamma: toParams.gamma,
+        frequency: toParams.frequency,
+        contrast: toParams.contrast,
+        seed: toParams.seed,
+        directionalNeighbors: toParams.directionalNeighbors,
+        directionDensity: toParams.directionDensity,
+        fillAmount: toParams.fillAmount,
+        fillType: toParams.fillType,
+        invertFill: toParams.invertFill,
+        // Shared settings (included for type consistency)
+        foregroundColor,
+        backgroundColor,
+        cellSize,
+        canvasWidth,
+        canvasHeight,
+        allowCropping,
+        ...(allowCropping ? { cropDirection } : {}),
+      };
+    }
+
+    // Include full font data when any state uses text (enables consumers to
+    // change text, charHeight, etc. without needing a separate font file)
+    if (fromStateType === 'text' || toStateType === 'text') {
+      exportData.fonts = serializeFonts(FONTS as FontData);
+    }
+
+    // Add fromStateType only when it's 'text' (absent defaults to 'pattern')
+    if (fromStateType === 'text') {
+      exportData.fromStateType = 'text';
+      exportData.fromTextConfig = {
+        text: fromTextConfig.text,
+        charHeight: fromTextConfig.charHeight,
+        alignment: fromTextConfig.alignment,
+        verticalAlignment: fromTextConfig.verticalAlignment,
+        wordWrap: fromTextConfig.wordWrap,
+        invert: fromTextConfig.invert,
+      };
+    }
+
+    // Add toStateType only when it's 'text' (absent defaults to 'pattern')
+    if (toStateType === 'text') {
+      exportData.toStateType = 'text';
+      exportData.toTextConfig = {
+        text: toTextConfig.text,
+        charHeight: toTextConfig.charHeight,
+        alignment: toTextConfig.alignment,
+        verticalAlignment: toTextConfig.verticalAlignment,
+        wordWrap: toTextConfig.wordWrap,
+        invert: toTextConfig.invert,
+      };
+    }
 
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
@@ -356,6 +372,79 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         }
         // If no animation object, duration stays at default or URL-initialized value
 
+        // Import text state types and configs (v2.2.0+)
+        // Missing state type fields default to 'pattern' for backward compatibility
+        const validAlignments = ['left', 'center', 'right'];
+        const validVerticalAlignments = ['top', 'center', 'bottom'];
+
+        // Helper to validate and build TextConfig with defaults
+        const parseTextConfig = (textConfig: unknown): {
+          text: string;
+          charHeight: number;
+          alignment: 'left' | 'center' | 'right';
+          verticalAlignment: 'top' | 'center' | 'bottom';
+          wordWrap: boolean;
+          invert: boolean;
+        } => {
+          const defaultConfig = {
+            text: '',
+            charHeight: 15,
+            alignment: 'center' as const,
+            verticalAlignment: 'center' as const,
+            wordWrap: true,
+            invert: false,
+          };
+
+          if (!textConfig || typeof textConfig !== 'object') {
+            return defaultConfig;
+          }
+
+          const cfg = textConfig as Record<string, unknown>;
+
+          // Validate and clamp text (max 500 chars)
+          let text = '';
+          if (typeof cfg.text === 'string') {
+            text = cfg.text.slice(0, 500);
+          }
+
+          // Validate charHeight (5-100)
+          const charHeight = Math.round(clamp(cfg.charHeight, 5, 100, 15));
+
+          // Validate alignment
+          const alignment = validAlignments.includes(cfg.alignment as string)
+            ? (cfg.alignment as 'left' | 'center' | 'right')
+            : 'center';
+
+          // Validate verticalAlignment
+          const verticalAlignment = validVerticalAlignments.includes(cfg.verticalAlignment as string)
+            ? (cfg.verticalAlignment as 'top' | 'center' | 'bottom')
+            : 'center';
+
+          // Validate booleans
+          const wordWrap = typeof cfg.wordWrap === 'boolean' ? cfg.wordWrap : true;
+          const invert = typeof cfg.invert === 'boolean' ? cfg.invert : false;
+
+          return { text, charHeight, alignment, verticalAlignment, wordWrap, invert };
+        };
+
+        // Import fromStateType
+        if (data.fromStateType === 'text') {
+          setFromStateType('text');
+          setFromTextConfig(parseTextConfig(data.fromTextConfig));
+        } else {
+          // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
+          setFromStateType('pattern');
+        }
+
+        // Import toStateType
+        if (data.toStateType === 'text') {
+          setToStateType('text');
+          setToTextConfig(parseTextConfig(data.toTextConfig));
+        } else {
+          // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
+          setToStateType('pattern');
+        }
+
       } catch {
         alert('Failed to parse settings file. Please ensure it is valid JSON.');
       }
@@ -368,6 +457,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   return {
     randomizeParams,
     randomizeToParams,
+    swapFromTo,
     resetToDefaults,
     exportToSVG,
     copyToClipboard,

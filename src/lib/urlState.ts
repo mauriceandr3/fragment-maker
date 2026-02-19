@@ -1,4 +1,5 @@
 import { type FillType } from '../implementation-files/generateFragmentSvg';
+import type { TextConfig } from '../implementation-files/generateTextGrid';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -7,6 +8,8 @@ import {
   DEFAULT_HEIGHT,
   DEFAULT_CELL_SIZE,
 } from './dimensionUtils';
+
+export type StateType = 'pattern' | 'text';
 
 export interface GeneratorParamsUrl {
   threshold: number;
@@ -45,6 +48,14 @@ export interface UrlSerializableState {
   animationEnabled: boolean;
   animationDuration: number; // milliseconds
   toParams: GeneratorParamsUrl | null;
+  // State types for pattern/text switching (defaults to 'pattern' when absent)
+  fromStateType: StateType;
+  toStateType: StateType;
+  // Text configurations (only relevant when state type is 'text')
+  fromTextConfig: TextConfig;
+  toTextConfig: TextConfig;
+  // Show end state preview alongside the main animation preview
+  showEndState: boolean;
 }
 
 // Short URL keys for each state field
@@ -82,7 +93,33 @@ const PARAM_KEYS = {
   toFillAmount: 'to_fa',
   toFillType: 'to_ft',
   toInvertFill: 'to_if',
+  // Text state params
+  fromStateType: 'fst',
+  toStateType: 'tst',
+  fromText: 'ftxt',
+  toText: 'ttxt',
+  fromCharHeight: 'fch',
+  toCharHeight: 'tch',
+  fromAlignment: 'fal',
+  toAlignment: 'tal',
+  fromVerticalAlignment: 'fva',
+  toVerticalAlignment: 'tva',
+  fromWordWrap: 'fww',
+  toWordWrap: 'tww',
+  fromInvert: 'fin',
+  toInvert: 'tin',
+  showEndState: 'se',
 } as const;
+
+// Default text configuration
+const DEFAULT_TEXT_CONFIG: TextConfig = {
+  text: '',
+  charHeight: 15,
+  alignment: 'center',
+  verticalAlignment: 'center',
+  wordWrap: true,
+  invert: false,
+};
 
 // Defaults (seed excluded — it's random by nature)
 const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
@@ -107,6 +144,11 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   animationEnabled: false,
   animationDuration: 600, // 600ms = 0.6s
   toParams: null,
+  fromStateType: 'pattern',
+  toStateType: 'pattern',
+  fromTextConfig: DEFAULT_TEXT_CONFIG,
+  toTextConfig: DEFAULT_TEXT_CONFIG,
+  showEndState: false,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -149,6 +191,11 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   addIfChanged(PARAM_KEYS.animationEnabled, state.animationEnabled ? '1' : '0', DEFAULTS.animationEnabled ? '1' : '0');
   addIfChanged(PARAM_KEYS.animationDuration, String(state.animationDuration), String(DEFAULTS.animationDuration));
 
+  // Show end state (only when animation is enabled)
+  if (state.animationEnabled) {
+    addIfChanged(PARAM_KEYS.showEndState, state.showEndState ? '1' : '0', '0');
+  }
+
   // To params (only when animation is enabled and toParams exists)
   if (state.animationEnabled && state.toParams) {
     const tp = state.toParams;
@@ -163,6 +210,31 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     params.set(PARAM_KEYS.toFillAmount, String(tp.fillAmount));
     params.set(PARAM_KEYS.toFillType, tp.fillType);
     params.set(PARAM_KEYS.toInvertFill, tp.invertFill ? '1' : '0');
+  }
+
+  // Text state params (only when state type is 'text')
+  if (state.fromStateType === 'text') {
+    params.set(PARAM_KEYS.fromStateType, 'text');
+    const tc = state.fromTextConfig;
+    // Text content URI-encoded, limited to 500 chars (newlines become %0A automatically)
+    if (tc.text) params.set(PARAM_KEYS.fromText, tc.text.slice(0, 500));
+    params.set(PARAM_KEYS.fromCharHeight, String(tc.charHeight));
+    addIfChanged(PARAM_KEYS.fromAlignment, tc.alignment, DEFAULT_TEXT_CONFIG.alignment);
+    addIfChanged(PARAM_KEYS.fromVerticalAlignment, tc.verticalAlignment, DEFAULT_TEXT_CONFIG.verticalAlignment);
+    addIfChanged(PARAM_KEYS.fromWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
+    addIfChanged(PARAM_KEYS.fromInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
+  }
+
+  // To text state (only when animation enabled and toStateType is 'text')
+  if (state.animationEnabled && state.toStateType === 'text') {
+    params.set(PARAM_KEYS.toStateType, 'text');
+    const tc = state.toTextConfig;
+    if (tc.text) params.set(PARAM_KEYS.toText, tc.text.slice(0, 500));
+    params.set(PARAM_KEYS.toCharHeight, String(tc.charHeight));
+    addIfChanged(PARAM_KEYS.toAlignment, tc.alignment, DEFAULT_TEXT_CONFIG.alignment);
+    addIfChanged(PARAM_KEYS.toVerticalAlignment, tc.verticalAlignment, DEFAULT_TEXT_CONFIG.verticalAlignment);
+    addIfChanged(PARAM_KEYS.toWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
+    addIfChanged(PARAM_KEYS.toInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
   }
 
   return params.toString();
@@ -263,6 +335,9 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   const ad = clampNum(sp.get('ad'), 100, 5000); // Min 0.1s, max 5s
   if (ad !== undefined) result.animationDuration = Math.round(ad);
 
+  const se = parseBool(sp.get(PARAM_KEYS.showEndState));
+  if (se !== undefined) result.showEndState = se;
+
   // To params (for animation)
   const toT = sp.get(PARAM_KEYS.toThreshold);
   if (toT !== null) {
@@ -283,6 +358,48 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       invertFill: parseBool(sp.get(PARAM_KEYS.toInvertFill)) ?? DEFAULTS.invertFill,
     };
     result.toParams = toParams;
+  }
+
+  // Text state params - from state
+  const fst = sp.get(PARAM_KEYS.fromStateType);
+  if (fst === 'text') {
+    result.fromStateType = 'text';
+    const ftxt = sp.get(PARAM_KEYS.fromText);
+    const fch = clampNum(sp.get(PARAM_KEYS.fromCharHeight), 5, 100);
+    const fal = sp.get(PARAM_KEYS.fromAlignment);
+    const fva = sp.get(PARAM_KEYS.fromVerticalAlignment);
+    const fww = parseBool(sp.get(PARAM_KEYS.fromWordWrap));
+    const fin = parseBool(sp.get(PARAM_KEYS.fromInvert));
+
+    result.fromTextConfig = {
+      text: ftxt ? ftxt.slice(0, 500) : '',
+      charHeight: fch ?? DEFAULT_TEXT_CONFIG.charHeight,
+      alignment: (fal === 'left' || fal === 'center' || fal === 'right') ? fal : DEFAULT_TEXT_CONFIG.alignment,
+      verticalAlignment: (fva === 'top' || fva === 'center' || fva === 'bottom') ? fva : DEFAULT_TEXT_CONFIG.verticalAlignment,
+      wordWrap: fww ?? DEFAULT_TEXT_CONFIG.wordWrap,
+      invert: fin ?? DEFAULT_TEXT_CONFIG.invert,
+    };
+  }
+
+  // Text state params - to state
+  const tst = sp.get(PARAM_KEYS.toStateType);
+  if (tst === 'text') {
+    result.toStateType = 'text';
+    const ttxt = sp.get(PARAM_KEYS.toText);
+    const tch = clampNum(sp.get(PARAM_KEYS.toCharHeight), 5, 100);
+    const tal = sp.get(PARAM_KEYS.toAlignment);
+    const tva = sp.get(PARAM_KEYS.toVerticalAlignment);
+    const tww = parseBool(sp.get(PARAM_KEYS.toWordWrap));
+    const tin = parseBool(sp.get(PARAM_KEYS.toInvert));
+
+    result.toTextConfig = {
+      text: ttxt ? ttxt.slice(0, 500) : '',
+      charHeight: tch ?? DEFAULT_TEXT_CONFIG.charHeight,
+      alignment: (tal === 'left' || tal === 'center' || tal === 'right') ? tal : DEFAULT_TEXT_CONFIG.alignment,
+      verticalAlignment: (tva === 'top' || tva === 'center' || tva === 'bottom') ? tva : DEFAULT_TEXT_CONFIG.verticalAlignment,
+      wordWrap: tww ?? DEFAULT_TEXT_CONFIG.wordWrap,
+      invert: tin ?? DEFAULT_TEXT_CONFIG.invert,
+    };
   }
 
   return result;

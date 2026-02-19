@@ -1,13 +1,16 @@
+import { ArrowLeftRight } from "lucide-react";
 import type { FragmentState } from "@/hooks/useFragmentState";
+import type { FragmentActions } from "@/hooks/useFragmentActions";
 
 interface AnimationPanelProps {
   state: FragmentState;
+  actions: FragmentActions;
 }
 
 const MIN_DURATION_SECONDS = 0.1;
 const MAX_DURATION_SECONDS = 5.0;
 
-export function AnimationPanel({ state }: AnimationPanelProps) {
+export function AnimationPanel({ state, actions }: AnimationPanelProps) {
   const {
     animationEnabled,
     setAnimationEnabled,
@@ -17,6 +20,9 @@ export function AnimationPanel({ state }: AnimationPanelProps) {
     setDurationInputError,
     setAnimationDuration,
     animationDuration,
+    showEndState,
+    setShowEndState,
+    toParams,
   } = state;
 
   const handleDurationChange = (rawValue: string) => {
@@ -86,6 +92,33 @@ export function AnimationPanel({ state }: AnimationPanelProps) {
               <span className="text-xs text-red-400 mt-1 block">{durationInputError}</span>
             )}
           </div>
+
+          {/* Swap From/To */}
+          <button
+            onClick={actions.swapFromTo}
+            disabled={!toParams}
+            className={`w-full backdrop-blur-md border py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg text-sm ${
+              !toParams
+                ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
+                : 'bg-black/30 hover:bg-white/10 border-white/20 text-white/70 hover:text-white hover:shadow-xl'
+            }`}
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            <span>Swap From and To</span>
+          </button>
+
+          {/* Show End State */}
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={showEndState}
+              onChange={(e) => setShowEndState(e.target.checked)}
+              className="w-5 h-5 rounded cursor-pointer accent-white"
+            />
+            <span className="text-sm text-white/60 group-hover:text-white transition-colors">
+              Show end state
+            </span>
+          </label>
 
           <p className="text-xs text-white/40">
             Hover over the preview to animate between From and To patterns.

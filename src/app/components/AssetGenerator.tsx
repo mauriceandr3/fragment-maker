@@ -10,6 +10,8 @@ import { CanvasSettingsPanel } from "./fragment/CanvasSettingsPanel";
 import { AnimationPanel } from "./fragment/AnimationPanel";
 import { ColorsPanel } from "./fragment/ColorsPanel";
 import { ParametersPanel } from "./fragment/ParametersPanel";
+import { TextConfigPanel } from "./fragment/TextConfigPanel";
+import { StateTypeSelector } from "./fragment/StateTypeSelector";
 import { ActionButtons } from "./fragment/ActionButtons";
 
 export function AssetGenerator() {
@@ -92,31 +94,81 @@ export function AssetGenerator() {
 
               {/* Shared sections - always full width */}
               <CanvasSettingsPanel state={state} />
-              <AnimationPanel state={state} />
+              <AnimationPanel state={state} actions={actions} />
               <ColorsPanel state={state} />
 
               {/* Parameters panels - side-by-side when animation enabled */}
               {state.animationEnabled && state.toParams ? (
                 <div className="grid grid-cols-2 gap-4">
-                  <ParametersPanel
-                    params={state.params}
-                    setParams={state.setParams}
-                    title="From"
-                    onRandomize={actions.randomizeParams}
-                  />
-                  <ParametersPanel
-                    params={state.toParams}
-                    setParams={state.setToParams}
-                    title="To"
-                    onRandomize={actions.randomizeToParams}
-                  />
+                  {/* From panel */}
+                  <div className="space-y-3">
+                    <StateTypeSelector
+                      value={state.fromStateType}
+                      onChange={state.setFromStateType}
+                    />
+                    {state.fromStateType === 'pattern' ? (
+                      <ParametersPanel
+                        params={state.params}
+                        setParams={state.setParams}
+                        title="From"
+                        onRandomize={actions.randomizeParams}
+                      />
+                    ) : (
+                      <TextConfigPanel
+                        config={state.fromTextConfig}
+                        setConfig={state.setFromTextConfig}
+                        title="From"
+                        cols={state.gridDimensions.cols}
+                        rows={state.gridDimensions.rows}
+                      />
+                    )}
+                  </div>
+                  {/* To panel */}
+                  <div className="space-y-3">
+                    <StateTypeSelector
+                      value={state.toStateType}
+                      onChange={state.setToStateType}
+                    />
+                    {state.toStateType === 'pattern' ? (
+                      <ParametersPanel
+                        params={state.toParams}
+                        setParams={state.setToParams}
+                        title="To"
+                        onRandomize={actions.randomizeToParams}
+                      />
+                    ) : (
+                      <TextConfigPanel
+                        config={state.toTextConfig}
+                        setConfig={state.setToTextConfig}
+                        title="To"
+                        cols={state.gridDimensions.cols}
+                        rows={state.gridDimensions.rows}
+                      />
+                    )}
+                  </div>
                 </div>
               ) : (
-                <ParametersPanel
-                  params={state.params}
-                  setParams={state.setParams}
-                  title="Parameters"
-                />
+                <div className="space-y-3">
+                  <StateTypeSelector
+                    value={state.fromStateType}
+                    onChange={state.setFromStateType}
+                  />
+                  {state.fromStateType === 'pattern' ? (
+                    <ParametersPanel
+                      params={state.params}
+                      setParams={state.setParams}
+                      title="Parameters"
+                    />
+                  ) : (
+                    <TextConfigPanel
+                      config={state.fromTextConfig}
+                      setConfig={state.setFromTextConfig}
+                      title="Text"
+                      cols={state.gridDimensions.cols}
+                      rows={state.gridDimensions.rows}
+                    />
+                  )}
+                </div>
               )}
 
               <ActionButtons

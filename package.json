@@ -4,8 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build"
+    "dev": "vite --port 5174",
+    "build": "vite build",
+    "bundle": "node scripts/bundle.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
