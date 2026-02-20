@@ -10,7 +10,9 @@ interface ActionButtonsProps {
   animationEnabled?: boolean;
 }
 
-export function ActionButtons({ actions, allowCropping, validCellSizes, fileInputRef, animationEnabled }: ActionButtonsProps) {
+export function ActionButtons({
+  actions, allowCropping, validCellSizes, fileInputRef, animationEnabled,
+}: ActionButtonsProps) {
   const isBlocked = !allowCropping && validCellSizes.length === 0;
 
   return (

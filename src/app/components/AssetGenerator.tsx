@@ -4,6 +4,7 @@ import { useFragmentState } from "@/hooks/useFragmentState";
 import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { useCanvasRenderer } from "@/hooks/useCanvasRenderer";
 import { useFragmentActions } from "@/hooks/useFragmentActions";
+import { useVideoExport } from "@/hooks/useVideoExport";
 import { useFragmentReveal } from "@/implementation-files/useFragmentReveal";
 import { PreviewPanel } from "./fragment/PreviewPanel";
 import { CanvasSettingsPanel } from "./fragment/CanvasSettingsPanel";
@@ -13,6 +14,7 @@ import { ParametersPanel } from "./fragment/ParametersPanel";
 import { TextConfigPanel } from "./fragment/TextConfigPanel";
 import { StateTypeSelector } from "./fragment/StateTypeSelector";
 import { ActionButtons } from "./fragment/ActionButtons";
+import { VideoExportPanel } from "./fragment/VideoExportPanel";
 
 export function AssetGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,6 +24,7 @@ export function AssetGenerator() {
   const state = useFragmentState();
   const generation = useFragmentGeneration(state);
   const actions = useFragmentActions(state, generation);
+  const videoExport = useVideoExport();
 
   useCanvasRenderer({
     canvasRef,
@@ -170,6 +173,15 @@ export function AssetGenerator() {
                   )}
                 </div>
               )}
+
+              <VideoExportPanel
+                videoExport={videoExport}
+                diffSvg={generation.diffSvg}
+                canvasWidth={state.canvasWidth}
+                canvasHeight={state.canvasHeight}
+                animationDuration={state.debounced.animationDuration}
+                animationEnabled={state.animationEnabled}
+              />
 
               <ActionButtons
                 actions={actions}

@@ -29,7 +29,7 @@ Open http://localhost:5173 to use the interactive tool locally.
 - **Single View** - Preview one SVG with full control panel
 - **Grid View** - See 20 variations of a parameter at once
 - **Real-time editing** - All changes update instantly
-- **Export options** - Download SVG, copy to clipboard, export settings as JSON
+- **Export options** - Download SVG, copy to clipboard, export settings as JSON, export animation as MP4
 
 ### Configuration Parameters
 
@@ -227,6 +227,14 @@ bRects.forEach(r => r.style.opacity = '1');
 aRects.forEach(r => r.style.opacity = '');
 bRects.forEach(r => r.style.opacity = '0');
 ```
+
+### Export Video
+
+When animation is enabled, the **Export Video** button appears in the control panel. Clicking it renders the animation frame-by-frame and downloads a looping MP4 file (`fragment-animation.mp4`).
+
+**Output:** H.264 MP4, 60 fps, native SVG resolution. The video loops: forward animation → 500ms hold → reverse animation → 500ms hold.
+
+**Browser requirement:** Chrome 94+ or Edge 94+. The button is hidden on unsupported browsers (Firefox, Safari). No install, no ffmpeg — encoding runs entirely in the browser using the [WebCodecs API](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API).
 
 ### Responsive Container Sizing
 

@@ -1,0 +1,97 @@
+export interface CellPosition {
+  x: number;        // Grid column
+  y: number;        // Grid row
+  rectElement: SVGRectElement;
+}
+
+export interface CellWithDistance extends CellPosition {
+  distance: number; // BFS distance from nearest seed
+  waveGroup: number; // Animation batch index
+}
+
+// Extract grid position from SVG rect
+export function extractCellPositions(
+  rects: SVGRectElement[],
+  cellSize: number
+): CellPosition[] {
+  return rects.map(rect => ({
+    x: Math.round(parseInt(rect.getAttribute('x') || '0') / cellSize),
+    y: Math.round(parseInt(rect.getAttribute('y') || '0') / cellSize),
+    rectElement: rect
+  }));
+}
+
+// BFS distance calculation (4 directions only)
+export function calculateDistanceMap(
+  gridCols: number,
+  gridRows: number,
+  seedCells: CellPosition[],
+  targetCells: CellPosition[]
+): Map<string, number> {
+  const distanceMap = new Map<string, number>();
+  const queue: Array<{x: number, y: number, dist: number}> = [];
+
+  // Initialize seeds at distance 0
+  seedCells.forEach(seed => {
+    distanceMap.set(`${seed.x},${seed.y}`, 0);
+    queue.push({x: seed.x, y: seed.y, dist: 0});
+  });
+
+  // BFS flood fill (4 directions only)
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = [
+      {x: current.x - 1, y: current.y},  // left
+      {x: current.x + 1, y: current.y},  // right
+      {x: current.x, y: current.y - 1},  // up
+      {x: current.x, y: current.y + 1},  // down
+    ];
+
+    for (const neighbor of neighbors) {
+      if (neighbor.x < 0 || neighbor.x >= gridCols ||
+          neighbor.y < 0 || neighbor.y >= gridRows) continue;
+
+      const key = `${neighbor.x},${neighbor.y}`;
+      const isTargetCell = targetCells.some(c => c.x === neighbor.x && c.y === neighbor.y);
+
+      if (isTargetCell && !distanceMap.has(key)) {
+        const newDist = current.dist + 1;
+        distanceMap.set(key, newDist);
+        queue.push({...neighbor, dist: newDist});
+      }
+    }
+  }
+
+  return distanceMap;
+}
+
+// Group cells into animation waves with randomization for organic feel
+export function groupIntoWaves(
+  cellsWithDistance: CellWithDistance[],
+  targetFrames: number
+): CellWithDistance[] {
+  if (cellsWithDistance.length === 0) return [];
+
+  // Add random tie-breaker to each cell for stable randomization
+  const cellsWithTieBreaker = cellsWithDistance.map(cell => ({
+    ...cell,
+    tieBreaker: Math.random()
+  }));
+
+  // Sort by distance first, then by random tie-breaker for same distance
+  const sorted = cellsWithTieBreaker.sort((a, b) => {
+    const distDiff = a.distance - b.distance;
+    if (Math.abs(distDiff) < 0.1) {
+      // Same distance level - use stable tie-breaker
+      return a.tieBreaker - b.tieBreaker;
+    }
+    return distDiff;
+  });
+
+  // Assign continuous wave values for smoother animation
+  // Start from 1 instead of 0 to avoid immediate visibility at progress=0
+  return sorted.map((cell, index) => ({
+    ...cell,
+    waveGroup: ((index + 1) / sorted.length) * targetFrames
+  }));
+}
