@@ -5,7 +5,9 @@ export type {
   TextConfig,
   HorizontalAlignment,
   VerticalAlignment,
+  FontResolution,
 } from "@/implementation-files/generateTextGrid";
+export { RESOLUTION_MIN_HEIGHT } from "@/implementation-files/generateTextGrid";
 
 /**
  * State type for animation slots.

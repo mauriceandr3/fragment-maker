@@ -1,5 +1,6 @@
 import { type RefObject, useEffect } from "react";
-import { Square, LayoutGrid } from "lucide-react";
+import { Square, LayoutGrid, Type } from "lucide-react";
+import { CharPreviewPanel } from "./CharPreviewPanel";
 import { isTransparent } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
@@ -77,6 +78,17 @@ export function PreviewPanel({
             <LayoutGrid className="w-4 h-4" />
             <span className="text-sm">Grid</span>
           </button>
+          <button
+            onClick={() => setViewMode('chars')}
+            className={`flex items-center gap-2 py-2 px-4 rounded-md font-medium transition-all ${
+              viewMode === 'chars'
+                ? 'bg-white/20 border-2 border-white/40 text-white'
+                : 'bg-black/30 border border-transparent text-white/60 hover:text-white hover:bg-black/40'
+            }`}
+          >
+            <Type className="w-4 h-4" />
+            <span className="text-sm">Chars</span>
+          </button>
         </div>
       </div>
 
@@ -138,6 +150,9 @@ export function PreviewPanel({
             style={{ imageRendering: 'pixelated' }}
           />
         )
+      )}
+      {viewMode === 'chars' && (
+        <CharPreviewPanel />
       )}
       {(allowCropping || validCellSizes.length > 0) && viewMode === 'grid' && (
         hasTextState ? (

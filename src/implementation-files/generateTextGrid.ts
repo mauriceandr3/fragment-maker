@@ -63,6 +63,26 @@ export type SerializedFontData = Record<FontSize, SerializedBitmapFont>;
 export type HorizontalAlignment = 'left' | 'center' | 'right';
 export type VerticalAlignment = 'top' | 'center' | 'bottom';
 
+/** Font resolution: locks which bitmap font variant is used for text rendering */
+export type FontResolution = 'low' | 'mid' | 'high';
+
+/** Canonical pixel height for each font size */
+const FONT_HEIGHTS: Record<FontSize, number> = { '7x9': 9, '5x7': 7, '3x5': 5 };
+
+/** Maps FontResolution to its corresponding FontSize */
+const RESOLUTION_FONT: Record<FontResolution, FontSize> = {
+  low: '3x5',
+  mid: '5x7',
+  high: '7x9',
+};
+
+/** Minimum charHeight (in cells) required for each resolution at scale 1 */
+export const RESOLUTION_MIN_HEIGHT: Record<FontResolution, number> = {
+  low: 5,
+  mid: 7,
+  high: 9,
+};
+
 export interface TextConfig {
   /** Text to render */
   text: string;
@@ -76,6 +96,8 @@ export interface TextConfig {
   wordWrap: boolean;
   /** Invert mode: text becomes negative space */
   invert: boolean;
+  /** Font resolution: locks which bitmap font variant (low=3×5, mid=5×7, high=7×9) */
+  fontResolution: FontResolution;
 }
 
 export interface TextGridResult {
@@ -150,6 +172,24 @@ export function serializeFonts(fonts: FontData): SerializedFontData {
 // ============================================================================
 // Font Selection Algorithm
 // ============================================================================
+
+/**
+ * Selects a font locked to the given resolution, at the largest integer scale
+ * that fits within targetHeight.
+ *
+ * Returns null if targetHeight < RESOLUTION_MIN_HEIGHT[resolution]
+ * (i.e. the font cannot fit even at scale 1).
+ */
+export function selectFontForResolution(
+  resolution: FontResolution,
+  targetHeight: number
+): FontSelection | null {
+  const fontSize = RESOLUTION_FONT[resolution];
+  const fontHeight = FONT_HEIGHTS[fontSize];
+  const scale = Math.floor(targetHeight / fontHeight);
+  if (scale < 1) return null;
+  return { fontSize, scale, actualHeight: fontHeight * scale };
+}
 
 /**
  * Selects the best font + scale combination to maximize rendered height
@@ -247,6 +287,17 @@ function renderGlyph(
 }
 
 /**
+ * Normalizes smart/curly quotes and typographic dashes to their plain ASCII equivalents.
+ * Handles characters commonly inserted by OS autocorrect (e.g. macOS smart quotes).
+ */
+function normalizeText(text: string): string {
+  return text
+    .replace(/[\u2018\u2019]/g, "'") // ' ' → '
+    .replace(/[\u201C\u201D]/g, '"') // " " → "
+    .replace(/[\u2013\u2014]/g, '-'); // – — → -
+}
+
+/**
  * Checks if a character is supported by the given fonts.
  */
 function isCharSupported(char: string, fonts: FontData): boolean {
@@ -295,7 +346,8 @@ export function generateTextGrid(
   rows: number,
   fonts: FontData
 ): TextGridResult {
-  const { text, charHeight, alignment, verticalAlignment, wordWrap, invert } = config;
+  const { charHeight, alignment, verticalAlignment, wordWrap, invert, fontResolution } = config;
+  const text = normalizeText(config.text);
 
   // Track unsupported characters
   const unsupportedChars: string[] = [];
@@ -306,8 +358,8 @@ export function generateTextGrid(
     }
   }
 
-  // Select font based on target character height
-  const fontSelection = selectFont(charHeight);
+  // Select font locked to the chosen resolution
+  const fontSelection = selectFontForResolution(fontResolution, charHeight);
 
   // If grid is too small for any font
   if (fontSelection === null) {
