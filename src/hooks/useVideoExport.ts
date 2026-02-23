@@ -6,6 +6,8 @@ import {
   calculateDistanceMap,
   groupIntoWaves,
 } from '@/lib/animationUtils';
+import { getLogoSvgDataUrl, LOGO_ASPECT_RATIO } from '@/lib/dfinityLogo';
+import type { LogoConfig } from '@/app/components/fragment/types';
 
 type ExportStatus = 'idle' | 'preparing' | 'recording' | 'finalizing' | 'error';
 
@@ -26,6 +28,7 @@ interface ExportOptions {
   endHoldMs: number;
   resolutionScale: number; // 1 | 2 | 3 | 4
   fps: 30 | 60;
+  logoConfig?: LogoConfig;
 }
 
 export const isVideoExportSupported = typeof VideoEncoder !== 'undefined';
@@ -213,6 +216,32 @@ export function useVideoExport() {
 
       const { aCellsOrdered, bCellsOrdered, aMaxWave, bMaxWave } = waveData;
 
+      // Pre-load logo image if enabled
+      let logoImg: HTMLImageElement | null = null;
+      let logoX = 0, logoY = 0, logoW = 0, logoH = 0;
+
+      if (opts.logoConfig?.enabled) {
+        const padX = (opts.logoConfig.paddingX / 100) * encW;
+        const padY = (opts.logoConfig.paddingY / 100) * encH;
+        logoW = (opts.logoConfig.size / 100) * encW;
+        logoH = logoW / LOGO_ASPECT_RATIO;
+
+        switch (opts.logoConfig.position) {
+          case 'top-left':     logoX = padX; logoY = padY; break;
+          case 'top-right':    logoX = encW - logoW - padX; logoY = padY; break;
+          case 'bottom-left':  logoX = padX; logoY = encH - logoH - padY; break;
+          case 'bottom-right': logoX = encW - logoW - padX; logoY = encH - logoH - padY; break;
+        }
+
+        logoImg = new Image();
+        const logoDataUrl = getLogoSvgDataUrl(opts.logoConfig.color);
+        await new Promise<void>((resolve, reject) => {
+          logoImg!.onload = () => resolve();
+          logoImg!.onerror = () => reject(new Error('Failed to load logo image'));
+          logoImg!.src = logoDataUrl;
+        });
+      }
+
       // Frame schedule
       const frameDuration = 1 / fps;
       const animFrames = Math.ceil(durationMs / (1000 / fps));
@@ -266,6 +295,9 @@ export function useVideoExport() {
           img.onload = () => {
             ctx.clearRect(0, 0, encW, encH);
             ctx.drawImage(img, 0, 0, encW, encH);
+            if (logoImg) {
+              ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+            }
             URL.revokeObjectURL(blobUrl);
             resolve();
           };

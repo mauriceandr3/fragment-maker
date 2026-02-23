@@ -1,10 +1,35 @@
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, type CSSProperties } from "react";
 import { Square, LayoutGrid, Type } from "lucide-react";
 import { CharPreviewPanel } from "./CharPreviewPanel";
 import { isTransparent } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { GridSkeleton, GridItem } from "./GridItem";
+import { getLogoSvg } from "@/lib/dfinityLogo";
+import type { LogoConfig } from "./types";
+
+function LogoOverlay({ logoConfig }: { logoConfig: LogoConfig }) {
+  if (!logoConfig.enabled) return null;
+
+  const style: CSSProperties = {
+    position: 'absolute',
+    width: `${logoConfig.size}%`,
+    pointerEvents: 'none',
+  };
+
+  if (logoConfig.position.startsWith('top')) style.top = `${logoConfig.paddingY}%`;
+  else style.bottom = `${logoConfig.paddingY}%`;
+
+  if (logoConfig.position.endsWith('left')) style.left = `${logoConfig.paddingX}%`;
+  else style.right = `${logoConfig.paddingX}%`;
+
+  return (
+    <div
+      style={style}
+      dangerouslySetInnerHTML={{ __html: getLogoSvg(logoConfig.color) }}
+    />
+  );
+}
 
 interface PreviewPanelProps {
   state: FragmentState;
@@ -109,7 +134,7 @@ export function PreviewPanel({
               {state.showEndState && (
                 <span className="text-xs text-white/40 uppercase tracking-wider">From (hover to animate)</span>
               )}
-              <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale }}>
+              <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative' }}>
                 <div
                   ref={animationContainerRef}
                   onMouseEnter={animationMouseEnter}
@@ -123,12 +148,13 @@ export function PreviewPanel({
                   }}
                   dangerouslySetInnerHTML={{ __html: diffSvg }}
                 />
+                <LogoOverlay logoConfig={state.logoConfig} />
               </div>
             </div>
             {state.showEndState && generation.toStateSvg && (
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs text-white/40 uppercase tracking-wider">To</span>
-                <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale }}>
+                <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative' }}>
                   <div
                     className="border border-white/10 shadow-2xl"
                     style={{
@@ -139,16 +165,20 @@ export function PreviewPanel({
                     }}
                     dangerouslySetInnerHTML={{ __html: generation.toStateSvg }}
                   />
+                  <LogoOverlay logoConfig={state.logoConfig} />
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <canvas
-            ref={canvasRef}
-            className="border border-white/10 shadow-2xl"
-            style={{ imageRendering: 'pixelated' }}
-          />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <canvas
+              ref={canvasRef}
+              className="border border-white/10 shadow-2xl"
+              style={{ imageRendering: 'pixelated' }}
+            />
+            <LogoOverlay logoConfig={state.logoConfig} />
+          </div>
         )
       )}
       {viewMode === 'chars' && (

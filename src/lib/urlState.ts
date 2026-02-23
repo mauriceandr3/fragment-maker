@@ -1,6 +1,8 @@
 import { type FillType } from '../implementation-files/generateFragmentSvg';
 import type { TextConfig } from '../implementation-files/generateTextGrid';
 import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
+import type { LogoConfig, LogoPosition } from '../app/components/fragment/types';
+import { DEFAULT_LOGO_CONFIG } from '../app/components/fragment/types';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -57,6 +59,8 @@ export interface UrlSerializableState {
   toTextConfig: TextConfig;
   // Show end state preview alongside the main animation preview
   showEndState: boolean;
+  // Logo overlay configuration
+  logoConfig: LogoConfig;
 }
 
 // Short URL keys for each state field
@@ -112,6 +116,13 @@ const PARAM_KEYS = {
   fromFontResolution: 'ffr',
   toFontResolution: 'tfr',
   showEndState: 'se',
+  // Logo overlay
+  logoEnabled: 'le',
+  logoPosition: 'lp',
+  logoSize: 'ls',
+  logoPaddingX: 'lpx',
+  logoPaddingY: 'lpy',
+  logoColor: 'lc',
 } as const;
 
 // Default text configuration
@@ -153,6 +164,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   fromTextConfig: DEFAULT_TEXT_CONFIG,
   toTextConfig: DEFAULT_TEXT_CONFIG,
   showEndState: false,
+  logoConfig: DEFAULT_LOGO_CONFIG,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -228,6 +240,16 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.fromWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
     addIfChanged(PARAM_KEYS.fromInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
     addIfChanged(PARAM_KEYS.fromFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
+  }
+
+  // Logo (only when enabled, to keep URLs short)
+  if (state.logoConfig.enabled) {
+    params.set(PARAM_KEYS.logoEnabled, '1');
+    addIfChanged(PARAM_KEYS.logoPosition, state.logoConfig.position, DEFAULTS.logoConfig.position);
+    addIfChanged(PARAM_KEYS.logoSize, String(state.logoConfig.size), String(DEFAULTS.logoConfig.size));
+    addIfChanged(PARAM_KEYS.logoPaddingX, String(state.logoConfig.paddingX), String(DEFAULTS.logoConfig.paddingX));
+    addIfChanged(PARAM_KEYS.logoPaddingY, String(state.logoConfig.paddingY), String(DEFAULTS.logoConfig.paddingY));
+    addIfChanged(PARAM_KEYS.logoColor, state.logoConfig.color.replace('#', ''), DEFAULTS.logoConfig.color.replace('#', ''));
   }
 
   // To text state (only when animation enabled and toStateType is 'text')
@@ -415,6 +437,25 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       wordWrap: tww ?? DEFAULT_TEXT_CONFIG.wordWrap,
       invert: tin ?? DEFAULT_TEXT_CONFIG.invert,
       fontResolution: toResolution,
+    };
+  }
+
+  // Logo overlay
+  const le = parseBool(sp.get(PARAM_KEYS.logoEnabled));
+  if (le) {
+    const lp = sp.get(PARAM_KEYS.logoPosition);
+    const ls = clampNum(sp.get(PARAM_KEYS.logoSize), 5, 50);
+    const lpx = clampNum(sp.get(PARAM_KEYS.logoPaddingX), 0, 20);
+    const lpy = clampNum(sp.get(PARAM_KEYS.logoPaddingY), 0, 20);
+    const lc = sp.get(PARAM_KEYS.logoColor);
+    const validPositions: LogoPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+    result.logoConfig = {
+      enabled: true,
+      position: validPositions.includes(lp as LogoPosition) ? lp as LogoPosition : 'bottom-right',
+      size: ls ?? 15,
+      paddingX: lpx ?? DEFAULT_LOGO_CONFIG.paddingX,
+      paddingY: lpy ?? DEFAULT_LOGO_CONFIG.paddingY,
+      color: (lc && HEX_COLOR_REGEX.test(lc)) ? '#' + lc.toUpperCase() : '#FCFCFC',
     };
   }
 

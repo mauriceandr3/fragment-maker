@@ -15,6 +15,7 @@ import { TextConfigPanel } from "./fragment/TextConfigPanel";
 import { StateTypeSelector } from "./fragment/StateTypeSelector";
 import { ActionButtons } from "./fragment/ActionButtons";
 import { VideoExportPanel } from "./fragment/VideoExportPanel";
+import { LogoPanel } from "./fragment/LogoPanel";
 
 export function AssetGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -98,6 +99,7 @@ export function AssetGenerator() {
               {/* Shared sections - always full width */}
               <CanvasSettingsPanel state={state} />
               <AnimationPanel state={state} actions={actions} />
+              <LogoPanel state={state} />
               <ColorsPanel state={state} />
 
               {/* Parameters panels - side-by-side when animation enabled */}
@@ -181,6 +183,7 @@ export function AssetGenerator() {
                 canvasHeight={state.canvasHeight}
                 animationDuration={state.debounced.animationDuration}
                 animationEnabled={state.animationEnabled}
+                logoConfig={state.logoConfig}
               />
 
               <ActionButtons

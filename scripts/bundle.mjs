@@ -18,33 +18,31 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const implDir = join(root, 'src', 'implementation-files');
 const hooksDir = join(root, 'src', 'hooks');
+const libDir = join(root, 'src', 'lib');
 const outDir = join(root, 'bundle');
 
 // Read source files
 const files = {
   generateTextGrid: readFileSync(join(implDir, 'generateTextGrid.ts'), 'utf-8'),
+  logoOverlay: readFileSync(join(implDir, 'logoOverlay.ts'), 'utf-8'),
   generateFragmentSvg: readFileSync(join(implDir, 'generateFragmentSvg.ts'), 'utf-8'),
+  animationUtils: readFileSync(join(libDir, 'animationUtils.ts'), 'utf-8'),
   useReducedMotion: readFileSync(join(hooksDir, 'useReducedMotion.ts'), 'utf-8'),
   useFragmentReveal: readFileSync(join(implDir, 'useFragmentReveal.ts'), 'utf-8'),
   useFragmentSize: readFileSync(join(implDir, 'useFragmentSize.ts'), 'utf-8'),
 };
 
 /**
- * Strip import lines that reference local files (not external packages).
- * Keep imports from 'react' and other npm packages.
+ * Strip import statements that reference local files (not external packages).
+ * Handles both single-line and multi-line imports.
  */
 function stripLocalImports(source) {
-  return source
-    .split('\n')
-    .filter(line => {
-      const trimmed = line.trim();
-      // Remove imports from relative paths
-      if (trimmed.startsWith('import ') && (trimmed.includes("from '..") || trimmed.includes("from './"))) {
-        return false;
-      }
-      return true;
-    })
-    .join('\n');
+  // Match single-line: import ... from '../...' or import ... from './'
+  // Match multi-line:  import {\n  ...\n} from '../...'
+  return source.replace(
+    /import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|[\w]+)\s+from\s+['"]\.\.?\/[^'"]*['"];?\s*\n?/gs,
+    ''
+  );
 }
 
 /**
@@ -128,7 +126,9 @@ const reactImports = collectReactImports(Object.values(files));
 
 const sections = [
   processFile(files.generateTextGrid),
+  processFile(files.logoOverlay),
   processFile(files.generateFragmentSvg),
+  processFile(files.animationUtils),
   processFile(files.useReducedMotion),
   processFile(files.useFragmentReveal),
   processFile(files.useFragmentSize),

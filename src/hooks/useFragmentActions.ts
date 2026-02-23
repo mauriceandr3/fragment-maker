@@ -1,5 +1,6 @@
 import React from "react";
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
+import { DEFAULT_LOGO_CONFIG, type LogoPosition } from "@/app/components/fragment/types";
 import { serializeFonts, type FontData, type FontResolution } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import { getColorRgb } from "@/lib/colorUtils";
@@ -104,6 +105,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAnimationDuration(600);
     setToParams(null);
     state.setShowEndState(false);
+    state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
     clearUrlParams();
   };
 
@@ -152,7 +154,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
     // Text config fields only included when respective state type is 'text'
     const exportData: Record<string, unknown> = {
-      version: '2.2.0',
+      version: '2.3.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -237,6 +239,18 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         wordWrap: toTextConfig.wordWrap,
         invert: toTextConfig.invert,
         fontResolution: toTextConfig.fontResolution,
+      };
+    }
+
+    // Include logo config when enabled (absent = logo disabled for backward compat)
+    if (state.logoConfig.enabled) {
+      exportData.logo = {
+        enabled: true,
+        position: state.logoConfig.position,
+        size: state.logoConfig.size,
+        paddingX: state.logoConfig.paddingX,
+        paddingY: state.logoConfig.paddingY,
+        color: state.logoConfig.color,
       };
     }
 
@@ -453,6 +467,22 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         } else {
           // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
           setToStateType('pattern');
+        }
+
+        // Import logo config (v2.3.0+)
+        // Missing logo section defaults to disabled for backward compatibility
+        if (data.logo && typeof data.logo === 'object') {
+          const validPositions: LogoPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+          state.setLogoConfig({
+            enabled: typeof data.logo.enabled === 'boolean' ? data.logo.enabled : false,
+            position: validPositions.includes(data.logo.position) ? data.logo.position : 'bottom-right',
+            size: Math.round(clamp(data.logo.size, 5, 50, 15)),
+            paddingX: Math.round(clamp(data.logo.paddingX ?? data.logo.padding, 0, 20, DEFAULT_LOGO_CONFIG.paddingX)),
+            paddingY: Math.round(clamp(data.logo.paddingY ?? data.logo.padding, 0, 20, DEFAULT_LOGO_CONFIG.paddingY)),
+            color: typeof data.logo.color === 'string' && hexRegex.test(data.logo.color) ? data.logo.color : '#FCFCFC',
+          });
+        } else {
+          state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
         }
 
       } catch {

@@ -7,7 +7,7 @@ import {
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
-import { type GeneratorParams, type StateType, DEBOUNCE_DELAY } from "@/app/components/fragment/types";
+import { type GeneratorParams, type StateType, type LogoConfig, DEFAULT_LOGO_CONFIG, DEBOUNCE_DELAY } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
 import type { CropDirection } from "@/implementation-files/generateFragmentSvg";
 
@@ -129,6 +129,11 @@ export function useFragmentState() {
     initialUrlState.toTextConfig ?? { ...DEFAULT_TEXT_CONFIG }
   );
 
+  // Logo overlay configuration
+  const [logoConfig, setLogoConfig] = useState<LogoConfig>(
+    initialUrlState.logoConfig ?? { ...DEFAULT_LOGO_CONFIG }
+  );
+
   // --- Debounced state ---
   const [debouncedParams, setDebouncedParams] = useState(params);
   const [debouncedForeground, setDebouncedForeground] = useState(foregroundColor);
@@ -147,6 +152,7 @@ export function useFragmentState() {
   const [debouncedFromTextConfig, setDebouncedFromTextConfig] = useState<TextConfig>(fromTextConfig);
   const [debouncedToTextConfig, setDebouncedToTextConfig] = useState<TextConfig>(toTextConfig);
   const [debouncedShowEndState, setDebouncedShowEndState] = useState(showEndState);
+  const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoConfig>(logoConfig);
 
   // Debounce effects
   useEffect(() => {
@@ -240,6 +246,11 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [showEndState]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedLogoConfig(logoConfig), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [logoConfig]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -270,6 +281,7 @@ export function useFragmentState() {
       fromTextConfig: debouncedFromTextConfig,
       toTextConfig: debouncedToTextConfig,
       showEndState: debouncedShowEndState,
+      logoConfig: debouncedLogoConfig,
     };
     updateUrlFromState(state);
   }, [
@@ -290,6 +302,7 @@ export function useFragmentState() {
     debouncedFromTextConfig,
     debouncedToTextConfig,
     debouncedShowEndState,
+    debouncedLogoConfig,
   ]);
 
   // --- Derived values ---
@@ -343,6 +356,7 @@ export function useFragmentState() {
     toStateType, setToStateType,
     fromTextConfig, setFromTextConfig,
     toTextConfig, setToTextConfig,
+    logoConfig, setLogoConfig,
 
     // Debounced values
     debounced: {
@@ -363,6 +377,7 @@ export function useFragmentState() {
       fromTextConfig: debouncedFromTextConfig,
       toTextConfig: debouncedToTextConfig,
       showEndState: debouncedShowEndState,
+      logoConfig: debouncedLogoConfig,
     },
 
     // Derived

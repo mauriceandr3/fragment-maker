@@ -22,6 +22,7 @@
  */
 
 import { parseFonts, generateTextGrid, type SerializedFontData, type TextConfig } from './generateTextGrid';
+import { type LogoOverlayConfig, generateLogoOverlaySvg } from './logoOverlay';
 
 // ============================================================================
 // Types
@@ -151,6 +152,8 @@ export interface FragmentExport {
   fromTextConfig?: TextConfig;
   /** Text configuration for the "To" state (v2.2.0+). */
   toTextConfig?: TextConfig;
+  /** Logo overlay configuration (v2.3.0+). Present only when logo is enabled. */
+  logo?: LogoOverlayConfig;
 }
 
 // ============================================================================
@@ -821,6 +824,18 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
 }
 
 // ============================================================================
+// Logo Overlay Helper
+// ============================================================================
+
+/** Inject a logo overlay SVG into a completed SVG string (before closing tag). */
+function injectLogo(svg: string, logo: LogoOverlayConfig | undefined, width: number, height: number): string {
+  if (!logo?.enabled) return svg;
+  const logoSvg = generateLogoOverlaySvg(logo, width, height);
+  if (!logoSvg) return svg;
+  return svg.replace('</svg>', `${logoSvg}</svg>`);
+}
+
+// ============================================================================
 // High-Level API (accepts full export JSON)
 // ============================================================================
 
@@ -844,25 +859,29 @@ export function generateSvgFromExport(
   exportData: FragmentExport,
   options?: { seed?: string; text?: string }
 ): string {
-  const { config, fromStateType, fromTextConfig, fonts } = exportData;
+  const { config, fromStateType, fromTextConfig, fonts, logo } = exportData;
+  const dims = computeDimensions(config);
+
+  let svg: string;
 
   if (fromStateType === 'text' && fromTextConfig && fonts) {
-    const dims = computeDimensions(config);
     const parsedFonts = parseFonts(fonts);
     const effectiveTextConfig = options?.text !== undefined
       ? { ...fromTextConfig, text: options.text }
       : fromTextConfig;
     const { grid } = generateTextGrid(effectiveTextConfig, dims.cols, dims.rows, parsedFonts);
-    return gridToSvg(
+    svg = gridToSvg(
       grid, dims.cols, dims.rows,
       config.cellSize, dims.width,
       config.foregroundColor, config.backgroundColor,
       dims.height,
       { allowCropping: config.allowCropping, cropDirection: config.cropDirection }
     );
+  } else {
+    svg = generateFragmentSvg({ config, seed: options?.seed });
   }
 
-  return generateFragmentSvg({ config, seed: options?.seed });
+  return injectLogo(svg, logo, dims.width, dims.height);
 }
 
 /**
@@ -891,25 +910,26 @@ export function generateDiffSvgFromExport(
   exportData: FragmentExport,
   options?: { fromSeed?: string; toSeed?: string; fromText?: string; toText?: string }
 ): string {
-  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig } = exportData;
+  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo } = exportData;
 
   if (!toConfig && !(toStateType === 'text' && toTextConfig)) return '';
 
   const fromIsText = fromStateType === 'text';
   const toIsText = toStateType === 'text';
+  const dims = computeDimensions(config);
 
   // Both patterns: use the optimized config-based path
   if (!fromIsText && !toIsText && toConfig) {
-    return generateFragmentDiffFromConfigs({
+    const svg = generateFragmentDiffFromConfigs({
       fromConfig: config,
       toConfig,
       fromSeed: options?.fromSeed,
       toSeed: options?.toSeed,
     });
+    return injectLogo(svg, logo, dims.width, dims.height);
   }
 
   // At least one state is text — use grid-based approach
-  const dims = computeDimensions(config);
   if (dims.cols <= 0 || dims.rows <= 0) return '';
 
   let gridFrom: boolean[][];
@@ -943,7 +963,7 @@ export function generateDiffSvgFromExport(
     return '';
   }
 
-  return generateDiffFromGrids({
+  const svg = generateDiffFromGrids({
     gridFrom,
     gridTo,
     cols: dims.cols,
@@ -956,4 +976,6 @@ export function generateDiffSvgFromExport(
     allowCropping: config.allowCropping,
     cropDirection: config.cropDirection,
   });
+
+  return injectLogo(svg, logo, dims.width, dims.height);
 }

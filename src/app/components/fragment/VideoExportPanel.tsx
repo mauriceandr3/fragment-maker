@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Film, X } from 'lucide-react';
 import type { useVideoExport } from '@/hooks/useVideoExport';
+import type { LogoConfig } from './types';
 
 type VideoExport = ReturnType<typeof useVideoExport>;
 
@@ -11,6 +12,7 @@ interface VideoExportPanelProps {
   canvasHeight: number;
   animationDuration: number;
   animationEnabled: boolean;
+  logoConfig: LogoConfig;
 }
 
 const HOLD_MIN = 0;
@@ -74,6 +76,7 @@ export function VideoExportPanel({
   canvasHeight,
   animationDuration,
   animationEnabled,
+  logoConfig,
 }: VideoExportPanelProps) {
   const [mode, setMode] = useState<'one-way' | 'loop'>('one-way');
   const [startHoldSeconds, setStartHoldSeconds] = useState(0.0);
@@ -99,6 +102,7 @@ export function VideoExportPanel({
       endHoldMs: Math.round(endHoldSeconds * 1000),
       resolutionScale,
       fps,
+      logoConfig,
     });
   };
 
