@@ -1,6 +1,6 @@
 import React from "react";
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
-import { serializeFonts, type FontData } from "@/implementation-files/generateTextGrid";
+import { serializeFonts, type FontData, type FontResolution } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import { getColorRgb } from "@/lib/colorUtils";
 import {
@@ -222,6 +222,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         verticalAlignment: fromTextConfig.verticalAlignment,
         wordWrap: fromTextConfig.wordWrap,
         invert: fromTextConfig.invert,
+        fontResolution: fromTextConfig.fontResolution,
       };
     }
 
@@ -235,6 +236,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         verticalAlignment: toTextConfig.verticalAlignment,
         wordWrap: toTextConfig.wordWrap,
         invert: toTextConfig.invert,
+        fontResolution: toTextConfig.fontResolution,
       };
     }
 
@@ -385,6 +387,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           verticalAlignment: 'top' | 'center' | 'bottom';
           wordWrap: boolean;
           invert: boolean;
+          fontResolution: FontResolution;
         } => {
           const defaultConfig = {
             text: '',
@@ -393,6 +396,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
             verticalAlignment: 'center' as const,
             wordWrap: true,
             invert: false,
+            fontResolution: 'mid' as FontResolution,
           };
 
           if (!textConfig || typeof textConfig !== 'object') {
@@ -424,7 +428,13 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           const wordWrap = typeof cfg.wordWrap === 'boolean' ? cfg.wordWrap : true;
           const invert = typeof cfg.invert === 'boolean' ? cfg.invert : false;
 
-          return { text, charHeight, alignment, verticalAlignment, wordWrap, invert };
+          // Validate fontResolution
+          const fontResolution: FontResolution =
+            (cfg.fontResolution === 'low' || cfg.fontResolution === 'mid' || cfg.fontResolution === 'high')
+              ? cfg.fontResolution
+              : 'mid';
+
+          return { text, charHeight, alignment, verticalAlignment, wordWrap, invert, fontResolution };
         };
 
         // Import fromStateType

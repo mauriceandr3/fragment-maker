@@ -14,11 +14,12 @@ import type { CropDirection } from "@/implementation-files/generateFragmentSvg";
 // Default text configuration
 const DEFAULT_TEXT_CONFIG: TextConfig = {
   text: '',
-  charHeight: 15,
+  charHeight: 14,
   alignment: 'center',
   verticalAlignment: 'center',
   wordWrap: true,
   invert: false,
+  fontResolution: 'mid',
 };
 
 // Parse URL params once at module load time (before any React renders)
@@ -94,7 +95,7 @@ export function useFragmentState() {
 
   // UI state
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
+  const [viewMode, setViewMode] = useState<'single' | 'grid' | 'chars'>('single');
 
   // Animation preview state
   const [animationEnabled, setAnimationEnabled] = useState(initialUrlState.animationEnabled ?? false);

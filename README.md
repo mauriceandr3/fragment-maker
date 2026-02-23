@@ -321,7 +321,8 @@ function ResponsiveAnimatedCard({ title }: { title: string }) {
 When a config uses text, the exported JSON includes full font data (all characters at all three sizes, ~12KB). Consumers can freely modify these fields in the exported JSON without re-exporting:
 
 - **`fromTextConfig.text`** / **`toTextConfig.text`** — any text using A-Z, 0-9, and common punctuation
-- **`charHeight`** — character height in cells (font selection runs at render time)
+- **`charHeight`** — character height in cells; the font scales to fill as many cells as possible at integer steps
+- **`fontResolution`** — bitmap font variant: `'low'` (3×5), `'mid'` (5×7), or `'high'` (7×9); determines detail level and minimum charHeight (5, 7, or 9 respectively)
 - **`alignment`**, **`verticalAlignment`**, **`wordWrap`**, **`invert`** — layout parameters
 
 Alternatively, use the `text` / `fromText` / `toText` options to override text at render time without modifying the JSON:

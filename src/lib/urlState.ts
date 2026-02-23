@@ -1,5 +1,6 @@
 import { type FillType } from '../implementation-files/generateFragmentSvg';
 import type { TextConfig } from '../implementation-files/generateTextGrid';
+import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -108,17 +109,20 @@ const PARAM_KEYS = {
   toWordWrap: 'tww',
   fromInvert: 'fin',
   toInvert: 'tin',
+  fromFontResolution: 'ffr',
+  toFontResolution: 'tfr',
   showEndState: 'se',
 } as const;
 
 // Default text configuration
 const DEFAULT_TEXT_CONFIG: TextConfig = {
   text: '',
-  charHeight: 15,
+  charHeight: 14,
   alignment: 'center',
   verticalAlignment: 'center',
   wordWrap: true,
   invert: false,
+  fontResolution: 'mid',
 };
 
 // Defaults (seed excluded — it's random by nature)
@@ -223,6 +227,7 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.fromVerticalAlignment, tc.verticalAlignment, DEFAULT_TEXT_CONFIG.verticalAlignment);
     addIfChanged(PARAM_KEYS.fromWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
     addIfChanged(PARAM_KEYS.fromInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
+    addIfChanged(PARAM_KEYS.fromFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
   }
 
   // To text state (only when animation enabled and toStateType is 'text')
@@ -235,6 +240,7 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.toVerticalAlignment, tc.verticalAlignment, DEFAULT_TEXT_CONFIG.verticalAlignment);
     addIfChanged(PARAM_KEYS.toWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
     addIfChanged(PARAM_KEYS.toInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
+    addIfChanged(PARAM_KEYS.toFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
   }
 
   return params.toString();
@@ -370,14 +376,19 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     const fva = sp.get(PARAM_KEYS.fromVerticalAlignment);
     const fww = parseBool(sp.get(PARAM_KEYS.fromWordWrap));
     const fin = parseBool(sp.get(PARAM_KEYS.fromInvert));
+    const ffr = sp.get(PARAM_KEYS.fromFontResolution);
 
+    const fromResolution = (ffr === 'low' || ffr === 'mid' || ffr === 'high') ? ffr : DEFAULT_TEXT_CONFIG.fontResolution;
+    const fromFontHeight = RESOLUTION_MIN_HEIGHT[fromResolution];
+    const fromScale = Math.max(1, Math.round((fch ?? DEFAULT_TEXT_CONFIG.charHeight) / fromFontHeight));
     result.fromTextConfig = {
       text: ftxt ? ftxt.slice(0, 500) : '',
-      charHeight: fch ?? DEFAULT_TEXT_CONFIG.charHeight,
+      charHeight: fromFontHeight * fromScale,
       alignment: (fal === 'left' || fal === 'center' || fal === 'right') ? fal : DEFAULT_TEXT_CONFIG.alignment,
       verticalAlignment: (fva === 'top' || fva === 'center' || fva === 'bottom') ? fva : DEFAULT_TEXT_CONFIG.verticalAlignment,
       wordWrap: fww ?? DEFAULT_TEXT_CONFIG.wordWrap,
       invert: fin ?? DEFAULT_TEXT_CONFIG.invert,
+      fontResolution: fromResolution,
     };
   }
 
@@ -391,14 +402,19 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     const tva = sp.get(PARAM_KEYS.toVerticalAlignment);
     const tww = parseBool(sp.get(PARAM_KEYS.toWordWrap));
     const tin = parseBool(sp.get(PARAM_KEYS.toInvert));
+    const tfr = sp.get(PARAM_KEYS.toFontResolution);
 
+    const toResolution = (tfr === 'low' || tfr === 'mid' || tfr === 'high') ? tfr : DEFAULT_TEXT_CONFIG.fontResolution;
+    const toFontHeight = RESOLUTION_MIN_HEIGHT[toResolution];
+    const toScale = Math.max(1, Math.round((tch ?? DEFAULT_TEXT_CONFIG.charHeight) / toFontHeight));
     result.toTextConfig = {
       text: ttxt ? ttxt.slice(0, 500) : '',
-      charHeight: tch ?? DEFAULT_TEXT_CONFIG.charHeight,
+      charHeight: toFontHeight * toScale,
       alignment: (tal === 'left' || tal === 'center' || tal === 'right') ? tal : DEFAULT_TEXT_CONFIG.alignment,
       verticalAlignment: (tva === 'top' || tva === 'center' || tva === 'bottom') ? tva : DEFAULT_TEXT_CONFIG.verticalAlignment,
       wordWrap: tww ?? DEFAULT_TEXT_CONFIG.wordWrap,
       invert: tin ?? DEFAULT_TEXT_CONFIG.invert,
+      fontResolution: toResolution,
     };
   }
 

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import type { TextConfig, HorizontalAlignment, VerticalAlignment } from "./types";
+import type { TextConfig, HorizontalAlignment, VerticalAlignment, FontResolution } from "./types";
+import { RESOLUTION_MIN_HEIGHT } from "./types";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 
@@ -83,6 +84,10 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
     setConfig({ ...config, text: limitedText });
   };
 
+  // Largest charHeight (as a multiple of fontHeight) where at least one line fits in the grid
+  const fontHeight = RESOLUTION_MIN_HEIGHT[config.fontResolution];
+  const maxCharHeight = fontHeight * Math.max(1, Math.floor(rows / fontHeight));
+
   // Compute validation by running generateTextGrid
   const validation = useMemo(() => {
     const result = generateTextGrid(config, cols, rows, fonts);
@@ -116,14 +121,35 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
         />
       </div>
 
+      {/* Font Resolution */}
+      <ButtonGroup<FontResolution>
+        label="Resolution"
+        value={config.fontResolution}
+        options={[
+          { value: 'low', label: 'Low' },
+          { value: 'mid', label: 'Mid' },
+          { value: 'high', label: 'High' },
+        ]}
+        onChange={(res) => {
+          const newFontHeight = RESOLUTION_MIN_HEIGHT[res];
+          const newMaxScale = Math.max(1, Math.floor(rows / newFontHeight));
+          // Snap to nearest multiple, clamped to valid range for new resolution
+          const scale = Math.max(1, Math.min(newMaxScale, Math.round(config.charHeight / newFontHeight)));
+          setConfig({ ...config, fontResolution: res, charHeight: newFontHeight * scale });
+        }}
+      />
+
       {/* Character Height Slider */}
       <ParamSlider
         label={`Character Height: ${config.charHeight} cells`}
         value={config.charHeight}
-        min={5}
-        max={100}
-        step={1}
-        onChange={(v) => setConfig({ ...config, charHeight: Math.round(v) })}
+        min={fontHeight}
+        max={maxCharHeight}
+        step={fontHeight}
+        onChange={(v) => {
+          const scale = Math.max(1, Math.round(v / fontHeight));
+          setConfig({ ...config, charHeight: fontHeight * scale });
+        }}
       />
 
       {/* Horizontal Alignment */}
