@@ -13,7 +13,7 @@ export function useCanvasRenderer(options: {
   canvasHeight: number;
   allowCropping: boolean;
   cropDirection: 'width' | 'height';
-  viewMode: 'single' | 'grid';
+  viewMode: 'single' | 'grid' | 'chars';
   animationEnabled: boolean;
 }) {
   const {

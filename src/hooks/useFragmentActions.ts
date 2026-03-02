@@ -91,7 +91,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setParams({
       threshold: 0.5,
       gamma: 1.0,
-      scale: 0.5,
+      scale: 1,
       frequency: 0.1,
       contrast: 1.0,
       seed: Math.round(Math.random() * 10000) / 10000,

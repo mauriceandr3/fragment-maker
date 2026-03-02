@@ -45,6 +45,7 @@ export interface UrlSerializableState {
   cellSize: number;
   allowCropping: boolean;
   cropDirection: 'width' | 'height';
+  presetOrCustomMode?: 'presets' | 'custom';
   foregroundColor: string;
   backgroundColor: string;
   invertColors: boolean;
@@ -123,6 +124,7 @@ const PARAM_KEYS = {
   logoPaddingX: 'lpx',
   logoPaddingY: 'lpy',
   logoColor: 'lc',
+  presetOrCustomMode: 'pcm',
 } as const;
 
 // Default text configuration
@@ -177,6 +179,9 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   // Numbers — only include if different from default
   addIfChanged(PARAM_KEYS.threshold, String(state.threshold), String(DEFAULTS.threshold));
   addIfChanged(PARAM_KEYS.gamma, String(state.gamma), String(DEFAULTS.gamma));
+
+  addIfChanged(PARAM_KEYS.presetOrCustomMode, state.presetOrCustomMode ?? '', DEFAULTS.presetOrCustomMode ?? '');
+
   addIfChanged(PARAM_KEYS.scale, String(state.scale), String(DEFAULTS.scale));
   addIfChanged(PARAM_KEYS.frequency, String(state.frequency), String(DEFAULTS.frequency));
   addIfChanged(PARAM_KEYS.contrast, String(state.contrast), String(DEFAULTS.contrast));
@@ -333,6 +338,11 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   const cd = sp.get('cd');
   if (cd === 'width' || cd === 'height') {
     result.cropDirection = cd;
+  }
+
+  const presetOrCustomMode = sp.get('pcm');
+  if (presetOrCustomMode === 'presets' || presetOrCustomMode === 'custom') {
+    result.presetOrCustomMode = presetOrCustomMode;
   }
 
   // Booleans

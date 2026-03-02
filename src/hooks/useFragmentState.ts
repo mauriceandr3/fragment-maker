@@ -26,9 +26,13 @@ const DEFAULT_TEXT_CONFIG: TextConfig = {
 const initialUrlState = parseUrlToState();
 
 export function useFragmentState() {
+  const [presetOrCustomMode, setPresetOrCustomMode] = useState(initialUrlState.presetOrCustomMode ?? "presets");
+
+
   // --- Core state ---
   const [foregroundColor, setForegroundColor] = useState(initialUrlState.foregroundColor ?? "#FCFCFC");
   const [backgroundColor, setBackgroundColor] = useState(initialUrlState.backgroundColor ?? "#000000");
+
   const [customPreset, setCustomPreset] = useState({
     background: initialUrlState.backgroundColor ?? "#000000",
     foreground: initialUrlState.foregroundColor ?? "#FCFCFC",
@@ -82,7 +86,7 @@ export function useFragmentState() {
   const [params, setParams] = useState<GeneratorParams>({
     threshold: initialUrlState.threshold ?? 0.5,
     gamma: initialUrlState.gamma ?? 1.0,
-    scale: initialUrlState.scale ?? 0.5,
+    scale: initialUrlState.scale ?? 1,
     frequency: initialUrlState.frequency ?? 0.1,
     contrast: initialUrlState.contrast ?? 1.0,
     seed: initialUrlState.seed ?? Math.round(Math.random() * 10000) / 10000,
@@ -153,6 +157,7 @@ export function useFragmentState() {
   const [debouncedToTextConfig, setDebouncedToTextConfig] = useState<TextConfig>(toTextConfig);
   const [debouncedShowEndState, setDebouncedShowEndState] = useState(showEndState);
   const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoConfig>(logoConfig);
+  const [debouncedPresetOrCustomMode, setDebouncedPresetOrCustomMode] = useState<'presets' | 'custom'>(presetOrCustomMode);
 
   // Debounce effects
   useEffect(() => {
@@ -232,6 +237,11 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [fromStateType, toStateType]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPresetOrCustomMode(presetOrCustomMode), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [presetOrCustomMode]);
+
   // Debounce text configs
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -282,6 +292,7 @@ export function useFragmentState() {
       toTextConfig: debouncedToTextConfig,
       showEndState: debouncedShowEndState,
       logoConfig: debouncedLogoConfig,
+      presetOrCustomMode: debouncedPresetOrCustomMode,
     };
     updateUrlFromState(state);
   }, [
@@ -303,6 +314,7 @@ export function useFragmentState() {
     debouncedToTextConfig,
     debouncedShowEndState,
     debouncedLogoConfig,
+    debouncedPresetOrCustomMode,
   ]);
 
   // --- Derived values ---
@@ -357,7 +369,7 @@ export function useFragmentState() {
     fromTextConfig, setFromTextConfig,
     toTextConfig, setToTextConfig,
     logoConfig, setLogoConfig,
-
+    presetOrCustomMode, setPresetOrCustomMode,
     // Debounced values
     debounced: {
       params: debouncedParams,
@@ -378,6 +390,7 @@ export function useFragmentState() {
       toTextConfig: debouncedToTextConfig,
       showEndState: debouncedShowEndState,
       logoConfig: debouncedLogoConfig,
+      presetOrCustomMode: debouncedPresetOrCustomMode,
     },
 
     // Derived

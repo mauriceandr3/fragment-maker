@@ -7,6 +7,8 @@ import {
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
+import { Section } from '../ui/Section';
+import { RadioSelector } from '../ui/RadioSelector';
 
 interface CanvasSettingsPanelProps {
   state: FragmentState;
@@ -28,8 +30,7 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
   } = state;
 
   return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Canvas Settings</h2>
+    <Section title="Canvas Settings">
 
       {/* Canvas Dimensions */}
       <div className="grid grid-cols-2 gap-4">
@@ -207,28 +208,14 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
       {allowCropping && (
         <div className="mt-3">
           <label className="block text-sm text-white/60 mb-2">Crop Direction</label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCropDirection('width')}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                cropDirection === 'width'
-                  ? 'bg-white/20 border-2 border-white/40 text-white'
-                  : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-              }`}
-            >
-              Crop width
-            </button>
-            <button
-              onClick={() => setCropDirection('height')}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                cropDirection === 'height'
-                  ? 'bg-white/20 border-2 border-white/40 text-white'
-                  : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-              }`}
-            >
-              Crop height
-            </button>
-          </div>
+          <RadioSelector
+            options={[
+              { label: 'Crop width', value: 'width' },
+              { label: 'Crop height', value: 'height' },
+            ]}
+            value={cropDirection}
+            onChange={setCropDirection}
+          />
         </div>
       )}
 
@@ -236,25 +223,15 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
 
       {/* Zoom Controls */}
       <h3 className="text-sm text-white/60 mb-3">Zoom</h3>
-      <div className="flex gap-3">
-        {[
-          { label: '25%', scale: 0.25 },
-          { label: '50%', scale: 0.5 },
-          { label: '100%', scale: 1.0 }
-        ].map(({ label, scale }) => (
-          <button
-            key={label}
-            onClick={() => setParams({ ...params, scale })}
-            className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all shadow-lg ${
-              params.scale === scale
-                ? 'bg-white/20 border-2 border-white/40 text-white'
-                : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
+      <RadioSelector
+        options={[
+          { label: '25%', value: '0.25' },
+          { label: '50%', value: '0.5' },
+          { label: '100%', value: '1' },
+        ]}
+        value={String(params.scale)}
+        onChange={(v) => setParams({ ...params, scale: Number(v) })}
+      />
+    </Section>
   );
 }

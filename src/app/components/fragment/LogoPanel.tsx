@@ -3,6 +3,7 @@ import type { LogoPosition } from "./types";
 import { PercentSlider } from "./PercentSlider";
 import { getLogoSvg } from "@/lib/dfinityLogo";
 import { getColorRgb } from "@/lib/colorUtils";
+import { Section } from '../ui/Section';
 
 interface LogoPanelProps {
   state: FragmentState;
@@ -23,8 +24,7 @@ export function LogoPanel({ state }: LogoPanelProps) {
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Logo</h2>
+    <Section title="Logo">
 
       <label className="flex items-center gap-2 cursor-pointer group">
         <input
@@ -122,6 +122,6 @@ export function LogoPanel({ state }: LogoPanelProps) {
           </div>
         </>
       )}
-    </div>
+    </Section>
   );
 }

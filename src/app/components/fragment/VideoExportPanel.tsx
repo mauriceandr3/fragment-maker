@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Film, X } from 'lucide-react';
 import type { useVideoExport } from '@/hooks/useVideoExport';
 import type { LogoConfig } from './types';
+import { Section } from '../ui/Section';
+import { RadioSelector } from '../ui/RadioSelector';
 
 type VideoExport = ReturnType<typeof useVideoExport>;
 
@@ -111,8 +113,7 @@ export function VideoExportPanel({
     : 'Pause on end state before video ends';
 
   return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Video Export</h2>
+    <Section title="Video Export">
 
       {!animationEnabled ? (
         <p className="text-xs text-white/40">
@@ -124,21 +125,14 @@ export function VideoExportPanel({
         {/* Mode */}
         <div className="mb-4">
           <label className="block text-sm text-white/60 mb-2">Mode</label>
-          <div className="flex gap-2">
-            {(['one-way', 'loop'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  mode === m
-                    ? 'bg-white/20 border-2 border-white/40 text-white'
-                    : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                }`}
-              >
-                {m === 'one-way' ? 'One-way' : 'Loop'}
-              </button>
-            ))}
-          </div>
+          <RadioSelector
+            options={[
+              { label: 'One-way', value: 'one-way' },
+              { label: 'Loop', value: 'loop' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
           <p className="text-xs text-white/40 mt-1">
             {mode === 'one-way'
               ? 'Animates to end state and stops'
@@ -177,41 +171,29 @@ export function VideoExportPanel({
               ({canvasWidth * resolutionScale} × {canvasHeight * resolutionScale}px)
             </span>
           </label>
-          <div className="flex gap-1.5">
-            {([1, 2, 3, 4] as const).map((scale) => (
-              <button
-                key={scale}
-                onClick={() => setResolutionScale(scale)}
-                className={`flex-1 py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-                  resolutionScale === scale
-                    ? 'bg-white/20 border-2 border-white/40 text-white'
-                    : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                }`}
-              >
-                {scale}×
-              </button>
-            ))}
-          </div>
+          <RadioSelector
+            options={[
+              { label: '1×', value: '1' },
+              { label: '2×', value: '2' },
+              { label: '3×', value: '3' },
+              { label: '4×', value: '4' },
+            ]}
+            value={String(resolutionScale)}
+            onChange={(v) => setResolutionScale(Number(v) as 1 | 2 | 3 | 4)}
+          />
         </div>
 
         {/* FPS */}
         <div className="mb-4">
           <label className="block text-sm text-white/60 mb-2">FPS</label>
-          <div className="flex gap-2">
-            {([30, 60] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFps(f)}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  fps === f
-                    ? 'bg-white/20 border-2 border-white/40 text-white'
-                    : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+          <RadioSelector
+            options={[
+              { label: '30', value: '30' },
+              { label: '60', value: '60' },
+            ]}
+            value={String(fps)}
+            onChange={(v) => setFps(Number(v) as 30 | 60)}
+          />
           <p className="text-xs text-white/40 mt-1">
             30fps halves file size with minimal visible difference
           </p>
@@ -259,6 +241,6 @@ export function VideoExportPanel({
         )}
       </div>
       )}
-    </div>
+    </Section>
   );
 }

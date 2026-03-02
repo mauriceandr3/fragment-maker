@@ -13,9 +13,9 @@ export const MIN_CELL_SIZE = 2; // Absolute minimum (for small dimensions)
 export const MAX_CELL_SIZE = 200; // Maximum cell size for buttons/slider
 export const MIN_CANVAS_DIMENSION = 64;
 export const MAX_CANVAS_DIMENSION = 4096;
-export const DEFAULT_CELL_SIZE = 40;
-export const DEFAULT_WIDTH = 1000;
-export const DEFAULT_HEIGHT = 1000;
+export const DEFAULT_CELL_SIZE = 20;
+export const DEFAULT_WIDTH = 500;
+export const DEFAULT_HEIGHT = 500;
 
 /**
  * Calculate the dynamic minimum cell size based on canvas dimensions.

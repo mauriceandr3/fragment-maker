@@ -2,6 +2,22 @@
 @import './tailwind.css';
 @import './theme.css';
 
+/* Restore pointer cursor on interactive elements (Tailwind preflight removes it) */
+button,
+[role="button"],
+a,
+select,
+summary,
+[type="button"],
+[type="submit"],
+[type="reset"],
+label[for],
+input[type="checkbox"],
+input[type="radio"],
+input[type="color"] {
+  cursor: pointer;
+}
+
 /* Custom range slider styling */
 input[type="range"] {
   -webkit-appearance: none;

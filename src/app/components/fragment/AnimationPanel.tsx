@@ -1,6 +1,7 @@
 import { ArrowLeftRight } from "lucide-react";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentActions } from "@/hooks/useFragmentActions";
+import { Section } from '../ui/Section';
 
 interface AnimationPanelProps {
   state: FragmentState;
@@ -53,8 +54,7 @@ export function AnimationPanel({ state, actions }: AnimationPanelProps) {
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Animation</h2>
+    <Section title="Animation">
 
       <label className="flex items-center gap-2 cursor-pointer group">
         <input
@@ -125,6 +125,6 @@ export function AnimationPanel({ state, actions }: AnimationPanelProps) {
           </p>
         </>
       )}
-    </div>
+    </Section>
   );
 }

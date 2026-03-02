@@ -1,5 +1,6 @@
 import { getColorRgb, isTransparent, setColorAlpha, COLOR_PRESETS } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
+import { Section } from '../ui/Section';
 
 interface ColorsPanelProps {
   state: FragmentState;
@@ -14,8 +15,7 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
   } = state;
 
   return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Colors</h2>
+    <Section title="Colors">
 
       {/* Color Presets */}
       <div className="space-y-2">
@@ -164,6 +164,6 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
         />
         <span className="text-sm text-white/60 group-hover:text-white transition-colors">Invert Colors</span>
       </label>
-    </div>
+    </Section>
   );
 }
