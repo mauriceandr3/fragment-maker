@@ -339,7 +339,7 @@ export function PresetsSelection({ state }: PresetsSelectionProps) {
     };
 
     return (
-        <Section title="Presets">
+        <Section title="Presets" borderless>
             <div className="text-sm text-white/60">
                 Select a preset to quickly apply a combination of settings. You can further customize colors and other options after selecting a preset.
             </div>

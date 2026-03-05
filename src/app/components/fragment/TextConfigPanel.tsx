@@ -6,6 +6,7 @@ import { FONTS } from "@/lib/bitmapFonts";
 import { Slider } from "../ui/Slider";
 import { ButtonGroup } from "../ui/ButtonGroup";
 import { Checkbox } from "../ui/Checkbox";
+import { Section } from '../ui/Section';
 
 const fonts: FontData = FONTS;
 
@@ -40,10 +41,7 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
   }, [config, cols, rows]);
 
   return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">{title}</h2>
-      </div>
+    <Section title={title}>
 
       {/* Text Input */}
       <div>
@@ -150,6 +148,6 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
           )}
         </div>
       )}
-    </div>
+    </Section>
   );
 }

@@ -1,5 +1,7 @@
 import { Shuffle } from "lucide-react";
 import type { GeneratorParams } from "./types";
+import { Section } from "../ui/Section";
+import { Button } from "../ui/Button";
 import { Slider } from "../ui/Slider";
 import { ButtonGroup } from "../ui/ButtonGroup";
 import { Checkbox } from "../ui/Checkbox";
@@ -14,21 +16,17 @@ interface ParametersPanelProps {
 }
 
 export function ParametersPanel({ params, setParams, title = "Parameters", onRandomize }: ParametersPanelProps) {
-  return (
-    <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 space-y-4 border border-white/20 shadow-lg">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">{title}</h2>
-        {onRandomize && (
-          <button
-            onClick={onRandomize}
-            className="group relative bg-black/40 hover:bg-white backdrop-blur-md border border-white/30 text-white hover:text-black p-2 rounded-lg flex items-center justify-center transition-all shadow-lg hover:shadow-xl"
-            title="Randomize"
-          >
-            <Shuffle className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+  const randomizeButton = onRandomize ? (
+    <Button
+      variant="icon"
+      onClick={(e) => { e.stopPropagation(); onRandomize(); }}
+      title="Randomize"
+      icon={<Shuffle className="w-3.5 h-3.5" />}
+    />
+  ) : undefined;
 
+  return (
+    <Section title={title} rightElement={randomizeButton}>
       <Slider
         label={`Density: ${params.threshold.toFixed(2)}`}
         value={params.threshold} min={0} max={1} step={0.01}
@@ -96,6 +94,6 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
         value={params.directionDensity} min={0} max={999}
         onChange={(v) => setParams({ ...params, directionDensity: Math.round(v) })}
       />
-    </div>
+    </Section>
   );
 }

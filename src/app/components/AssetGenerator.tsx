@@ -1,5 +1,6 @@
 import { useRef } from "react";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
+import { Button } from './ui/Button';
 import { useFragmentState } from "@/hooks/useFragmentState";
 import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { useCanvasRenderer } from "@/hooks/useCanvasRenderer";
@@ -14,12 +15,18 @@ import { ColorsPanel } from "./fragment/ColorsPanel";
 import { ParametersPanel } from "./fragment/ParametersPanel";
 import { TextConfigPanel } from "./fragment/TextConfigPanel";
 import { StateTypeSelector } from "./fragment/StateTypeSelector";
-import { ActionButtons } from "./fragment/ActionButtons";
+import { ExportSvgPanel, ConfigPanel } from "./fragment/ActionButtons";
 import { VideoExportPanel } from "./fragment/VideoExportPanel";
 import { BatchExportPanel } from "./fragment/BatchExportPanel";
 import { LogoPanel } from "./fragment/LogoPanel";
 import { RadioSelector } from './ui/RadioSelector';
 import { PresetsSelection } from './fragment/PresetsSelection';
+
+const sidebarStyle = {
+  fontFamily: 'Inter Tight, sans-serif',
+  fontWeight: 300,
+  scrollbarGutter: 'stable' as const,
+};
 
 export function AssetGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,7 +75,7 @@ export function AssetGenerator() {
           animationMouseLeave={animationMouseLeave}
         />
 
-        {/* Right: Controls Panel */}
+        {/* Sidebars */}
         {state.isCollapsed ? (
           <button
             onClick={() => state.setIsCollapsed(false)}
@@ -77,165 +84,185 @@ export function AssetGenerator() {
             <ChevronLeft className="w-5 h-5" />
           </button>
         ) : (
-          <div
-            className={`flex-shrink-0 bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden transition-all duration-300 ${
-              state.animationEnabled && state.presetOrCustomMode === 'custom' ? 'w-[750px]' : 'w-[400px]'
-            }`}
-          >
-            <div
-              className="h-full overflow-y-auto space-y-6 p-6 pb-12"
-              style={{
-                fontFamily: 'Inter Tight, sans-serif',
-                fontWeight: 300,
-                scrollbarGutter: 'stable',
-              }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between pb-2">
-                <h1 className="text-lg text-white tracking-wide">Fragment Generator</h1>
-                <button
-                  onClick={() => state.setIsCollapsed(true)}
-                  className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-
-
-              <RadioSelector options={[
-                  { label: "Presets", value: "presets"},
-                  { label: "Custom", value: "custom" },
-              ]} value={state.presetOrCustomMode} onChange={state.setPresetOrCustomMode} />
-
-              { state.presetOrCustomMode === 'presets' ? (
-                <PresetsSelection state={state} />
-              ) : (
-                <>
-                  {/* Shared sections - always full width */}
-                  <CanvasSettingsPanel state={state} />
-                  <AnimationPanel state={state} actions={actions} />
-                  <LogoPanel state={state} />
-                  <ColorsPanel state={state} />
-
-                  <>
-                    {/* Parameters panels - side-by-side when animation enabled */}
-                    {state.animationEnabled && state.toParams ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* From panel */}
-                        <div className="space-y-3">
-                          <StateTypeSelector
-                            value={state.fromStateType}
-                            onChange={state.setFromStateType}
-                          />
-                          {state.fromStateType === 'pattern' ? (
-                            <ParametersPanel
-                              params={state.params}
-                              setParams={state.setParams}
-                              title="From"
-                              onRandomize={actions.randomizeParams}
-                            />
-                          ) : (
-                            <TextConfigPanel
-                              config={state.fromTextConfig}
-                              setConfig={state.setFromTextConfig}
-                              title="From"
-                              cols={state.gridDimensions.cols}
-                              rows={state.gridDimensions.rows}
-                            />
-                          )}
-                        </div>
-                        {/* To panel */}
-                        <div className="space-y-3">
-                          <StateTypeSelector
-                            value={state.toStateType}
-                            onChange={state.setToStateType}
-                          />
-                          {state.toStateType === 'pattern' ? (
-                            <ParametersPanel
-                              params={state.toParams}
-                              setParams={state.setToParams}
-                              title="To"
-                              onRandomize={actions.randomizeToParams}
-                            />
-                          ) : (
-                            <TextConfigPanel
-                              config={state.toTextConfig}
-                              setConfig={state.setToTextConfig}
-                              title="To"
-                              cols={state.gridDimensions.cols}
-                              rows={state.gridDimensions.rows}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <StateTypeSelector
-                          value={state.fromStateType}
-                          onChange={state.setFromStateType}
-                        />
-                        {state.fromStateType === 'pattern' ? (
-                          <ParametersPanel
-                            params={state.params}
-                            setParams={state.setParams}
-                            title="Parameters"
-                          />
-                        ) : (
-                          <TextConfigPanel
-                            config={state.fromTextConfig}
-                            setConfig={state.setFromTextConfig}
-                            title="Text"
-                            cols={state.gridDimensions.cols}
-                            rows={state.gridDimensions.rows}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </>
-                </>
-              )}
-
-              <VideoExportPanel
-                videoExport={videoExport}
-                diffSvg={generation.diffSvg}
-                canvasWidth={state.canvasWidth}
-                canvasHeight={state.canvasHeight}
-                animationDuration={state.debounced.animationDuration}
-                animationEnabled={state.animationEnabled}
-                logoConfig={state.logoConfig}
-              />
-
-              <BatchExportPanel
-                batchExport={batchExport}
-                params={state.params}
-                foregroundColor={state.displayForeground}
-                backgroundColor={state.displayBackground}
-                cellSize={state.cellSize}
-                canvasWidth={state.canvasWidth}
-                canvasHeight={state.canvasHeight}
-                allowCropping={state.allowCropping}
-                cropDirection={state.cropDirection}
-                fromStateType={state.fromStateType}
-                logoConfig={state.logoConfig}
-                animationEnabled={state.animationEnabled}
-              />
-
-              <ActionButtons
-                actions={actions}
-                allowCropping={state.allowCropping}
-                validCellSizes={state.validCellSizes}
-                fileInputRef={fileInputRef}
-                animationEnabled={state.animationEnabled}
-              />
+          <div className="flex-shrink-0 flex flex-col border-l border-white/20">
+            {/* Shared header across both sidebars */}
+            <div className="flex items-center justify-between px-6 py-4 bg-black/60 backdrop-blur-xl border-b border-white/10" style={sidebarStyle}>
+              <h1 className="text-lg text-white tracking-wide">Fragment Generator</h1>
+              <button
+                onClick={() => state.setIsCollapsed(true)}
+                className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Fade Mask at Bottom */}
+            <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar A: Design Controls */}
             <div
-              className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
-              style={{
-                background: 'linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent)'
-              }}
-            />
+              className={`bg-black/60 backdrop-blur-xl overflow-hidden transition-all duration-300 flex flex-col ${
+                state.animationEnabled && state.presetOrCustomMode === 'custom' && state.animationEnabled ? 'w-[750px]' : 'w-[380px]'
+              }`}
+            >
+              <div className="relative z-10 px-6 pt-5 pb-3 border-b border-white/10 bg-black" style={sidebarStyle}>
+                <h2 className="text-xs text-white/40 uppercase tracking-widest">Create</h2>
+              </div>
+              <div
+                className="flex-1 overflow-y-auto space-y-6 p-6 pb-12"
+                style={sidebarStyle}
+              >
+                <RadioSelector options={[
+                    { label: "Presets", value: "presets"},
+                    { label: "Custom", value: "custom" },
+                ]} value={state.presetOrCustomMode} onChange={state.setPresetOrCustomMode} />
+
+                <div className='pt-4'>
+                    {state.presetOrCustomMode === 'presets' ? (
+                      <PresetsSelection state={state} />
+                    ) : (
+                      <>
+                        <CanvasSettingsPanel state={state} />
+                        <ColorsPanel state={state} />
+                        <LogoPanel state={state} />
+                        <AnimationPanel state={state} actions={actions} />
+
+                        {/* Parameters panels - side-by-side when animation enabled */}
+                        {state.animationEnabled && state.toParams ? (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <StateTypeSelector
+                                value={state.fromStateType}
+                                onChange={state.setFromStateType}
+                              />
+                              {state.fromStateType === 'pattern' ? (
+                                <ParametersPanel
+                                  params={state.params}
+                                  setParams={state.setParams}
+                                  title="From"
+                                  onRandomize={actions.randomizeParams}
+                                />
+                              ) : (
+                                <TextConfigPanel
+                                  config={state.fromTextConfig}
+                                  setConfig={state.setFromTextConfig}
+                                  title="From"
+                                  cols={state.gridDimensions.cols}
+                                  rows={state.gridDimensions.rows}
+                                />
+                              )}
+                            </div>
+                            <div className="space-y-3">
+                              <StateTypeSelector
+                                value={state.toStateType}
+                                onChange={state.setToStateType}
+                              />
+                              {state.toStateType === 'pattern' ? (
+                                <ParametersPanel
+                                  params={state.toParams}
+                                  setParams={state.setToParams}
+                                  title="To"
+                                  onRandomize={actions.randomizeToParams}
+                                />
+                              ) : (
+                                <TextConfigPanel
+                                  config={state.toTextConfig}
+                                  setConfig={state.setToTextConfig}
+                                  title="To"
+                                  cols={state.gridDimensions.cols}
+                                  rows={state.gridDimensions.rows}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <StateTypeSelector
+                              value={state.fromStateType}
+                              onChange={state.setFromStateType}
+                            />
+                            {state.fromStateType === 'pattern' ? (
+                              <ParametersPanel
+                                params={state.params}
+                                setParams={state.setParams}
+                                title="Parameters"
+                                onRandomize={actions.randomizeParams}
+                              />
+                            ) : (
+                              <TextConfigPanel
+                                config={state.fromTextConfig}
+                                setConfig={state.setFromTextConfig}
+                                title="Text"
+                                cols={state.gridDimensions.cols}
+                                rows={state.gridDimensions.rows}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                </div>
+
+
+                {/* Reset - always accessible at bottom of sidebar A */}
+                <Button
+                  variant="primary"
+                  onClick={actions.resetToDefaults}
+                  fullWidth
+                  icon={<RotateCcw className="w-3.5 h-3.5" />}
+                >
+                  Reset to Defaults
+                </Button>
+              </div>
+            </div>
+
+            {/* Sidebar B: Export */}
+            <div className="w-[380px] bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden flex flex-col">
+              <div className="relative z-10 px-6 pt-5 pb-3 border-b border-white/10 bg-black" style={sidebarStyle}>
+                <h2 className="text-xs text-white/40 uppercase tracking-widest">Export</h2>
+              </div>
+              <div
+                className="flex-1 overflow-y-auto space-y-6 p-6 pb-12"
+                style={sidebarStyle}
+              >
+                <ExportSvgPanel
+                  actions={actions}
+                  allowCropping={state.allowCropping}
+                  validCellSizes={state.validCellSizes}
+                />
+
+                <BatchExportPanel
+                  batchExport={batchExport}
+                  params={state.params}
+                  foregroundColor={state.displayForeground}
+                  backgroundColor={state.displayBackground}
+                  cellSize={state.cellSize}
+                  canvasWidth={state.canvasWidth}
+                  canvasHeight={state.canvasHeight}
+                  allowCropping={state.allowCropping}
+                  cropDirection={state.cropDirection}
+                  fromStateType={state.fromStateType}
+                  logoConfig={state.logoConfig}
+                  animationEnabled={state.animationEnabled}
+                />
+
+                <VideoExportPanel
+                  videoExport={videoExport}
+                  diffSvg={generation.diffSvg}
+                  canvasWidth={state.canvasWidth}
+                  canvasHeight={state.canvasHeight}
+                  animationDuration={state.debounced.animationDuration}
+                  animationEnabled={state.animationEnabled}
+                  logoConfig={state.logoConfig}
+                />
+
+                <ConfigPanel
+                  actions={actions}
+                  allowCropping={state.allowCropping}
+                  validCellSizes={state.validCellSizes}
+                  fileInputRef={fileInputRef}
+                />
+              </div>
+            </div>
+            </div>
           </div>
         )}
       </div>

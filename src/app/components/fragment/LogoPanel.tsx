@@ -27,7 +27,7 @@ export function LogoPanel({ state }: LogoPanelProps) {
   };
 
   return (
-    <Section title="Logo">
+    <Section title="Logo" borderless>
 
       <Checkbox
         label="Show logo"

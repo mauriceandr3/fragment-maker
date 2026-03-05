@@ -17,7 +17,7 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
   } = state;
 
   return (
-    <Section title="Colors">
+    <Section title="Colors" borderless>
 
       {/* Color Presets */}
       <div className="space-y-2">

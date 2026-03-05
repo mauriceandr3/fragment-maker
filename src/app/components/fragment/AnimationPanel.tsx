@@ -2,6 +2,7 @@ import { ArrowLeftRight } from "lucide-react";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentActions } from "@/hooks/useFragmentActions";
 import { Section } from '../ui/Section';
+import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
 import { TextInput } from '../ui/TextInput';
 
@@ -54,7 +55,7 @@ export function AnimationPanel({ state, actions }: AnimationPanelProps) {
   };
 
   return (
-    <Section title="Animation">
+    <Section title="Animation" borderless>
 
       <Checkbox
         label="Enable animation"
@@ -77,18 +78,14 @@ export function AnimationPanel({ state, actions }: AnimationPanelProps) {
           />
 
           {/* Swap From/To */}
-          <button
+          <Button
             onClick={actions.swapFromTo}
             disabled={!toParams}
-            className={`w-full backdrop-blur-md border py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg text-sm ${
-              !toParams
-                ? 'bg-black/20 border-white/10 text-white/30 cursor-not-allowed'
-                : 'bg-black/30 hover:bg-white/10 border-white/20 text-white/70 hover:text-white hover:shadow-xl'
-            }`}
+            fullWidth
+            icon={<ArrowLeftRight className="w-4 h-4" />}
           >
-            <ArrowLeftRight className="w-4 h-4" />
-            <span>Swap From and To</span>
-          </button>
+            Swap From and To
+          </Button>
 
           <Checkbox
             label="Show end state"

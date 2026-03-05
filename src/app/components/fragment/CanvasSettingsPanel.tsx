@@ -66,7 +66,7 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
   };
 
   return (
-    <Section title="Canvas Settings">
+    <Section title="Canvas Settings" borderless>
 
       {/* Canvas Dimensions */}
       <div className="grid grid-cols-2 gap-4">
