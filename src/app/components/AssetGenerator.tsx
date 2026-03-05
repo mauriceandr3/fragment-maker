@@ -5,6 +5,7 @@ import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { useCanvasRenderer } from "@/hooks/useCanvasRenderer";
 import { useFragmentActions } from "@/hooks/useFragmentActions";
 import { useVideoExport } from "@/hooks/useVideoExport";
+import { useBatchExport } from "@/hooks/useBatchExport";
 import { useFragmentReveal } from "@/implementation-files/useFragmentReveal";
 import { PreviewPanel } from "./fragment/PreviewPanel";
 import { CanvasSettingsPanel } from "./fragment/CanvasSettingsPanel";
@@ -15,6 +16,7 @@ import { TextConfigPanel } from "./fragment/TextConfigPanel";
 import { StateTypeSelector } from "./fragment/StateTypeSelector";
 import { ActionButtons } from "./fragment/ActionButtons";
 import { VideoExportPanel } from "./fragment/VideoExportPanel";
+import { BatchExportPanel } from "./fragment/BatchExportPanel";
 import { LogoPanel } from "./fragment/LogoPanel";
 import { RadioSelector } from './ui/RadioSelector';
 import { PresetsSelection } from './fragment/PresetsSelection';
@@ -28,6 +30,7 @@ export function AssetGenerator() {
   const generation = useFragmentGeneration(state);
   const actions = useFragmentActions(state, generation);
   const videoExport = useVideoExport();
+  const batchExport = useBatchExport();
 
   useCanvasRenderer({
     canvasRef,
@@ -200,6 +203,21 @@ export function AssetGenerator() {
                 animationDuration={state.debounced.animationDuration}
                 animationEnabled={state.animationEnabled}
                 logoConfig={state.logoConfig}
+              />
+
+              <BatchExportPanel
+                batchExport={batchExport}
+                params={state.params}
+                foregroundColor={state.displayForeground}
+                backgroundColor={state.displayBackground}
+                cellSize={state.cellSize}
+                canvasWidth={state.canvasWidth}
+                canvasHeight={state.canvasHeight}
+                allowCropping={state.allowCropping}
+                cropDirection={state.cropDirection}
+                fromStateType={state.fromStateType}
+                logoConfig={state.logoConfig}
+                animationEnabled={state.animationEnabled}
               />
 
               <ActionButtons
