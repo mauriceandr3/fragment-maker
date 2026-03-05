@@ -3,6 +3,7 @@ import { Film, X } from 'lucide-react';
 import type { useVideoExport } from '@/hooks/useVideoExport';
 import type { LogoConfig } from './types';
 import { Section } from '../ui/Section';
+import { Button } from '../ui/Button';
 import { RadioSelector } from '../ui/RadioSelector';
 
 type VideoExport = ReturnType<typeof useVideoExport>;
@@ -113,7 +114,7 @@ export function VideoExportPanel({
     : 'Pause on end state before video ends';
 
   return (
-    <Section title="Video Export">
+    <Section title="Video" borderless>
 
       {!animationEnabled ? (
         <p className="text-xs text-white/40">
@@ -215,22 +216,23 @@ export function VideoExportPanel({
                   {videoStatus === 'finalizing' && 'Finalizing...'}
                 </span>
               </div>
-              <button
+              <Button
+                variant="icon"
+                size="sm"
                 onClick={videoExport.cancelExport}
-                className="text-white/50 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                className="border-0 bg-transparent hover:bg-white/10 text-white/50 hover:text-white shadow-none hover:shadow-none"
+                icon={<X className="w-4 h-4" />}
+              />
             </div>
           </div>
         ) : (
-          <button
+          <Button
             onClick={handleExportVideo}
-            className="w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+            fullWidth
+            icon={<Film className="w-4 h-4" />}
           >
-            <Film className="w-4 h-4" />
-            <span className="text-sm">Export Video</span>
-          </button>
+            Export Video
+          </Button>
         )}
 
         {/* Error display */}

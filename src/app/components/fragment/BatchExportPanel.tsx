@@ -4,6 +4,7 @@ import type { useBatchExport, BatchExportOptions } from '@/hooks/useBatchExport'
 import type { GeneratorParams, LogoConfig, StateType } from './types';
 import type { CropDirection } from '@/implementation-files/generateFragmentSvg';
 import { Section } from '../ui/Section';
+import { Button } from '../ui/Button';
 import { RadioSelector } from '../ui/RadioSelector';
 
 type BatchExport = ReturnType<typeof useBatchExport>;
@@ -84,7 +85,7 @@ export function BatchExportPanel({
   };
 
   return (
-    <Section title="Batch Export">
+    <Section title="Batch" borderless>
       <p className="text-xs text-white/40 mb-4">
         Generates multiple variations by randomizing the seed. All other parameters stay the same.
       </p>
@@ -167,23 +168,24 @@ export function BatchExportPanel({
                 {batchStatus === 'zipping' && 'Creating ZIP...'}
               </span>
             </div>
-            <button
+            <Button
+              variant="icon"
+              size="sm"
               onClick={batchExport.cancelExport}
-              className="text-white/50 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              className="border-0 bg-transparent hover:bg-white/10 text-white/50 hover:text-white shadow-none hover:shadow-none"
+              icon={<X className="w-4 h-4" />}
+            />
           </div>
         </div>
       ) : (
-        <button
+        <Button
           onClick={handleExport}
           disabled={isExporting}
-          className="w-full bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/20 text-white/70 hover:text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+          fullWidth
+          icon={<Package className="w-4 h-4" />}
         >
-          <Package className="w-4 h-4" />
-          <span className="text-sm">Export {count} Variations</span>
-        </button>
+          Export {count} Variations
+        </Button>
       )}
 
       {/* Error */}

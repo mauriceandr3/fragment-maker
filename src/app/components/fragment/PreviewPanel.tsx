@@ -118,7 +118,7 @@ export function PreviewPanel({
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 bg-[rgba(255,255,255,0.08)] flex items-center justify-start overflow-auto pl-8">
+      <div className="flex-1 bg-[rgba(255,255,255,0.08)] flex items-center justify-center overflow-auto">
       {!allowCropping && validCellSizes.length === 0 && (
         <div className="w-full h-full flex items-center justify-center">
           <div className="text-center p-8 bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl">

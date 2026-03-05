@@ -13,6 +13,11 @@ These files should therefore only contain code relevant to the generator and ani
 
 - **Do NOT start dev servers and leave them running** - If you need to verify builds, use `npm run build` instead of `npm run dev`. If you must start a dev server for testing, always stop it immediately after. Same for any long-running processes. Like the playwright browser instance - shut them down when done.
 
+## Code Quality
+
+- Prioritize code reuse and modularity. If you find yourself copying/pasting code, consider refactoring to extract common logic into reusable functions or components. E.g. don't create multiple <button> elements with similar styling and behavior - create a reusable Button component and use it everywhere.
+- Don't assume that the current code is perfect. If it shows antipatterns then don't follow it blindly when writing your own code. Strive for creating better code than what currently exists, even if that means deviating from existing patterns, so long as the new code is clean, maintainable, DRY, and consistent with best practices.
+
 ## Project Structure
 
 - **Skills**: Located in `.claude/skills/` - includes design-principles, create-prd, critique-plan, good-cop
@@ -26,3 +31,7 @@ These files should therefore only contain code relevant to the generator and ani
 
 ## Testing
 - You have access to the Playwright MCP tool for end-to-end testing. Use it to "manually" test the UI yourself, to validate/verify fixes.
+
+## Design Context
+
+See docs/DESIGN.md for detailed design principles.
