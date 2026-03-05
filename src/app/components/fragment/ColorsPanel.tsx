@@ -1,6 +1,8 @@
 import { getColorRgb, isTransparent, setColorAlpha, COLOR_PRESETS } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import { Section } from '../ui/Section';
+import { Checkbox } from '../ui/Checkbox';
+import { ColorInput } from '../ui/ColorInput';
 
 interface ColorsPanelProps {
   state: FragmentState;
@@ -85,35 +87,25 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm text-white/60">Foreground</label>
-          <label className="flex items-center gap-1.5 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={isTransparent(foregroundColor)}
-              onChange={(e) => setForegroundColor(setColorAlpha(foregroundColor, e.target.checked ? 0 : 1))}
-              className="w-4 h-4 rounded cursor-pointer accent-white"
-            />
-            <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">Transparent</span>
-          </label>
-        </div>
-        <div className={`flex gap-2 ${isTransparent(foregroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
-          <input
-            type="color"
-            value={getColorRgb(foregroundColor)}
-            onChange={(e) => {
-              setForegroundColor(e.target.value);
-              setCustomPreset({ ...customPreset, foreground: e.target.value });
-            }}
-            className="w-10 h-10 rounded-lg cursor-pointer border border-white/20 p-1"
+          <Checkbox
+            label="Transparent"
+            size="sm"
+            checked={isTransparent(foregroundColor)}
+            onChange={(checked) => setForegroundColor(setColorAlpha(foregroundColor, checked ? 0 : 1))}
           />
-          <input
-            type="text"
-            value={foregroundColor}
-            onChange={(e) => {
-              setForegroundColor(e.target.value);
-              setCustomPreset({ ...customPreset, foreground: getColorRgb(e.target.value) });
+        </div>
+        <div className={`${isTransparent(foregroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
+          <ColorInput
+            value={getColorRgb(foregroundColor)}
+            displayValue={foregroundColor}
+            onColorChange={(color) => {
+              setForegroundColor(color);
+              setCustomPreset({ ...customPreset, foreground: color });
             }}
-            className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
-            placeholder="#FCFCFC"
+            onTextChange={(text) => {
+              setForegroundColor(text);
+              setCustomPreset({ ...customPreset, foreground: getColorRgb(text) });
+            }}
           />
         </div>
       </div>
@@ -121,49 +113,35 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm text-white/60">Background</label>
-          <label className="flex items-center gap-1.5 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={isTransparent(backgroundColor)}
-              onChange={(e) => setBackgroundColor(setColorAlpha(backgroundColor, e.target.checked ? 0 : 1))}
-              className="w-4 h-4 rounded cursor-pointer accent-white"
-            />
-            <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">Transparent</span>
-          </label>
-        </div>
-        <div className={`flex gap-2 ${isTransparent(backgroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
-          <input
-            type="color"
-            value={getColorRgb(backgroundColor)}
-            onChange={(e) => {
-              setBackgroundColor(e.target.value);
-              setCustomPreset({ ...customPreset, background: e.target.value });
-            }}
-            className="w-10 h-10 rounded-lg cursor-pointer border border-white/20 p-1"
+          <Checkbox
+            label="Transparent"
+            size="sm"
+            checked={isTransparent(backgroundColor)}
+            onChange={(checked) => setBackgroundColor(setColorAlpha(backgroundColor, checked ? 0 : 1))}
           />
-          <input
-            type="text"
-            value={backgroundColor}
-            onChange={(e) => {
-              setBackgroundColor(e.target.value);
-              setCustomPreset({ ...customPreset, background: getColorRgb(e.target.value) });
+        </div>
+        <div className={`${isTransparent(backgroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
+          <ColorInput
+            value={getColorRgb(backgroundColor)}
+            displayValue={backgroundColor}
+            onColorChange={(color) => {
+              setBackgroundColor(color);
+              setCustomPreset({ ...customPreset, background: color });
             }}
-            className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
+            onTextChange={(text) => {
+              setBackgroundColor(text);
+              setCustomPreset({ ...customPreset, background: getColorRgb(text) });
+            }}
             placeholder="#000000"
           />
         </div>
       </div>
 
-      {/* Invert Colors Checkbox */}
-      <label className="flex items-center gap-2 cursor-pointer group">
-        <input
-          type="checkbox"
-          checked={invertColors}
-          onChange={(e) => setInvertColors(e.target.checked)}
-          className="w-5 h-5 rounded cursor-pointer accent-white"
-        />
-        <span className="text-sm text-white/60 group-hover:text-white transition-colors">Invert Colors</span>
-      </label>
+      <Checkbox
+        label="Invert Colors"
+        checked={invertColors}
+        onChange={setInvertColors}
+      />
     </Section>
   );
 }

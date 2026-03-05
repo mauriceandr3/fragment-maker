@@ -9,6 +9,8 @@ import {
 import type { FragmentState } from "@/hooks/useFragmentState";
 import { Section } from '../ui/Section';
 import { RadioSelector } from '../ui/RadioSelector';
+import { TextInput } from '../ui/TextInput';
+import { Slider } from '../ui/Slider';
 
 interface CanvasSettingsPanelProps {
   state: FragmentState;
@@ -29,93 +31,75 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
     params, setParams,
   } = state;
 
+  const handleWidthChange = (rawValue: string) => {
+    setWidthInputValue(rawValue);
+    const parsed = parseFloat(rawValue);
+    if (rawValue === '' || isNaN(parsed)) {
+      setWidthInputError('Invalid number');
+    } else if (parsed < MIN_CANVAS_DIMENSION) {
+      setWidthInputError(`Minimum ${MIN_CANVAS_DIMENSION}px`);
+    } else if (parsed > MAX_CANVAS_DIMENSION) {
+      setWidthInputError(`Maximum ${MAX_CANVAS_DIMENSION}px`);
+    } else {
+      setWidthInputError(null);
+      const intValue = Math.round(parsed);
+      setCanvasWidth(intValue);
+      setWidthInputValue(String(intValue));
+    }
+  };
+
+  const handleHeightChange = (rawValue: string) => {
+    setHeightInputValue(rawValue);
+    const parsed = parseFloat(rawValue);
+    if (rawValue === '' || isNaN(parsed)) {
+      setHeightInputError('Invalid number');
+    } else if (parsed < MIN_CANVAS_DIMENSION) {
+      setHeightInputError(`Minimum ${MIN_CANVAS_DIMENSION}px`);
+    } else if (parsed > MAX_CANVAS_DIMENSION) {
+      setHeightInputError(`Maximum ${MAX_CANVAS_DIMENSION}px`);
+    } else {
+      setHeightInputError(null);
+      const intValue = Math.round(parsed);
+      setCanvasHeight(intValue);
+      setHeightInputValue(String(intValue));
+    }
+  };
+
   return (
     <Section title="Canvas Settings">
 
       {/* Canvas Dimensions */}
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-white/60 mb-2">Width (px)</label>
-          <input
-            type="number"
-            min={MIN_CANVAS_DIMENSION}
-            max={MAX_CANVAS_DIMENSION}
-            value={widthInputValue}
-            onChange={(e) => {
-              const rawValue = e.target.value;
-              setWidthInputValue(rawValue);
-
-              const parsed = parseFloat(rawValue);
-              if (rawValue === '' || isNaN(parsed)) {
-                setWidthInputError('Invalid number');
-              } else if (parsed < MIN_CANVAS_DIMENSION) {
-                setWidthInputError(`Minimum ${MIN_CANVAS_DIMENSION}px`);
-              } else if (parsed > MAX_CANVAS_DIMENSION) {
-                setWidthInputError(`Maximum ${MAX_CANVAS_DIMENSION}px`);
-              } else {
-                setWidthInputError(null);
-                const intValue = Math.round(parsed);
-                setCanvasWidth(intValue);
-                setWidthInputValue(String(intValue));
-              }
-            }}
-            onBlur={() => {
-              if (widthInputError) {
-                setWidthInputValue(String(canvasWidth));
-                setWidthInputError(null);
-              }
-            }}
-            className={`w-full bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors backdrop-blur-sm ${
-              widthInputError
-                ? 'border-2 border-red-500/60 focus:border-red-500/80'
-                : 'border border-white/20 focus:border-white/40'
-            }`}
-          />
-          {widthInputError && (
-            <span className="text-xs text-red-400 mt-1 block">{widthInputError}</span>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm text-white/60 mb-2">Height (px)</label>
-          <input
-            type="number"
-            min={MIN_CANVAS_DIMENSION}
-            max={MAX_CANVAS_DIMENSION}
-            value={heightInputValue}
-            onChange={(e) => {
-              const rawValue = e.target.value;
-              setHeightInputValue(rawValue);
-
-              const parsed = parseFloat(rawValue);
-              if (rawValue === '' || isNaN(parsed)) {
-                setHeightInputError('Invalid number');
-              } else if (parsed < MIN_CANVAS_DIMENSION) {
-                setHeightInputError(`Minimum ${MIN_CANVAS_DIMENSION}px`);
-              } else if (parsed > MAX_CANVAS_DIMENSION) {
-                setHeightInputError(`Maximum ${MAX_CANVAS_DIMENSION}px`);
-              } else {
-                setHeightInputError(null);
-                const intValue = Math.round(parsed);
-                setCanvasHeight(intValue);
-                setHeightInputValue(String(intValue));
-              }
-            }}
-            onBlur={() => {
-              if (heightInputError) {
-                setHeightInputValue(String(canvasHeight));
-                setHeightInputError(null);
-              }
-            }}
-            className={`w-full bg-black/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none transition-colors backdrop-blur-sm ${
-              heightInputError
-                ? 'border-2 border-red-500/60 focus:border-red-500/80'
-                : 'border border-white/20 focus:border-white/40'
-            }`}
-          />
-          {heightInputError && (
-            <span className="text-xs text-red-400 mt-1 block">{heightInputError}</span>
-          )}
-        </div>
+        <TextInput
+          label="Width (px)"
+          type="number"
+          min={MIN_CANVAS_DIMENSION}
+          max={MAX_CANVAS_DIMENSION}
+          value={widthInputValue}
+          onChange={handleWidthChange}
+          onBlur={() => {
+            if (widthInputError) {
+              setWidthInputValue(String(canvasWidth));
+              setWidthInputError(null);
+            }
+          }}
+          error={widthInputError}
+        />
+        <TextInput
+          label="Height (px)"
+          type="number"
+          min={MIN_CANVAS_DIMENSION}
+          max={MAX_CANVAS_DIMENSION}
+          value={heightInputValue}
+          onChange={handleHeightChange}
+          onBlur={() => {
+            if (heightInputError) {
+              setHeightInputValue(String(canvasHeight));
+              setHeightInputError(null);
+            }
+          }}
+          error={heightInputError}
+        />
       </div>
 
       {/* Cell Size Control */}
@@ -127,25 +111,12 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
           )}
         </label>
         {allowCropping && (
-          <input
-            type="range"
+          <Slider
+            label=""
+            value={cellSize}
             min={getDynamicMinCellSize(canvasWidth, canvasHeight)}
             max={MAX_CELL_SIZE}
-            step="1"
-            value={cellSize}
-            onChange={(e) => setCellSize(parseInt(e.target.value))}
-            className="w-full h-6 rounded-lg appearance-none cursor-pointer mb-2"
-            style={{
-              background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${
-                ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
-                  (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
-                100
-              }%, rgba(255, 255, 255, 0.2) ${
-                ((cellSize - getDynamicMinCellSize(canvasWidth, canvasHeight)) /
-                  (MAX_CELL_SIZE - getDynamicMinCellSize(canvasWidth, canvasHeight))) *
-                100
-              }%, rgba(255, 255, 255, 0.2) 100%)`,
-            }}
+            onChange={(v) => setCellSize(Math.round(v))}
           />
         )}
         <div className="flex flex-wrap gap-1.5">

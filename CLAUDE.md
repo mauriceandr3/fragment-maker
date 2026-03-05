@@ -26,3 +26,7 @@ These files should therefore only contain code relevant to the generator and ani
 
 ## Testing
 - You have access to the Playwright MCP tool for end-to-end testing. Use it to "manually" test the UI yourself, to validate/verify fixes.
+
+## Design Context
+
+See docs/DESIGN.md for detailed design principles.

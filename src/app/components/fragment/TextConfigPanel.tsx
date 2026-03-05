@@ -3,6 +3,9 @@ import type { TextConfig, HorizontalAlignment, VerticalAlignment, FontResolution
 import { RESOLUTION_MIN_HEIGHT } from "./types";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
+import { Slider } from "../ui/Slider";
+import { ButtonGroup } from "../ui/ButtonGroup";
+import { Checkbox } from "../ui/Checkbox";
 
 const fonts: FontData = FONTS;
 
@@ -16,79 +19,15 @@ interface TextConfigPanelProps {
 
 const MAX_TEXT_LENGTH = 500;
 
-function ParamSlider({ label, value, min, max, step, onChange }: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (value: number) => void;
-}) {
-  const pct = ((value - min) / (max - min)) * 100;
-  return (
-    <div>
-      <label className="block text-sm text-white/60 mb-2">{label}</label>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-6 rounded-lg appearance-none cursor-pointer"
-        style={{
-          background: `linear-gradient(to right, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.7) ${pct}%, rgba(255, 255, 255, 0.2) ${pct}%, rgba(255, 255, 255, 0.2) 100%)`,
-        }}
-      />
-    </div>
-  );
-}
-
-function ButtonGroup<T extends string>({
-  label,
-  value,
-  options,
-  onChange
-}: {
-  label: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div>
-      <label className="block text-sm text-white/60 mb-3">{label}</label>
-      <div className="grid grid-cols-3 gap-2">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => onChange(option.value)}
-            className={`py-2.5 px-4 rounded-lg font-medium transition-all shadow-lg ${
-              value === option.value
-                ? 'bg-white/20 border-2 border-white/40 text-white'
-                : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows }: TextConfigPanelProps) {
   const handleTextChange = (text: string) => {
-    // Enforce 500-character limit
     const limitedText = text.slice(0, MAX_TEXT_LENGTH);
     setConfig({ ...config, text: limitedText });
   };
 
-  // Largest charHeight (as a multiple of fontHeight) where at least one line fits in the grid
   const fontHeight = RESOLUTION_MIN_HEIGHT[config.fontResolution];
   const maxCharHeight = fontHeight * Math.max(1, Math.floor(rows / fontHeight));
 
-  // Compute validation by running generateTextGrid
   const validation = useMemo(() => {
     const result = generateTextGrid(config, cols, rows, fonts);
     return {
@@ -130,17 +69,17 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
           { value: 'mid', label: 'Mid' },
           { value: 'high', label: 'High' },
         ]}
+        columns={3}
         onChange={(res) => {
           const newFontHeight = RESOLUTION_MIN_HEIGHT[res];
           const newMaxScale = Math.max(1, Math.floor(rows / newFontHeight));
-          // Snap to nearest multiple, clamped to valid range for new resolution
           const scale = Math.max(1, Math.min(newMaxScale, Math.round(config.charHeight / newFontHeight)));
           setConfig({ ...config, fontResolution: res, charHeight: newFontHeight * scale });
         }}
       />
 
       {/* Character Height Slider */}
-      <ParamSlider
+      <Slider
         label={`Character Height: ${config.charHeight} cells`}
         value={config.charHeight}
         min={fontHeight}
@@ -161,6 +100,7 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
           { value: 'center', label: 'Center' },
           { value: 'right', label: 'Right' },
         ]}
+        columns={3}
         onChange={(v) => setConfig({ ...config, alignment: v })}
       />
 
@@ -173,33 +113,22 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
           { value: 'center', label: 'Center' },
           { value: 'bottom', label: 'Bottom' },
         ]}
+        columns={3}
         onChange={(v) => setConfig({ ...config, verticalAlignment: v })}
       />
 
-      {/* Word Wrap Checkbox */}
-      <label className="flex items-center gap-2 cursor-pointer group">
-        <input
-          type="checkbox"
-          checked={config.wordWrap}
-          onChange={(e) => setConfig({ ...config, wordWrap: e.target.checked })}
-          className="w-5 h-5 rounded cursor-pointer accent-white"
-        />
-        <span className="text-sm text-white/60 group-hover:text-white transition-colors">Word Wrap</span>
-      </label>
+      <Checkbox
+        label="Word Wrap"
+        checked={config.wordWrap}
+        onChange={(checked) => setConfig({ ...config, wordWrap: checked })}
+      />
 
-      {/* Invert Checkbox */}
-      <label className="flex items-center gap-2 cursor-pointer group">
-        <input
-          type="checkbox"
-          checked={config.invert}
-          onChange={(e) => setConfig({ ...config, invert: e.target.checked })}
-          className="w-5 h-5 rounded cursor-pointer accent-white"
-        />
-        <div className="flex flex-col">
-          <span className="text-sm text-white/60 group-hover:text-white transition-colors">Invert</span>
-          <span className="text-xs text-white/40">Text as negative space</span>
-        </div>
-      </label>
+      <Checkbox
+        label="Invert"
+        description="Text as negative space"
+        checked={config.invert}
+        onChange={(checked) => setConfig({ ...config, invert: checked })}
+      />
 
       {/* Validation Messages */}
       {(validation.gridTooSmall || validation.isTruncated || validation.unsupportedChars.length > 0) && (

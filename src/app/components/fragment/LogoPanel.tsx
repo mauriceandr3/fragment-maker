@@ -1,9 +1,12 @@
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { LogoPosition } from "./types";
-import { PercentSlider } from "./PercentSlider";
 import { getLogoSvg } from "@/lib/dfinityLogo";
 import { getColorRgb } from "@/lib/colorUtils";
 import { Section } from '../ui/Section';
+import { Checkbox } from '../ui/Checkbox';
+import { ButtonGroup } from '../ui/ButtonGroup';
+import { ColorInput } from '../ui/ColorInput';
+import { Slider } from '../ui/Slider';
 
 interface LogoPanelProps {
   state: FragmentState;
@@ -26,17 +29,11 @@ export function LogoPanel({ state }: LogoPanelProps) {
   return (
     <Section title="Logo">
 
-      <label className="flex items-center gap-2 cursor-pointer group">
-        <input
-          type="checkbox"
-          checked={logoConfig.enabled}
-          onChange={(e) => update({ enabled: e.target.checked })}
-          className="w-5 h-5 rounded cursor-pointer accent-white"
-        />
-        <span className="text-sm text-white/60 group-hover:text-white transition-colors">
-          Show logo
-        </span>
-      </label>
+      <Checkbox
+        label="Show logo"
+        checked={logoConfig.enabled}
+        onChange={(checked) => update({ enabled: checked })}
+      />
 
       {logoConfig.enabled && (
         <>
@@ -49,48 +46,40 @@ export function LogoPanel({ state }: LogoPanelProps) {
           </div>
 
           {/* Position */}
-          <div>
-            <label className="block text-sm text-white/60 mb-2">Position</label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {POSITIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => update({ position: value })}
-                  className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-                    logoConfig.position === value
-                      ? 'bg-white/20 border-2 border-white/40 text-white'
-                      : 'bg-black/30 border border-white/20 text-white/60 hover:text-white hover:bg-black/40'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ButtonGroup
+            label="Position"
+            value={logoConfig.position}
+            options={POSITIONS}
+            columns={4}
+            onChange={(value) => update({ position: value })}
+          />
 
           {/* Size */}
-          <PercentSlider
+          <Slider
             label="Size"
             value={logoConfig.size}
             onChange={(v) => update({ size: v })}
             min={5}
             max={50}
+            unit="%"
           />
 
           {/* Padding */}
-          <PercentSlider
+          <Slider
             label="Horizontal Padding"
             value={logoConfig.paddingX}
             onChange={(v) => update({ paddingX: v })}
             min={0}
             max={20}
+            unit="%"
           />
-          <PercentSlider
+          <Slider
             label="Vertical Padding"
             value={logoConfig.paddingY}
             onChange={(v) => update({ paddingY: v })}
             min={0}
             max={20}
+            unit="%"
           />
 
           {/* Color */}
@@ -104,21 +93,12 @@ export function LogoPanel({ state }: LogoPanelProps) {
                 Use foreground
               </button>
             </div>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={getColorRgb(logoConfig.color)}
-                onChange={(e) => update({ color: e.target.value })}
-                className="w-10 h-10 rounded-lg cursor-pointer border border-white/20 p-1"
-              />
-              <input
-                type="text"
-                value={logoConfig.color}
-                onChange={(e) => update({ color: e.target.value })}
-                className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 transition-colors backdrop-blur-sm"
-                placeholder="#FCFCFC"
-              />
-            </div>
+            <ColorInput
+              value={getColorRgb(logoConfig.color)}
+              displayValue={logoConfig.color}
+              onColorChange={(color) => update({ color })}
+              onTextChange={(color) => update({ color })}
+            />
           </div>
         </>
       )}
