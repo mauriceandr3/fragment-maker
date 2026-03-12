@@ -7,3 +7,6 @@ dist
 AI
 
 .playwright-mcp
+
+# codemogger db
+.codemogger/
