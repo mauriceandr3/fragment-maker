@@ -1,6 +1,6 @@
 import React from "react";
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
-import { DEFAULT_LOGO_CONFIG, type LogoPosition } from "@/app/components/fragment/types";
+import { DEFAULT_LOGO_CONFIG } from "@/app/components/fragment/types";
 import { serializeFonts, type FontData, type FontResolution } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import { getColorRgb } from "@/lib/colorUtils";
@@ -246,10 +246,9 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     if (state.logoConfig.enabled) {
       exportData.logo = {
         enabled: true,
-        position: state.logoConfig.position,
+        x: state.logoConfig.x,
+        y: state.logoConfig.y,
         size: state.logoConfig.size,
-        paddingX: state.logoConfig.paddingX,
-        paddingY: state.logoConfig.paddingY,
         color: state.logoConfig.color,
       };
     }
@@ -472,13 +471,11 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         // Import logo config (v2.3.0+)
         // Missing logo section defaults to disabled for backward compatibility
         if (data.logo && typeof data.logo === 'object') {
-          const validPositions: LogoPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
           state.setLogoConfig({
             enabled: typeof data.logo.enabled === 'boolean' ? data.logo.enabled : false,
-            position: validPositions.includes(data.logo.position) ? data.logo.position : 'bottom-right',
+            x: Math.round(clamp(data.logo.x, 0, 100, DEFAULT_LOGO_CONFIG.x)),
+            y: Math.round(clamp(data.logo.y, 0, 100, DEFAULT_LOGO_CONFIG.y)),
             size: Math.round(clamp(data.logo.size, 5, 50, 15)),
-            paddingX: Math.round(clamp(data.logo.paddingX ?? data.logo.padding, 0, 20, DEFAULT_LOGO_CONFIG.paddingX)),
-            paddingY: Math.round(clamp(data.logo.paddingY ?? data.logo.padding, 0, 20, DEFAULT_LOGO_CONFIG.paddingY)),
             color: typeof data.logo.color === 'string' && hexRegex.test(data.logo.color) ? data.logo.color : '#FCFCFC',
           });
         } else {

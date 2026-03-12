@@ -1,23 +1,14 @@
 import type { FragmentState } from "@/hooks/useFragmentState";
-import type { LogoPosition } from "./types";
 import { getLogoSvg } from "@/lib/dfinityLogo";
 import { getColorRgb } from "@/lib/colorUtils";
 import { Section } from '../ui/Section';
 import { Checkbox } from '../ui/Checkbox';
-import { ButtonGroup } from '../ui/ButtonGroup';
 import { ColorInput } from '../ui/ColorInput';
 import { Slider } from '../ui/Slider';
 
 interface LogoPanelProps {
   state: FragmentState;
 }
-
-const POSITIONS: { value: LogoPosition; label: string }[] = [
-  { value: 'top-left', label: 'TL' },
-  { value: 'top-right', label: 'TR' },
-  { value: 'bottom-left', label: 'BL' },
-  { value: 'bottom-right', label: 'BR' },
-];
 
 export function LogoPanel({ state }: LogoPanelProps) {
   const { logoConfig, setLogoConfig, foregroundColor } = state;
@@ -45,15 +36,6 @@ export function LogoPanel({ state }: LogoPanelProps) {
             />
           </div>
 
-          {/* Position */}
-          <ButtonGroup
-            label="Position"
-            value={logoConfig.position}
-            options={POSITIONS}
-            columns={4}
-            onChange={(value) => update({ position: value })}
-          />
-
           {/* Size */}
           <Slider
             label="Size"
@@ -64,21 +46,21 @@ export function LogoPanel({ state }: LogoPanelProps) {
             unit="%"
           />
 
-          {/* Padding */}
+          {/* Position */}
           <Slider
-            label="Horizontal Padding"
-            value={logoConfig.paddingX}
-            onChange={(v) => update({ paddingX: v })}
+            label="X Position"
+            value={logoConfig.x}
+            onChange={(v) => update({ x: v })}
             min={0}
-            max={20}
+            max={100}
             unit="%"
           />
           <Slider
-            label="Vertical Padding"
-            value={logoConfig.paddingY}
-            onChange={(v) => update({ paddingY: v })}
+            label="Y Position"
+            value={logoConfig.y}
+            onChange={(v) => update({ y: v })}
             min={0}
-            max={20}
+            max={100}
             unit="%"
           />
 

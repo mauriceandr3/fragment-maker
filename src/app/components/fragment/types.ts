@@ -30,23 +30,19 @@ export interface GeneratorParams {
   invertFill: boolean;
 }
 
-export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-
 export interface LogoConfig {
   enabled: boolean;
-  position: LogoPosition;
+  x: number;        // horizontal position 0–100% (0 = left edge, 100 = right edge)
+  y: number;        // vertical position 0–100% (0 = top edge, 100 = bottom edge)
   size: number;     // percentage of canvas width (5–50)
-  paddingX: number; // horizontal distance from edge (0–20%)
-  paddingY: number; // vertical distance from edge (0–20%)
   color: string;    // hex color, e.g. '#C2A3FF'
 }
 
 export const DEFAULT_LOGO_CONFIG: LogoConfig = {
   enabled: false,
-  position: 'bottom-right',
+  x: 97,
+  y: 97,
   size: 15,
-  paddingX: 3,
-  paddingY: 3,
   color: '#FCFCFC',
 };
 

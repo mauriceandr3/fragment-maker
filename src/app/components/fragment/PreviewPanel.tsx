@@ -11,17 +11,16 @@ import type { LogoConfig } from "./types";
 function LogoOverlay({ logoConfig }: { logoConfig: LogoConfig }) {
   if (!logoConfig.enabled) return null;
 
+  // x/y are 0–100%. At 0 the logo is flush to the left/top edge,
+  // at 100 it's flush to the right/bottom edge.
   const style: CSSProperties = {
     position: 'absolute',
     width: `${logoConfig.size}%`,
+    left: `${logoConfig.x}%`,
+    top: `${logoConfig.y}%`,
+    transform: `translate(-${logoConfig.x}%, -${logoConfig.y}%)`,
     pointerEvents: 'none',
   };
-
-  if (logoConfig.position.startsWith('top')) style.top = `${logoConfig.paddingY}%`;
-  else style.bottom = `${logoConfig.paddingY}%`;
-
-  if (logoConfig.position.endsWith('left')) style.left = `${logoConfig.paddingX}%`;
-  else style.right = `${logoConfig.paddingX}%`;
 
   return (
     <div

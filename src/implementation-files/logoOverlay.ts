@@ -10,14 +10,11 @@
 /** viewBox aspect ratio (176 wide x 32 tall) */
 export const LOGO_ASPECT_RATIO = 176 / 32;
 
-export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-
 export interface LogoOverlayConfig {
   enabled: boolean;
-  position: LogoPosition;
+  x: number;        // horizontal position 0–100% (0 = left edge, 100 = right edge)
+  y: number;        // vertical position 0–100% (0 = top edge, 100 = bottom edge)
   size: number;     // percentage of canvas width (5-50)
-  paddingX: number; // horizontal distance from edge (0-20%)
-  paddingY: number; // vertical distance from edge (0-20%)
   color: string;    // hex color, e.g. '#FCFCFC'
 }
 
@@ -68,16 +65,10 @@ export function generateLogoOverlaySvg(
 
   const logoWidth = (config.size / 100) * canvasWidth;
   const logoHeight = logoWidth / LOGO_ASPECT_RATIO;
-  const padX = (config.paddingX / 100) * canvasWidth;
-  const padY = (config.paddingY / 100) * canvasHeight;
 
-  let x: number, y: number;
-  switch (config.position) {
-    case 'top-left':     x = padX; y = padY; break;
-    case 'top-right':    x = canvasWidth - logoWidth - padX; y = padY; break;
-    case 'bottom-left':  x = padX; y = canvasHeight - logoHeight - padY; break;
-    case 'bottom-right': x = canvasWidth - logoWidth - padX; y = canvasHeight - logoHeight - padY; break;
-  }
+  // x/y are 0–100 percentages. At 0 the logo is flush-left/top, at 100 flush-right/bottom.
+  const x = (config.x / 100) * (canvasWidth - logoWidth);
+  const y = (config.y / 100) * (canvasHeight - logoHeight);
 
   const paths = LOGO_PATHS.map(d => `<path d="${d}" fill="${config.color}"/>`).join('');
   return `<svg x="${x}" y="${y}" width="${logoWidth}" height="${logoHeight}" viewBox="0 0 176 32" fill="none">${paths}</svg>`;

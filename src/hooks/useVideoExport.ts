@@ -221,17 +221,10 @@ export function useVideoExport() {
       let logoX = 0, logoY = 0, logoW = 0, logoH = 0;
 
       if (opts.logoConfig?.enabled) {
-        const padX = (opts.logoConfig.paddingX / 100) * encW;
-        const padY = (opts.logoConfig.paddingY / 100) * encH;
         logoW = (opts.logoConfig.size / 100) * encW;
         logoH = logoW / LOGO_ASPECT_RATIO;
-
-        switch (opts.logoConfig.position) {
-          case 'top-left':     logoX = padX; logoY = padY; break;
-          case 'top-right':    logoX = encW - logoW - padX; logoY = padY; break;
-          case 'bottom-left':  logoX = padX; logoY = encH - logoH - padY; break;
-          case 'bottom-right': logoX = encW - logoW - padX; logoY = encH - logoH - padY; break;
-        }
+        logoX = (opts.logoConfig.x / 100) * (encW - logoW);
+        logoY = (opts.logoConfig.y / 100) * (encH - logoH);
 
         logoImg = new Image();
         const logoDataUrl = getLogoSvgDataUrl(opts.logoConfig.color);

@@ -1,7 +1,7 @@
 import { type FillType } from '../implementation-files/generateFragmentSvg';
 import type { TextConfig } from '../implementation-files/generateTextGrid';
 import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
-import type { LogoConfig, LogoPosition } from '../app/components/fragment/types';
+import type { LogoConfig } from '../app/components/fragment/types';
 import { DEFAULT_LOGO_CONFIG } from '../app/components/fragment/types';
 import {
   MIN_CANVAS_DIMENSION,
@@ -119,10 +119,9 @@ const PARAM_KEYS = {
   showEndState: 'se',
   // Logo overlay
   logoEnabled: 'le',
-  logoPosition: 'lp',
+  logoX: 'lx',
+  logoY: 'ly',
   logoSize: 'ls',
-  logoPaddingX: 'lpx',
-  logoPaddingY: 'lpy',
   logoColor: 'lc',
   presetOrCustomMode: 'pcm',
 } as const;
@@ -250,10 +249,9 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   // Logo (only when enabled, to keep URLs short)
   if (state.logoConfig.enabled) {
     params.set(PARAM_KEYS.logoEnabled, '1');
-    addIfChanged(PARAM_KEYS.logoPosition, state.logoConfig.position, DEFAULTS.logoConfig.position);
+    addIfChanged(PARAM_KEYS.logoX, String(state.logoConfig.x), String(DEFAULTS.logoConfig.x));
+    addIfChanged(PARAM_KEYS.logoY, String(state.logoConfig.y), String(DEFAULTS.logoConfig.y));
     addIfChanged(PARAM_KEYS.logoSize, String(state.logoConfig.size), String(DEFAULTS.logoConfig.size));
-    addIfChanged(PARAM_KEYS.logoPaddingX, String(state.logoConfig.paddingX), String(DEFAULTS.logoConfig.paddingX));
-    addIfChanged(PARAM_KEYS.logoPaddingY, String(state.logoConfig.paddingY), String(DEFAULTS.logoConfig.paddingY));
     addIfChanged(PARAM_KEYS.logoColor, state.logoConfig.color.replace('#', ''), DEFAULTS.logoConfig.color.replace('#', ''));
   }
 
@@ -453,18 +451,15 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   // Logo overlay
   const le = parseBool(sp.get(PARAM_KEYS.logoEnabled));
   if (le) {
-    const lp = sp.get(PARAM_KEYS.logoPosition);
+    const lx = clampNum(sp.get(PARAM_KEYS.logoX), 0, 100);
+    const ly = clampNum(sp.get(PARAM_KEYS.logoY), 0, 100);
     const ls = clampNum(sp.get(PARAM_KEYS.logoSize), 5, 50);
-    const lpx = clampNum(sp.get(PARAM_KEYS.logoPaddingX), 0, 20);
-    const lpy = clampNum(sp.get(PARAM_KEYS.logoPaddingY), 0, 20);
     const lc = sp.get(PARAM_KEYS.logoColor);
-    const validPositions: LogoPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     result.logoConfig = {
       enabled: true,
-      position: validPositions.includes(lp as LogoPosition) ? lp as LogoPosition : 'bottom-right',
+      x: lx ?? DEFAULT_LOGO_CONFIG.x,
+      y: ly ?? DEFAULT_LOGO_CONFIG.y,
       size: ls ?? 15,
-      paddingX: lpx ?? DEFAULT_LOGO_CONFIG.paddingX,
-      paddingY: lpy ?? DEFAULT_LOGO_CONFIG.paddingY,
       color: (lc && HEX_COLOR_REGEX.test(lc)) ? '#' + lc.toUpperCase() : '#FCFCFC',
     };
   }
