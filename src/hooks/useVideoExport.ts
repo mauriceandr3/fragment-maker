@@ -7,7 +7,7 @@ import {
   groupIntoWaves,
 } from '@/lib/animationUtils';
 import { getLogoSvgDataUrl, LOGO_ASPECT_RATIO } from '@/lib/dfinityLogo';
-import type { LogoConfig } from '@/app/components/fragment/types';
+import type { LogoConfig, TextOverlayConfig } from '@/app/components/fragment/types';
 
 type ExportStatus = 'idle' | 'preparing' | 'recording' | 'finalizing' | 'error';
 
@@ -29,6 +29,7 @@ interface ExportOptions {
   resolutionScale: number; // 1 | 2 | 3 | 4
   fps: 30 | 60;
   logoConfig?: LogoConfig;
+  textOverlayConfig?: TextOverlayConfig;
 }
 
 export const isVideoExportSupported = typeof VideoEncoder !== 'undefined';
@@ -152,6 +153,64 @@ function computeWaveData(svg: SVGSVGElement) {
   return { aCellsOrdered, bCellsOrdered, aMaxWave, bMaxWave };
 }
 
+function drawTextOverlay(
+  ctx: CanvasRenderingContext2D,
+  config: TextOverlayConfig | undefined,
+  position: 'above' | 'behind',
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  if (!config?.enabled) return;
+
+  const entries = config.entries.filter(e => e.zOrder === position && e.content.trim());
+  for (const entry of entries) {
+    const fontSize = (entry.fontSize / 100) * canvasHeight;
+    const absY = (entry.y / 100) * canvasHeight;
+    const lineHeightPx = fontSize * entry.lineHeight;
+
+    ctx.font = `${entry.fontWeight} ${fontSize}px Inter, sans-serif`;
+    ctx.fillStyle = entry.color;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = entry.alignment === 'center' ? 'center' : entry.alignment === 'right' ? 'right' : 'left';
+
+    const padPx = (entry.sidePadding / 100) * canvasWidth;
+    const contentWidth = canvasWidth - padPx * 2;
+
+    const anchorX = entry.alignment === 'center'
+      ? canvasWidth / 2
+      : entry.alignment === 'right'
+        ? canvasWidth - padPx
+        : padPx;
+
+    const lines = entry.content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const words = lines[i].split(/\s+/).filter(w => w.length > 0);
+      if (words.length === 0) {
+        continue;
+      }
+
+      const wrappedLines: string[] = [];
+      let currentLine = words[0];
+      for (let j = 1; j < words.length; j++) {
+        const testLine = `${currentLine} ${words[j]}`;
+        if (ctx.measureText(testLine).width > contentWidth) {
+          wrappedLines.push(currentLine);
+          currentLine = words[j];
+        } else {
+          currentLine = testLine;
+        }
+      }
+      wrappedLines.push(currentLine);
+
+      for (const wl of wrappedLines) {
+        ctx.fillText(wl, anchorX, absY + i * lineHeightPx);
+        i++;
+      }
+      i--; // compensate for outer loop increment
+    }
+  }
+}
+
 export function useVideoExport() {
   const [state, setState] = useState<VideoExportState>({
     status: 'idle',
@@ -215,6 +274,28 @@ export function useVideoExport() {
       if (!waveData) throw new Error('No animation cells found in SVG.');
 
       const { aCellsOrdered, bCellsOrdered, aMaxWave, bMaxWave } = waveData;
+
+      // If there are "behind" text entries, remove the SVG background rect
+      // so we can draw: background color → behind text → SVG (transparent bg) → above text → logo
+      const hasBehindText = opts.textOverlayConfig?.enabled &&
+        opts.textOverlayConfig.entries.some(e => e.zOrder === 'behind' && e.content.trim());
+      let svgBgColor = '';
+      if (hasBehindText) {
+        const firstRect = svg.querySelector('rect');
+        const viewBox = svg.getAttribute('viewBox')?.split(' ') || [];
+        const vbW = viewBox[2] || '';
+        const vbH = viewBox[3] || '';
+        const bgRect = firstRect &&
+          firstRect.getAttribute('x') === '0' &&
+          firstRect.getAttribute('y') === '0' &&
+          firstRect.getAttribute('width') === vbW &&
+          firstRect.getAttribute('height') === vbH
+          ? firstRect : null;
+        if (bgRect) {
+          svgBgColor = bgRect.getAttribute('fill') || '#000000';
+          bgRect.remove();
+        }
+      }
 
       // Pre-load logo image if enabled
       let logoImg: HTMLImageElement | null = null;
@@ -287,7 +368,13 @@ export function useVideoExport() {
         await new Promise<void>((resolve, reject) => {
           img.onload = () => {
             ctx.clearRect(0, 0, encW, encH);
+            if (hasBehindText) {
+              ctx.fillStyle = svgBgColor;
+              ctx.fillRect(0, 0, encW, encH);
+              drawTextOverlay(ctx, opts.textOverlayConfig, 'behind', encW, encH);
+            }
             ctx.drawImage(img, 0, 0, encW, encH);
+            drawTextOverlay(ctx, opts.textOverlayConfig, 'above', encW, encH);
             if (logoImg) {
               ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
             }

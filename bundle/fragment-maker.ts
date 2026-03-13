@@ -542,14 +542,11 @@ export function generateTextGrid(
 /** viewBox aspect ratio (176 wide x 32 tall) */
 export const LOGO_ASPECT_RATIO = 176 / 32;
 
-export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-
 export interface LogoOverlayConfig {
   enabled: boolean;
-  position: LogoPosition;
+  x: number;        // horizontal position 0–100% (0 = left edge, 100 = right edge)
+  y: number;        // vertical position 0–100% (0 = top edge, 100 = bottom edge)
   size: number;     // percentage of canvas width (5-50)
-  paddingX: number; // horizontal distance from edge (0-20%)
-  paddingY: number; // vertical distance from edge (0-20%)
   color: string;    // hex color, e.g. '#FCFCFC'
 }
 
@@ -600,19 +597,92 @@ export function generateLogoOverlaySvg(
 
   const logoWidth = (config.size / 100) * canvasWidth;
   const logoHeight = logoWidth / LOGO_ASPECT_RATIO;
-  const padX = (config.paddingX / 100) * canvasWidth;
-  const padY = (config.paddingY / 100) * canvasHeight;
 
-  let x: number, y: number;
-  switch (config.position) {
-    case 'top-left':     x = padX; y = padY; break;
-    case 'top-right':    x = canvasWidth - logoWidth - padX; y = padY; break;
-    case 'bottom-left':  x = padX; y = canvasHeight - logoHeight - padY; break;
-    case 'bottom-right': x = canvasWidth - logoWidth - padX; y = canvasHeight - logoHeight - padY; break;
-  }
+  // x/y are 0–100 percentages. At 0 the logo is flush-left/top, at 100 flush-right/bottom.
+  const x = (config.x / 100) * (canvasWidth - logoWidth);
+  const y = (config.y / 100) * (canvasHeight - logoHeight);
 
   const paths = LOGO_PATHS.map(d => `<path d="${d}" fill="${config.color}"/>`).join('');
   return `<svg x="${x}" y="${y}" width="${logoWidth}" height="${logoHeight}" viewBox="0 0 176 32" fill="none">${paths}</svg>`;
+}
+
+export type TextOverlayAlignment = 'left' | 'center' | 'right';
+export type TextOverlayZOrder = 'above' | 'behind';
+export type TextOverlayFontWeight = 400 | 500 | 600 | 700;
+
+export interface TextOverlayPathData {
+  d: string;
+  transform: string;
+}
+
+export interface TextOverlayEntry {
+  id: string;
+  content: string;
+  y: number;
+  fontSize: number;
+  fontWeight: TextOverlayFontWeight;
+  alignment: TextOverlayAlignment;
+  color: string;
+  lineHeight: number;
+  sidePadding: number;
+  zOrder: TextOverlayZOrder;
+  paths?: TextOverlayPathData[];
+}
+
+export interface TextOverlayConfig {
+  enabled: boolean;
+  entries: TextOverlayEntry[];
+}
+
+export const DEFAULT_TEXT_OVERLAY_CONFIG: TextOverlayConfig = {
+  enabled: false,
+  entries: [],
+};
+
+export const DEFAULT_TEXT_OVERLAY_ENTRY: Omit<TextOverlayEntry, 'id'> = {
+  content: '',
+  y: 50,
+  fontSize: 5,
+  fontWeight: 400,
+  alignment: 'center',
+  color: '#FCFCFC',
+  lineHeight: 1.4,
+  sidePadding: 0,
+  zOrder: 'above',
+};
+
+const VALID_FONT_WEIGHTS: TextOverlayFontWeight[] = [400, 500, 600, 700];
+
+export function isValidFontWeight(w: number): w is TextOverlayFontWeight {
+  return VALID_FONT_WEIGHTS.includes(w as TextOverlayFontWeight);
+}
+
+function escapeXml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export function generateTextOverlaySvg(
+  config: TextOverlayConfig | undefined,
+  _canvasWidth: number,
+  _canvasHeight: number,
+  position: TextOverlayZOrder,
+): string {
+  if (!config?.enabled) return '';
+
+  const entries = config.entries.filter(e => e.zOrder === position && e.content.trim());
+  if (entries.length === 0) return '';
+
+  return entries.map(entry => {
+    if (!entry.paths?.length) return '';
+    const paths = entry.paths
+      .map(p => {
+        const attrs = [`d="${escapeXml(p.d)}"`, `fill="${escapeXml(entry.color)}"`];
+        if (p.transform) attrs.push(`transform="${escapeXml(p.transform)}"`);
+        return `<path ${attrs.join(' ')}/>`;
+      })
+      .join('');
+    return `<g>${paths}</g>`;
+  }).join('');
 }
 
 // Types
@@ -743,6 +813,8 @@ export interface FragmentExport {
   toTextConfig?: TextConfig;
   /** Logo overlay configuration (v2.3.0+). Present only when logo is enabled. */
   logo?: LogoOverlayConfig;
+  /** Text overlay configuration (v2.4.0+). Present only when text overlay is enabled. */
+  textOverlay?: TextOverlayConfig;
 }
 
 // Constants
@@ -1401,11 +1473,37 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
 // Logo Overlay Helper
 
 /** Inject a logo overlay SVG into a completed SVG string (before closing tag). */
-function injectLogo(svg: string, logo: LogoOverlayConfig | undefined, width: number, height: number): string {
-  if (!logo?.enabled) return svg;
-  const logoSvg = generateLogoOverlaySvg(logo, width, height);
-  if (!logoSvg) return svg;
-  return svg.replace('</svg>', `${logoSvg}</svg>`);
+function injectOverlays(
+  svg: string,
+  width: number,
+  height: number,
+  logo?: LogoOverlayConfig,
+  textOverlay?: TextOverlayConfig,
+): string {
+  const behindSvg = generateTextOverlaySvg(textOverlay, width, height, 'behind');
+  const aboveSvg = generateTextOverlaySvg(textOverlay, width, height, 'above');
+  const logoSvg = logo?.enabled ? generateLogoOverlaySvg(logo, width, height) : '';
+
+  if (!behindSvg && !aboveSvg && !logoSvg) return svg;
+
+  let result = svg;
+
+  // "behind" text goes right after the background rect (first <rect.../>)
+  if (behindSvg) {
+    const bgRectEnd = result.indexOf('/>');
+    if (bgRectEnd !== -1) {
+      const insertPos = bgRectEnd + 2;
+      result = result.slice(0, insertPos) + behindSvg + result.slice(insertPos);
+    }
+  }
+
+  // "above" text and logo go before closing </svg>
+  const suffix = aboveSvg + logoSvg;
+  if (suffix) {
+    result = result.replace('</svg>', `${suffix}</svg>`);
+  }
+
+  return result;
 }
 
 // High-Level API (accepts full export JSON)
@@ -1430,7 +1528,7 @@ export function generateSvgFromExport(
   exportData: FragmentExport,
   options?: { seed?: string; text?: string }
 ): string {
-  const { config, fromStateType, fromTextConfig, fonts, logo } = exportData;
+  const { config, fromStateType, fromTextConfig, fonts, logo, textOverlay } = exportData;
   const dims = computeDimensions(config);
 
   let svg: string;
@@ -1452,7 +1550,7 @@ export function generateSvgFromExport(
     svg = generateFragmentSvg({ config, seed: options?.seed });
   }
 
-  return injectLogo(svg, logo, dims.width, dims.height);
+  return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
 }
 
 /**
@@ -1481,7 +1579,7 @@ export function generateDiffSvgFromExport(
   exportData: FragmentExport,
   options?: { fromSeed?: string; toSeed?: string; fromText?: string; toText?: string }
 ): string {
-  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo } = exportData;
+  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo, textOverlay } = exportData;
 
   if (!toConfig && !(toStateType === 'text' && toTextConfig)) return '';
 
@@ -1497,7 +1595,7 @@ export function generateDiffSvgFromExport(
       fromSeed: options?.fromSeed,
       toSeed: options?.toSeed,
     });
-    return injectLogo(svg, logo, dims.width, dims.height);
+    return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
   }
 
   // At least one state is text — use grid-based approach
@@ -1548,7 +1646,7 @@ export function generateDiffSvgFromExport(
     cropDirection: config.cropDirection,
   });
 
-  return injectLogo(svg, logo, dims.width, dims.height);
+  return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
 }
 
 export interface CellPosition {

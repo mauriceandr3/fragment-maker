@@ -7,7 +7,7 @@ import {
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
-import { type GeneratorParams, type StateType, type LogoConfig, DEFAULT_LOGO_CONFIG, DEBOUNCE_DELAY } from "@/app/components/fragment/types";
+import { type GeneratorParams, type StateType, type LogoConfig, DEFAULT_LOGO_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
 import type { CropDirection } from "@/implementation-files/generateFragmentSvg";
 
@@ -138,6 +138,11 @@ export function useFragmentState() {
     initialUrlState.logoConfig ?? { ...DEFAULT_LOGO_CONFIG }
   );
 
+  // Text overlay configuration
+  const [textOverlayConfig, setTextOverlayConfig] = useState<TextOverlayConfig>(
+    initialUrlState.textOverlayConfig ?? { ...DEFAULT_TEXT_OVERLAY_CONFIG }
+  );
+
   // --- Debounced state ---
   const [debouncedParams, setDebouncedParams] = useState(params);
   const [debouncedForeground, setDebouncedForeground] = useState(foregroundColor);
@@ -158,6 +163,7 @@ export function useFragmentState() {
   const [debouncedShowEndState, setDebouncedShowEndState] = useState(showEndState);
   const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoConfig>(logoConfig);
   const [debouncedPresetOrCustomMode, setDebouncedPresetOrCustomMode] = useState<'presets' | 'custom'>(presetOrCustomMode);
+  const [debouncedTextOverlayConfig, setDebouncedTextOverlayConfig] = useState<TextOverlayConfig>(textOverlayConfig);
 
   // Debounce effects
   useEffect(() => {
@@ -261,6 +267,11 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [logoConfig]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedTextOverlayConfig(textOverlayConfig), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [textOverlayConfig]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -293,6 +304,7 @@ export function useFragmentState() {
       showEndState: debouncedShowEndState,
       logoConfig: debouncedLogoConfig,
       presetOrCustomMode: debouncedPresetOrCustomMode,
+      textOverlayConfig: debouncedTextOverlayConfig,
     };
     updateUrlFromState(state);
   }, [
@@ -315,6 +327,7 @@ export function useFragmentState() {
     debouncedShowEndState,
     debouncedLogoConfig,
     debouncedPresetOrCustomMode,
+    debouncedTextOverlayConfig,
   ]);
 
   // --- Derived values ---
@@ -369,6 +382,7 @@ export function useFragmentState() {
     fromTextConfig, setFromTextConfig,
     toTextConfig, setToTextConfig,
     logoConfig, setLogoConfig,
+    textOverlayConfig, setTextOverlayConfig,
     presetOrCustomMode, setPresetOrCustomMode,
     // Debounced values
     debounced: {
@@ -390,6 +404,7 @@ export function useFragmentState() {
       toTextConfig: debouncedToTextConfig,
       showEndState: debouncedShowEndState,
       logoConfig: debouncedLogoConfig,
+      textOverlayConfig: debouncedTextOverlayConfig,
       presetOrCustomMode: debouncedPresetOrCustomMode,
     },
 

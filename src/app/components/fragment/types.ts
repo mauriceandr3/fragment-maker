@@ -1,5 +1,18 @@
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
 
+export type {
+  TextOverlayEntry,
+  TextOverlayConfig,
+  TextOverlayAlignment,
+  TextOverlayZOrder,
+  TextOverlayFontWeight,
+  TextOverlayPathData,
+} from "@/implementation-files/textOverlay";
+export {
+  DEFAULT_TEXT_OVERLAY_CONFIG,
+  DEFAULT_TEXT_OVERLAY_ENTRY,
+} from "@/implementation-files/textOverlay";
+
 // Re-export text-related types from generateTextGrid for easy access
 export type {
   TextConfig,

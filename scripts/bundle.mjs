@@ -25,6 +25,7 @@ const outDir = join(root, 'bundle');
 const files = {
   generateTextGrid: readFileSync(join(implDir, 'generateTextGrid.ts'), 'utf-8'),
   logoOverlay: readFileSync(join(implDir, 'logoOverlay.ts'), 'utf-8'),
+  textOverlay: readFileSync(join(implDir, 'textOverlay.ts'), 'utf-8'),
   generateFragmentSvg: readFileSync(join(implDir, 'generateFragmentSvg.ts'), 'utf-8'),
   animationUtils: readFileSync(join(libDir, 'animationUtils.ts'), 'utf-8'),
   useReducedMotion: readFileSync(join(hooksDir, 'useReducedMotion.ts'), 'utf-8'),
@@ -127,6 +128,7 @@ const reactImports = collectReactImports(Object.values(files));
 const sections = [
   processFile(files.generateTextGrid),
   processFile(files.logoOverlay),
+  processFile(files.textOverlay),
   processFile(files.generateFragmentSvg),
   processFile(files.animationUtils),
   processFile(files.useReducedMotion),

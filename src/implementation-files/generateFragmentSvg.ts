@@ -23,6 +23,7 @@
 
 import { parseFonts, generateTextGrid, type SerializedFontData, type TextConfig } from './generateTextGrid';
 import { type LogoOverlayConfig, generateLogoOverlaySvg } from './logoOverlay';
+import { type TextOverlayConfig, generateTextOverlaySvg } from './textOverlay';
 
 // ============================================================================
 // Types
@@ -154,6 +155,8 @@ export interface FragmentExport {
   toTextConfig?: TextConfig;
   /** Logo overlay configuration (v2.3.0+). Present only when logo is enabled. */
   logo?: LogoOverlayConfig;
+  /** Text overlay configuration (v2.4.0+). Present only when text overlay is enabled. */
+  textOverlay?: TextOverlayConfig;
 }
 
 // ============================================================================
@@ -828,11 +831,37 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
 // ============================================================================
 
 /** Inject a logo overlay SVG into a completed SVG string (before closing tag). */
-function injectLogo(svg: string, logo: LogoOverlayConfig | undefined, width: number, height: number): string {
-  if (!logo?.enabled) return svg;
-  const logoSvg = generateLogoOverlaySvg(logo, width, height);
-  if (!logoSvg) return svg;
-  return svg.replace('</svg>', `${logoSvg}</svg>`);
+function injectOverlays(
+  svg: string,
+  width: number,
+  height: number,
+  logo?: LogoOverlayConfig,
+  textOverlay?: TextOverlayConfig,
+): string {
+  const behindSvg = generateTextOverlaySvg(textOverlay, width, height, 'behind');
+  const aboveSvg = generateTextOverlaySvg(textOverlay, width, height, 'above');
+  const logoSvg = logo?.enabled ? generateLogoOverlaySvg(logo, width, height) : '';
+
+  if (!behindSvg && !aboveSvg && !logoSvg) return svg;
+
+  let result = svg;
+
+  // "behind" text goes right after the background rect (first <rect.../>)
+  if (behindSvg) {
+    const bgRectEnd = result.indexOf('/>');
+    if (bgRectEnd !== -1) {
+      const insertPos = bgRectEnd + 2;
+      result = result.slice(0, insertPos) + behindSvg + result.slice(insertPos);
+    }
+  }
+
+  // "above" text and logo go before closing </svg>
+  const suffix = aboveSvg + logoSvg;
+  if (suffix) {
+    result = result.replace('</svg>', `${suffix}</svg>`);
+  }
+
+  return result;
 }
 
 // ============================================================================
@@ -859,7 +888,7 @@ export function generateSvgFromExport(
   exportData: FragmentExport,
   options?: { seed?: string; text?: string }
 ): string {
-  const { config, fromStateType, fromTextConfig, fonts, logo } = exportData;
+  const { config, fromStateType, fromTextConfig, fonts, logo, textOverlay } = exportData;
   const dims = computeDimensions(config);
 
   let svg: string;
@@ -881,7 +910,7 @@ export function generateSvgFromExport(
     svg = generateFragmentSvg({ config, seed: options?.seed });
   }
 
-  return injectLogo(svg, logo, dims.width, dims.height);
+  return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
 }
 
 /**
@@ -910,7 +939,7 @@ export function generateDiffSvgFromExport(
   exportData: FragmentExport,
   options?: { fromSeed?: string; toSeed?: string; fromText?: string; toText?: string }
 ): string {
-  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo } = exportData;
+  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo, textOverlay } = exportData;
 
   if (!toConfig && !(toStateType === 'text' && toTextConfig)) return '';
 
@@ -926,7 +955,7 @@ export function generateDiffSvgFromExport(
       fromSeed: options?.fromSeed,
       toSeed: options?.toSeed,
     });
-    return injectLogo(svg, logo, dims.width, dims.height);
+    return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
   }
 
   // At least one state is text — use grid-based approach
@@ -977,5 +1006,5 @@ export function generateDiffSvgFromExport(
     cropDirection: config.cropDirection,
   });
 
-  return injectLogo(svg, logo, dims.width, dims.height);
+  return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
 }

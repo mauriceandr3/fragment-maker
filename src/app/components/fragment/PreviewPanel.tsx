@@ -6,7 +6,7 @@ import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { GridSkeleton, GridItem } from "./GridItem";
 import { getLogoSvg } from "@/lib/dfinityLogo";
-import type { LogoConfig } from "./types";
+import type { LogoConfig, TextOverlayConfig, TextOverlayZOrder } from "./types";
 
 function LogoOverlay({ logoConfig }: { logoConfig: LogoConfig }) {
   if (!logoConfig.enabled) return null;
@@ -27,6 +27,50 @@ function LogoOverlay({ logoConfig }: { logoConfig: LogoConfig }) {
       style={style}
       dangerouslySetInnerHTML={{ __html: getLogoSvg(logoConfig.color) }}
     />
+  );
+}
+
+function TextOverlayPreview({
+  config,
+  position,
+  canvasHeight,
+  scale,
+}: {
+  config: TextOverlayConfig;
+  position: TextOverlayZOrder;
+  canvasHeight: number;
+  scale: number;
+}) {
+  if (!config.enabled) return null;
+
+  const entries = config.entries.filter(e => e.zOrder === position && e.content.trim());
+  if (entries.length === 0) return null;
+
+  return (
+    <>
+      {entries.map(entry => {
+        const fontSize = (entry.fontSize / 100) * canvasHeight * scale;
+        const top = (entry.y / 100) * 100;
+
+        const style: CSSProperties = {
+          position: 'absolute',
+          top: `${top}%`,
+          left: `${entry.sidePadding}%`,
+          right: `${entry.sidePadding}%`,
+          fontFamily: 'Inter, sans-serif',
+          fontSize: `${fontSize}px`,
+          fontWeight: entry.fontWeight,
+          lineHeight: entry.lineHeight,
+          color: entry.color,
+          textAlign: entry.alignment,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          pointerEvents: 'none',
+        };
+
+        return <div key={entry.id} style={style}>{entry.content}</div>;
+      })}
+    </>
   );
 }
 
@@ -134,6 +178,7 @@ export function PreviewPanel({
                 <span className="text-xs text-white/40 uppercase tracking-wider">From (hover to animate)</span>
               )}
               <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative' }}>
+                <TextOverlayPreview config={state.textOverlayConfig} position="behind" canvasHeight={canvasHeight} scale={params.scale} />
                 <div
                   ref={animationContainerRef}
                   onMouseEnter={animationMouseEnter}
@@ -147,6 +192,7 @@ export function PreviewPanel({
                   }}
                   dangerouslySetInnerHTML={{ __html: diffSvg }}
                 />
+                <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
                 <LogoOverlay logoConfig={state.logoConfig} />
               </div>
             </div>
@@ -154,6 +200,7 @@ export function PreviewPanel({
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs text-white/40 uppercase tracking-wider">To</span>
                 <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative' }}>
+                  <TextOverlayPreview config={state.textOverlayConfig} position="behind" canvasHeight={canvasHeight} scale={params.scale} />
                   <div
                     className="border border-white/10 shadow-2xl"
                     style={{
@@ -164,6 +211,7 @@ export function PreviewPanel({
                     }}
                     dangerouslySetInnerHTML={{ __html: generation.toStateSvg }}
                   />
+                  <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
                   <LogoOverlay logoConfig={state.logoConfig} />
                 </div>
               </div>
@@ -171,11 +219,13 @@ export function PreviewPanel({
           </div>
         ) : (
           <div style={{ position: 'relative', display: 'inline-block' }}>
+            <TextOverlayPreview config={state.textOverlayConfig} position="behind" canvasHeight={canvasHeight} scale={params.scale} />
             <canvas
               ref={canvasRef}
               className="border border-white/10 shadow-2xl"
               style={{ imageRendering: 'pixelated' }}
             />
+            <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
             <LogoOverlay logoConfig={state.logoConfig} />
           </div>
         )

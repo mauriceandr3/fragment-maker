@@ -3,6 +3,8 @@ import type { TextConfig } from '../implementation-files/generateTextGrid';
 import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
 import type { LogoConfig } from '../app/components/fragment/types';
 import { DEFAULT_LOGO_CONFIG } from '../app/components/fragment/types';
+import type { TextOverlayConfig } from '../implementation-files/textOverlay';
+import { DEFAULT_TEXT_OVERLAY_CONFIG, isValidFontWeight } from '../implementation-files/textOverlay';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -62,6 +64,8 @@ export interface UrlSerializableState {
   showEndState: boolean;
   // Logo overlay configuration
   logoConfig: LogoConfig;
+  // Text overlay configuration
+  textOverlayConfig: TextOverlayConfig;
 }
 
 // Short URL keys for each state field
@@ -124,6 +128,8 @@ const PARAM_KEYS = {
   logoSize: 'ls',
   logoColor: 'lc',
   presetOrCustomMode: 'pcm',
+  // Text overlay
+  textOverlayEnabled: 'txoe',
 } as const;
 
 // Default text configuration
@@ -166,6 +172,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   toTextConfig: DEFAULT_TEXT_CONFIG,
   showEndState: false,
   logoConfig: DEFAULT_LOGO_CONFIG,
+  textOverlayConfig: DEFAULT_TEXT_OVERLAY_CONFIG,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -253,6 +260,24 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.logoY, String(state.logoConfig.y), String(DEFAULTS.logoConfig.y));
     addIfChanged(PARAM_KEYS.logoSize, String(state.logoConfig.size), String(DEFAULTS.logoConfig.size));
     addIfChanged(PARAM_KEYS.logoColor, state.logoConfig.color.replace('#', ''), DEFAULTS.logoConfig.color.replace('#', ''));
+  }
+
+  // Text overlay (only when enabled, to keep URLs short)
+  if (state.textOverlayConfig.enabled && state.textOverlayConfig.entries.length > 0) {
+    params.set(PARAM_KEYS.textOverlayEnabled, '1');
+    for (let i = 0; i < state.textOverlayConfig.entries.length; i++) {
+      const e = state.textOverlayConfig.entries[i];
+      const prefix = `txo${i}`;
+      if (e.content) params.set(`${prefix}c`, e.content.slice(0, 500));
+      params.set(`${prefix}y`, String(e.y));
+      params.set(`${prefix}fs`, String(e.fontSize));
+      if (e.fontWeight !== 400) params.set(`${prefix}fw`, String(e.fontWeight));
+      if (e.alignment !== 'center') params.set(`${prefix}a`, e.alignment);
+      params.set(`${prefix}co`, e.color.replace('#', ''));
+      if (e.lineHeight !== 1.4) params.set(`${prefix}lh`, String(e.lineHeight));
+      if (e.sidePadding !== 0) params.set(`${prefix}sp`, String(e.sidePadding));
+      if (e.zOrder !== 'above') params.set(`${prefix}z`, e.zOrder);
+    }
   }
 
   // To text state (only when animation enabled and toStateType is 'text')
@@ -462,6 +487,41 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       size: ls ?? 15,
       color: (lc && HEX_COLOR_REGEX.test(lc)) ? '#' + lc.toUpperCase() : '#FCFCFC',
     };
+  }
+
+  // Text overlay
+  const txoe = parseBool(sp.get(PARAM_KEYS.textOverlayEnabled));
+  if (txoe) {
+    const entries: TextOverlayConfig['entries'] = [];
+    for (let i = 0; i < 5; i++) {
+      const prefix = `txo${i}`;
+      const content = sp.get(`${prefix}c`);
+      const y = sp.get(`${prefix}y`);
+      if (content === null && y === null) break;
+
+      const fw = Number(sp.get(`${prefix}fw`) ?? 400);
+      const al = sp.get(`${prefix}a`);
+      const co = sp.get(`${prefix}co`);
+      const lh = clampNum(sp.get(`${prefix}lh`), 0.5, 3.0);
+      const spVal = clampNum(sp.get(`${prefix}sp`), 0, 40);
+      const z = sp.get(`${prefix}z`);
+
+      entries.push({
+        id: crypto.randomUUID(),
+        content: content ? content.slice(0, 500) : '',
+        y: clampNum(y, 0, 100) ?? 50,
+        fontSize: clampNum(sp.get(`${prefix}fs`), 0.5, 50) ?? 5,
+        fontWeight: isValidFontWeight(fw) ? fw : 400,
+        alignment: (al === 'left' || al === 'center' || al === 'right') ? al : 'center',
+        color: (co && HEX_COLOR_REGEX.test(co)) ? '#' + co.toUpperCase() : '#FCFCFC',
+        lineHeight: lh ?? 1.4,
+        sidePadding: spVal ?? 0,
+        zOrder: z === 'behind' ? 'behind' : 'above',
+      });
+    }
+    if (entries.length > 0) {
+      result.textOverlayConfig = { enabled: true, entries };
+    }
   }
 
   return result;

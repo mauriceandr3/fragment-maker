@@ -1,6 +1,8 @@
 import React from "react";
 import { type FillType } from "@/implementation-files/generateFragmentSvg";
-import { DEFAULT_LOGO_CONFIG } from "@/app/components/fragment/types";
+import { DEFAULT_LOGO_CONFIG, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
+import { isValidFontWeight, type TextOverlayConfig, type TextOverlayEntry } from "@/implementation-files/textOverlay";
+import { vectorizeAllEntries } from "@/lib/textVectorizer";
 import { serializeFonts, type FontData, type FontResolution } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import { getColorRgb } from "@/lib/colorUtils";
@@ -106,6 +108,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setToParams(null);
     state.setShowEndState(false);
     state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
+    state.setTextOverlayConfig({ ...DEFAULT_TEXT_OVERLAY_CONFIG });
     clearUrlParams();
   };
 
@@ -147,14 +150,14 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     }
   };
 
-  const exportSettingsAsJson = () => {
+  const exportSettingsAsJson = async () => {
     const { animationEnabled, toParams, fromStateType, toStateType, fromTextConfig, toTextConfig } = state;
 
     // Build the export data object
     // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
     // Text config fields only included when respective state type is 'text'
     const exportData: Record<string, unknown> = {
-      version: '2.3.0',
+      version: '2.4.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -250,6 +253,32 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         y: state.logoConfig.y,
         size: state.logoConfig.size,
         color: state.logoConfig.color,
+      };
+    }
+
+    // Include text overlay config when enabled (v2.4.0+)
+    // Vectorize entries so the exported JSON contains pre-computed SVG paths
+    if (state.textOverlayConfig.enabled && state.textOverlayConfig.entries.length > 0) {
+      const vectorized = await vectorizeAllEntries(
+        state.textOverlayConfig,
+        canvasWidth,
+        canvasHeight,
+      );
+      exportData.textOverlay = {
+        enabled: true,
+        entries: vectorized.entries.map(e => ({
+          id: e.id,
+          content: e.content,
+          y: e.y,
+          fontSize: e.fontSize,
+          fontWeight: e.fontWeight,
+          alignment: e.alignment,
+          color: e.color,
+          lineHeight: e.lineHeight,
+          sidePadding: e.sidePadding,
+          zOrder: e.zOrder,
+          paths: e.paths,
+        })),
       };
     }
 
@@ -480,6 +509,36 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           });
         } else {
           state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
+        }
+
+        // Import text overlay config (v2.4.0+)
+        if (data.textOverlay && typeof data.textOverlay === 'object') {
+          const validAligns = ['left', 'center', 'right'];
+          const validZOrders = ['above', 'behind'];
+          const raw = data.textOverlay as Record<string, unknown>;
+          const rawEntries = Array.isArray(raw.entries) ? raw.entries : [];
+
+          const entries: TextOverlayEntry[] = rawEntries.slice(0, 5).map((e: Record<string, unknown>) => ({
+            id: typeof e.id === 'string' ? e.id : crypto.randomUUID(),
+            content: typeof e.content === 'string' ? (e.content as string).slice(0, 500) : '',
+            y: clamp(e.y, 0, 100, 50),
+            fontSize: clamp(e.fontSize, 1, 20, 5),
+            fontWeight: typeof e.fontWeight === 'number' && isValidFontWeight(e.fontWeight) ? e.fontWeight : 400,
+            alignment: validAligns.includes(e.alignment as string) ? (e.alignment as TextOverlayEntry['alignment']) : 'center',
+            color: typeof e.color === 'string' && hexRegex.test(e.color) ? e.color : '#FCFCFC',
+            lineHeight: clamp(e.lineHeight, 1.0, 2.5, 1.4),
+            sidePadding: clamp(e.sidePadding, 0, 40, 0),
+            zOrder: validZOrders.includes(e.zOrder as string) ? (e.zOrder as TextOverlayEntry['zOrder']) : 'above',
+            paths: Array.isArray(e.paths) ? e.paths : undefined,
+          }));
+
+          const importedConfig: TextOverlayConfig = {
+            enabled: typeof raw.enabled === 'boolean' ? raw.enabled : entries.length > 0,
+            entries,
+          };
+          state.setTextOverlayConfig(importedConfig);
+        } else {
+          state.setTextOverlayConfig({ ...DEFAULT_TEXT_OVERLAY_CONFIG });
         }
 
       } catch {

@@ -19,6 +19,7 @@ import { ExportSvgPanel, ConfigPanel } from "./fragment/ActionButtons";
 import { VideoExportPanel } from "./fragment/VideoExportPanel";
 import { BatchExportPanel } from "./fragment/BatchExportPanel";
 import { LogoPanel } from "./fragment/LogoPanel";
+import { TextOverlayPanel } from "./fragment/TextOverlayPanel";
 import { RadioSelector } from './ui/RadioSelector';
 import { PresetsSelection } from './fragment/PresetsSelection';
 
@@ -123,6 +124,7 @@ export function AssetGenerator() {
                         <CanvasSettingsPanel state={state} />
                         <ColorsPanel state={state} />
                         <LogoPanel state={state} />
+                        <TextOverlayPanel state={state} />
                         <AnimationPanel state={state} actions={actions} />
 
                         {/* Parameters panels - side-by-side when animation enabled */}
@@ -252,6 +254,7 @@ export function AssetGenerator() {
                   animationDuration={state.debounced.animationDuration}
                   animationEnabled={state.animationEnabled}
                   logoConfig={state.logoConfig}
+                  textOverlayConfig={state.textOverlayConfig}
                 />
 
                 <ConfigPanel
