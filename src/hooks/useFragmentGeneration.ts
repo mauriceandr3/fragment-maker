@@ -5,7 +5,7 @@ import {
   generateFragmentDiffFromConfigs,
   generateDiffFromGrids,
 } from "@/lib/generateFragmentSvgGrid";
-import { generateGrid as generateGridCore, gridToSvg } from "@/implementation-files/generateFragmentSvg";
+import { generateGrid as generateGridCore, gridToSvg, buildMixedCellDiffSvg } from "@/implementation-files/generateFragmentSvg";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import type { FragmentState } from "./useFragmentState";
@@ -38,17 +38,19 @@ export function useFragmentGeneration(state: FragmentState) {
   // Generate grid for single view (from state)
   // Supports both pattern and text state types
   const regenerateGrid = useCallback(() => {
-    const { cols, rows } = gridDimensions;
-    if (!cols || !rows || cols <= 0 || rows <= 0) {
-      console.warn('Invalid grid dimensions:', { cols, rows });
-      return;
-    }
-
     let newGrid: boolean[][];
     if (fromStateType === 'text') {
-      const result = generateTextGrid(fromTextConfig, cols, rows, fonts);
+      // Text always uses base-cell dimensions (never stretched)
+      const { baseCols, baseRows } = gridDimensions;
+      if (!baseCols || !baseRows || baseCols <= 0 || baseRows <= 0) return;
+      const result = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts);
       newGrid = result.grid;
     } else {
+      const { cols, rows } = gridDimensions;
+      if (!cols || !rows || cols <= 0 || rows <= 0) {
+        console.warn('Invalid grid dimensions:', { cols, rows });
+        return;
+      }
       newGrid = generateGridCore(
         cols, rows,
         params.seed, params.threshold, params.gamma,
@@ -68,24 +70,22 @@ export function useFragmentGeneration(state: FragmentState) {
   // Generate SVG string for export/clipboard
   // Supports both pattern and text state types
   const generateSVG = useCallback((): string => {
-    const { cols, rows } = gridDimensions;
-
-    // For text state, generate from text grid
+    // For text state, use base-cell dimensions (text is never stretched)
     if (fromStateType === 'text') {
-      if (cols <= 0 || rows <= 0) {
+      const { baseCols, baseRows } = gridDimensions;
+      if (baseCols <= 0 || baseRows <= 0) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
       }
-      const result = generateTextGrid(fromTextConfig, cols, rows, fonts);
+      const result = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts);
       return gridToSvg(
         result.grid,
-        cols,
-        rows,
+        baseCols,
+        baseRows,
         cellSize,
         canvasWidth,
         displayForeground,
         displayBackground,
         canvasHeight,
-        { cellWidth: gridDimensions.cellWidth, cellHeight: gridDimensions.cellHeight }
       );
     }
 
@@ -170,51 +170,46 @@ export function useFragmentGeneration(state: FragmentState) {
       return generateFragmentDiffFromConfigs({ fromConfig, toConfig });
     }
 
-    // At least one state is text - use grid-based approach
-    let gridFrom: boolean[][];
-    let gridTo: boolean[][];
+    // At least one state is text — use mixed-cell diff with entity grouping.
+    const { baseCols, baseRows, cols: entityCols, rows: entityRows } = gridDimensions;
+    if (baseCols <= 0 || baseRows <= 0) return '';
 
-    // Generate "from" grid
-    if (fromIsText) {
-      const result = generateTextGrid(debounced.fromTextConfig, cols, rows, fonts);
-      gridFrom = result.grid;
-    } else {
-      gridFrom = generateGridCore(
-        cols, rows,
-        debounced.params.seed, debounced.params.threshold, debounced.params.gamma,
-        debounced.params.frequency, debounced.params.contrast, debounced.params.fillAmount,
-        debounced.params.fillType, debounced.params.invertFill,
-        debounced.params.directionalNeighbors, debounced.params.directionDensity,
+    const generatePatternEntityGrid = (p: typeof debounced.params) =>
+      generateGridCore(
+        entityCols, entityRows,
+        p.seed, p.threshold, p.gamma, p.frequency, p.contrast, p.fillAmount,
+        p.fillType, p.invertFill, p.directionalNeighbors, p.directionDensity,
       );
-    }
 
-    // Generate "to" grid
-    if (toIsText) {
-      const result = generateTextGrid(debounced.toTextConfig, cols, rows, fonts);
-      gridTo = result.grid;
+    const mixedOpts = {
+      elongateAxis: debounced.elongateAxis, elongateAmount: debounced.elongateAmount,
+      baseCols, baseRows, cellSize: debounced.cellSize,
+      width: debounced.canvasWidth, height: debounced.canvasHeight,
+      foregroundColor: displayForeground, backgroundColor: displayBackground,
+    };
+
+    if (!fromIsText && toIsText) {
+      return buildMixedCellDiffSvg({
+        entityGrid: generatePatternEntityGrid(debounced.params),
+        textGrid: generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid,
+        ...mixedOpts, patternIsFrom: true,
+      });
+    } else if (fromIsText && !toIsText) {
+      return buildMixedCellDiffSvg({
+        entityGrid: generatePatternEntityGrid(debounced.toParams),
+        textGrid: generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid,
+        ...mixedOpts, patternIsFrom: false,
+      });
     } else {
-      gridTo = generateGridCore(
-        cols, rows,
-        debounced.toParams.seed, debounced.toParams.threshold, debounced.toParams.gamma,
-        debounced.toParams.frequency, debounced.toParams.contrast, debounced.toParams.fillAmount,
-        debounced.toParams.fillType, debounced.toParams.invertFill,
-        debounced.toParams.directionalNeighbors, debounced.toParams.directionDensity,
-      );
+      // Text → Text
+      const gridFrom = generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid;
+      const gridTo = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid;
+      return generateDiffFromGrids({
+        gridFrom, gridTo, cols: baseCols, rows: baseRows,
+        cellSize: debounced.cellSize, width: debounced.canvasWidth, height: debounced.canvasHeight,
+        foregroundColor: displayForeground, backgroundColor: displayBackground,
+      });
     }
-
-    return generateDiffFromGrids({
-      gridFrom,
-      gridTo,
-      cols,
-      rows,
-      cellSize: debounced.cellSize,
-      width: debounced.canvasWidth,
-      height: debounced.canvasHeight,
-      foregroundColor: displayForeground,
-      backgroundColor: displayBackground,
-      cellWidth: gridDimensions.cellWidth,
-      cellHeight: gridDimensions.cellHeight,
-    });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
   // Generate static SVG for the "to" state (used by Show End State preview)
@@ -227,17 +222,19 @@ export function useFragmentGeneration(state: FragmentState) {
     const toIsText = debounced.toStateType === 'text';
 
     if (toIsText) {
-      const result = generateTextGrid(debounced.toTextConfig, cols, rows, fonts);
+      // Text always uses base-cell dimensions (never stretched)
+      const { baseCols, baseRows } = gridDimensions;
+      if (baseCols <= 0 || baseRows <= 0) return '';
+      const result = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts);
       return gridToSvg(
         result.grid,
-        cols,
-        rows,
+        baseCols,
+        baseRows,
         debounced.cellSize,
         debounced.canvasWidth,
         displayForeground,
         displayBackground,
         debounced.canvasHeight,
-        { cellWidth: gridDimensions.cellWidth, cellHeight: gridDimensions.cellHeight }
       );
     }
 

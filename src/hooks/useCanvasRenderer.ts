@@ -4,7 +4,7 @@ import { isTransparent } from "@/lib/colorUtils";
 export function useCanvasRenderer(options: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   grid: boolean[][];
-  gridDimensions: { cols: number; rows: number; cellWidth: number; cellHeight: number };
+  gridDimensions: { cols: number; rows: number; cellWidth: number; cellHeight: number; baseCols: number; baseRows: number };
   displayForeground: string;
   displayBackground: string;
   scale: number;
@@ -31,9 +31,17 @@ export function useCanvasRenderer(options: {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { cols, rows, cellWidth, cellHeight } = gridDimensions;
-    const fractionalCellWidth = cellWidth * scale;
-    const fractionalCellHeight = cellHeight * scale;
+    // Detect if the grid is at base-cell level (text) or entity level (pattern)
+    // by comparing grid dimensions to entity vs base dimensions
+    const gridRows = grid.length;
+    const gridColsSample = grid[0]?.length || 0;
+    const isBaseLevel = gridRows > gridDimensions.rows || gridColsSample > gridDimensions.cols;
+    const cols = isBaseLevel ? gridDimensions.baseCols : gridDimensions.cols;
+    const rows = isBaseLevel ? gridDimensions.baseRows : gridDimensions.rows;
+    const effectiveCellWidth = isBaseLevel ? cellSize : gridDimensions.cellWidth;
+    const effectiveCellHeight = isBaseLevel ? cellSize : gridDimensions.cellHeight;
+    const fractionalCellWidth = effectiveCellWidth * scale;
+    const fractionalCellHeight = effectiveCellHeight * scale;
 
     const scaledCanvasWidth = Math.round(canvasWidth * scale);
     const scaledCanvasHeight = Math.round(canvasHeight * scale);

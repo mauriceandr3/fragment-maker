@@ -6,6 +6,7 @@ import {
   extractCellPositions,
   calculateDistanceMap,
   groupIntoWaves,
+  applyEntityGrouping,
 } from '../lib/animationUtils';
 
 interface AnimState {
@@ -225,16 +226,26 @@ export function useFragmentReveal(
 
     if (aRects.length === 0 && bRects.length === 0) return false;
 
-    // 2. Extract positions (determine cell dimensions from first rect)
-    const firstRect = aRects[0] || bRects[0] || sharedRects[0];
-    if (!firstRect) return false;
+    // 2. Extract positions
+    // Use minimum rect size as base cell size (handles mixed-size rects from elongated diffs)
+    const allRects = [...aRects, ...bRects, ...sharedRects];
+    if (allRects.length === 0) return false;
 
-    const cellWidth = parseInt(firstRect.getAttribute('width') || '1');
-    const cellHeight = parseInt(firstRect.getAttribute('height') || '1');
+    let minW = Infinity, minH = Infinity;
+    for (const r of allRects) {
+      const w = parseInt(r.getAttribute('width') || '1');
+      const h = parseInt(r.getAttribute('height') || '1');
+      if (w < minW) minW = w;
+      if (h < minH) minH = h;
+    }
+    const cellWidth = minW;
+    const cellHeight = minH;
+
     const viewBox = svg.getAttribute('viewBox')?.split(' ') || [];
     const gridCols = Math.round(parseInt(viewBox[2] || '1056') / cellWidth);
     const gridRows = Math.round(parseInt(viewBox[3] || '1056') / cellHeight);
 
+    // Always extract positions using base cell size so all rects map to the same grid
     const aCells = extractCellPositions(aRects, cellWidth, cellHeight);
     const bCells = extractCellPositions(bRects, cellWidth, cellHeight);
     const sharedCells = extractCellPositions(sharedRects, cellWidth, cellHeight);
@@ -284,6 +295,10 @@ export function useFragmentReveal(
       distance: bDistances.get(`${cell.x},${cell.y}`) ?? (maxBDistance + 1),
       waveGroup: 0
     }));
+
+    // 5b. Group entity cells so elongated bars animate as units
+    applyEntityGrouping(aCellsWithDist);
+    applyEntityGrouping(bCellsWithDist);
 
     // 6. Group into waves
     const targetFrames = Math.max(1, Math.ceil(durationMs / 16.67));
