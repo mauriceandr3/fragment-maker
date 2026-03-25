@@ -699,6 +699,7 @@ export type SeedableParam =
   | 'fillAmount';
 
 export type CropDirection = 'width' | 'height';
+export type ElongateAxis = 'none' | 'width' | 'height';
 
 export interface FragmentConfig {
   /** Density threshold for noise (0-1) */
@@ -737,6 +738,10 @@ export interface FragmentConfig {
   allowCropping?: boolean;
   /** Which axis to crop: 'width' crops rightmost column, 'height' crops bottom row */
   cropDirection?: CropDirection;
+  /** Which axis to stretch cells along ('none' = square cells) */
+  elongateAxis?: ElongateAxis;
+  /** Multiplier for cell stretch (e.g. 4 with width axis = cells are 4x wide) */
+  elongateAmount?: number;
 }
 
 export interface GenerateFragmentSvgOptions {
@@ -1051,9 +1056,54 @@ export function generateGrid(
   return grid;
 }
 
+/**
+ * Upscale an entity-level grid to base-cell-level by repeating each cell
+ * along the elongation axis. This preserves the visual elongation effect
+ * while producing a grid at base-cell resolution (needed for diffs with text).
+ */
+export function upscaleGridToBaseLevel(
+  entityGrid: boolean[][],
+  elongateAxis: ElongateAxis,
+  elongateAmount: number,
+  baseCols: number,
+  baseRows: number,
+): boolean[][] {
+  if (elongateAxis === 'none' || elongateAmount <= 1) return entityGrid;
+
+  const result: boolean[][] = [];
+
+  if (elongateAxis === 'height') {
+    // Each entity row maps to `elongateAmount` base rows
+    const entityRows = entityGrid.length;
+    for (let ey = 0; ey < entityRows; ey++) {
+      for (let r = 0; r < elongateAmount && result.length < baseRows; r++) {
+        result.push([...entityGrid[ey]]);
+      }
+    }
+  } else {
+    // elongateAxis === 'width': each entity col maps to `elongateAmount` base cols
+    for (let y = 0; y < entityGrid.length && y < baseRows; y++) {
+      const row: boolean[] = [];
+      for (let ex = 0; ex < entityGrid[y].length; ex++) {
+        const val = entityGrid[y][ex];
+        for (let r = 0; r < elongateAmount && row.length < baseCols; r++) {
+          row.push(val);
+        }
+      }
+      result.push(row);
+    }
+  }
+
+  return result;
+}
+
 export interface GridToSvgOptions {
   allowCropping?: boolean;
   cropDirection?: CropDirection;
+  /** Effective cell width (may differ from cellSize when elongated) */
+  cellWidth?: number;
+  /** Effective cell height (may differ from cellSize when elongated) */
+  cellHeight?: number;
 }
 
 /**
@@ -1072,10 +1122,9 @@ export function gridToSvg(
 ): string {
   const outputWidth = width;
   const outputHeight = height;
-  const { allowCropping = false, cropDirection = 'height' } = options ?? {};
+  const cw = options?.cellWidth ?? cellSize;
+  const ch = options?.cellHeight ?? cellSize;
 
-  // viewBox is always the exact canvas dimensions (not grid * cellSize)
-  // This ensures the SVG output matches the user's specified dimensions
   const viewBoxWidth = outputWidth;
   const viewBoxHeight = outputHeight;
 
@@ -1084,33 +1133,18 @@ export function gridToSvg(
   // Background rect to fill the entire canvas
   svg += `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${backgroundColor}"/>`;
 
-  // Render cells - with cropping, the last row/column may be partial
+  // Render cells - entities at the edge are clipped to canvas bounds
   for (let y = 0; y < Math.min(rows, grid.length); y++) {
     for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
-      // Only render foreground cells (background is already filled)
       if (!grid[y][x]) continue;
 
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
+      // Clip to canvas bounds (handles partial entities at edges)
+      const rectWidth = Math.min(cw, outputWidth - x * cw);
+      const rectHeight = Math.min(ch, outputHeight - y * ch);
 
-      if (allowCropping) {
-        // Calculate partial cell dimensions at edges
-        if (cropDirection === 'width' && x === cols - 1) {
-          // Last column may be narrower
-          const remainingWidth = outputWidth - x * cellSize;
-          rectWidth = Math.min(cellSize, remainingWidth);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          // Last row may be shorter
-          const remainingHeight = outputHeight - y * cellSize;
-          rectHeight = Math.min(cellSize, remainingHeight);
-        }
-      }
-
-      // Skip cells that would be completely outside the canvas
       if (rectWidth <= 0 || rectHeight <= 0) continue;
 
-      svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
+      svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
     }
   }
 
@@ -1125,6 +1159,24 @@ interface Dimensions {
   rows: number;
   width: number;
   height: number;
+  cellWidth: number;
+  cellHeight: number;
+}
+
+/**
+ * Compute effective cell dimensions from base cellSize + elongation settings.
+ */
+export function getCellDimensions(config: {
+  cellSize: number;
+  elongateAxis?: ElongateAxis;
+  elongateAmount?: number;
+}): { cellWidth: number; cellHeight: number } {
+  const { cellSize, elongateAxis = 'none', elongateAmount = 1 } = config;
+  const amount = Math.max(1, Math.round(elongateAmount));
+  return {
+    cellWidth: elongateAxis === 'width' ? cellSize * amount : cellSize,
+    cellHeight: elongateAxis === 'height' ? cellSize * amount : cellSize,
+  };
 }
 
 function computeDimensions(config: {
@@ -1133,34 +1185,67 @@ function computeDimensions(config: {
   canvasHeight?: number;
   allowCropping?: boolean;
   cropDirection?: CropDirection;
+  elongateAxis?: ElongateAxis;
+  elongateAmount?: number;
 }): Dimensions {
   const {
-    cellSize,
     canvasWidth = 1056,
     canvasHeight = 1056,
     allowCropping = false,
     cropDirection = 'height',
   } = config;
 
+  const { cellWidth, cellHeight } = getCellDimensions(config);
+
   const width = canvasWidth;
   const height = canvasHeight;
 
+  // Grid cols/rows are at entity (elongated cell) level.
+  // Use ceil so entities at the edge can be partially visible (clipped by viewBox).
   let cols: number;
   let rows: number;
   if (allowCropping) {
     if (cropDirection === 'width') {
-      cols = Math.ceil(width / cellSize);
-      rows = Math.floor(height / cellSize);
+      cols = Math.ceil(width / cellWidth);
+      rows = Math.floor(height / cellHeight);
     } else {
-      cols = Math.floor(width / cellSize);
-      rows = Math.ceil(height / cellSize);
+      cols = Math.floor(width / cellWidth);
+      rows = Math.ceil(height / cellHeight);
     }
   } else {
-    cols = Math.floor(width / cellSize);
-    rows = Math.floor(height / cellSize);
+    cols = Math.ceil(width / cellWidth);
+    rows = Math.ceil(height / cellHeight);
   }
 
-  return { cols, rows, width, height };
+  return { cols, rows, width, height, cellWidth, cellHeight };
+}
+
+/**
+ * Compute base-cell-level dimensions (ignoring elongation) for text grids.
+ */
+function computeBaseDimensions(config: {
+  cellSize: number;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  allowCropping?: boolean;
+  cropDirection?: CropDirection;
+}): { baseCols: number; baseRows: number } {
+  const { cellSize, canvasWidth = 1056, canvasHeight = 1056, allowCropping = false, cropDirection = 'height' } = config;
+  let baseCols: number;
+  let baseRows: number;
+  if (allowCropping) {
+    if (cropDirection === 'width') {
+      baseCols = Math.ceil(canvasWidth / cellSize);
+      baseRows = Math.floor(canvasHeight / cellSize);
+    } else {
+      baseCols = Math.floor(canvasWidth / cellSize);
+      baseRows = Math.ceil(canvasHeight / cellSize);
+    }
+  } else {
+    baseCols = Math.floor(canvasWidth / cellSize);
+    baseRows = Math.floor(canvasHeight / cellSize);
+  }
+  return { baseCols, baseRows };
 }
 
 function applySeededParam(
@@ -1211,7 +1296,7 @@ function renderConfigToSvg(params: RenderParams): string {
   return gridToSvg(
     grid, dims.cols, dims.rows, config.cellSize, dims.width,
     config.foregroundColor, config.backgroundColor, dims.height,
-    { allowCropping: config.allowCropping, cropDirection: config.cropDirection }
+    { cellWidth: dims.cellWidth, cellHeight: dims.cellHeight }
   );
 }
 
@@ -1252,6 +1337,190 @@ export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string
 }
 
 /**
+ * @internal Shared helper for building diff SVGs from two grids.
+ */
+function buildDiffSvg(
+  gridA: boolean[][],
+  gridB: boolean[][],
+  cols: number,
+  rows: number,
+  cw: number,
+  ch: number,
+  width: number,
+  height: number,
+  foregroundColor: string,
+  backgroundColor: string,
+): string {
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
+
+  for (let y = 0; y < Math.min(rows, gridA.length, gridB.length); y++) {
+    for (let x = 0; x < Math.min(cols, gridA[y]?.length || 0, gridB[y]?.length || 0); x++) {
+      const inA = gridA[y][x];
+      const inB = gridB[y][x];
+      if (!inA && !inB) continue;
+
+      const rectWidth = Math.min(cw, width - x * cw);
+      const rectHeight = Math.min(ch, height - y * ch);
+      if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+      const pos = `x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
+
+      if (inA && inB) {
+        svg += `<rect ${pos}/>`;
+      } else if (inA) {
+        svg += `<rect ${pos} data-g="a"/>`;
+      } else {
+        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
+      }
+    }
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+export interface MixedCellDiffOptions {
+  /** Pattern grid at entity level */
+  entityGrid: boolean[][];
+  /** Text grid at base-cell level */
+  textGrid: boolean[][];
+  elongateAxis: ElongateAxis;
+  elongateAmount: number;
+  baseCols: number;
+  baseRows: number;
+  cellSize: number;
+  width: number;
+  height: number;
+  foregroundColor: string;
+  backgroundColor: string;
+  /** true = pattern is "from" (visible, animates out), text is "to" */
+  patternIsFrom: boolean;
+}
+
+/**
+ * Build a diff SVG for pattern↔text with elongation.
+ * Pattern-only cells are emitted as entity-sized rects (whole bars) so they
+ * animate as single DOM elements. Text-only cells are individual base-cell rects.
+ * Shared cells (in both pattern and text) are base-cell rects (always visible).
+ */
+export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
+  const { entityGrid, textGrid, elongateAxis, elongateAmount,
+          baseCols, baseRows, cellSize, width, height,
+          foregroundColor, backgroundColor, patternIsFrom } = opts;
+
+  const stretchX = elongateAxis === 'width' ? elongateAmount : 1;
+  const stretchY = elongateAxis === 'height' ? elongateAmount : 1;
+  const entityCols = entityGrid[0]?.length || 0;
+  const entityRows = entityGrid.length;
+
+  const pTag = patternIsFrom ? ' data-g="a"' : ' data-g="b" style="opacity:0"';
+  const tTag = patternIsFrom ? ' data-g="b" style="opacity:0"' : ' data-g="a"';
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
+
+  // Track which base cells have been emitted (shared or pattern-only entity rects)
+  const emitted = new Set<number>(); // by * baseCols + bx
+  const key = (bx: number, by: number) => by * baseCols + bx;
+
+  // 1. Process each entity — emit shared cells individually, pattern-only as merged rects
+  for (let ey = 0; ey < entityRows; ey++) {
+    for (let ex = 0; ex < entityCols; ex++) {
+      if (!entityGrid[ey][ex]) continue;
+
+      const baseXStart = ex * stretchX;
+      const baseYStart = ey * stretchY;
+      const baseXEnd = Math.min(baseXStart + stretchX, baseCols);
+      const baseYEnd = Math.min(baseYStart + stretchY, baseRows);
+
+      if (elongateAxis === 'width') {
+        // Width stretch: merge pattern-only runs along X within each row
+        for (let by = baseYStart; by < baseYEnd; by++) {
+          let runStart = -1;
+          for (let bx = baseXStart; bx <= baseXEnd; bx++) {
+            const inText = bx < baseXEnd && (textGrid[by]?.[bx] ?? false);
+            const isPatternOnly = bx < baseXEnd && !inText;
+
+            if (isPatternOnly && runStart < 0) runStart = bx;
+
+            if (!isPatternOnly || bx === baseXEnd) {
+              if (runStart >= 0) {
+                // Emit merged pattern-only rect
+                const rw = Math.min((bx - runStart) * cellSize, width - runStart * cellSize);
+                const rh = Math.min(cellSize, height - by * cellSize);
+                if (rw > 0 && rh > 0) {
+                  svg += `<rect x="${runStart * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"${pTag}/>`;
+                }
+                for (let i = runStart; i < bx; i++) emitted.add(key(i, by));
+                runStart = -1;
+              }
+              // Emit shared cell
+              if (bx < baseXEnd && inText) {
+                const rw = Math.min(cellSize, width - bx * cellSize);
+                const rh = Math.min(cellSize, height - by * cellSize);
+                if (rw > 0 && rh > 0) {
+                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"/>`;
+                }
+                emitted.add(key(bx, by));
+              }
+            }
+          }
+        }
+      } else {
+        // Height stretch: merge pattern-only runs along Y within each column
+        for (let bx = baseXStart; bx < baseXEnd; bx++) {
+          let runStart = -1;
+          for (let by = baseYStart; by <= baseYEnd; by++) {
+            const inText = by < baseYEnd && (textGrid[by]?.[bx] ?? false);
+            const isPatternOnly = by < baseYEnd && !inText;
+
+            if (isPatternOnly && runStart < 0) runStart = by;
+
+            if (!isPatternOnly || by === baseYEnd) {
+              if (runStart >= 0) {
+                const rw = Math.min(cellSize, width - bx * cellSize);
+                const rh = Math.min((by - runStart) * cellSize, height - runStart * cellSize);
+                if (rw > 0 && rh > 0) {
+                  svg += `<rect x="${bx * cellSize}" y="${runStart * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"${pTag}/>`;
+                }
+                for (let i = runStart; i < by; i++) emitted.add(key(bx, i));
+                runStart = -1;
+              }
+              if (by < baseYEnd && inText) {
+                const rw = Math.min(cellSize, width - bx * cellSize);
+                const rh = Math.min(cellSize, height - by * cellSize);
+                if (rw > 0 && rh > 0) {
+                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"/>`;
+                }
+                emitted.add(key(bx, by));
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Emit text-only cells (not covered by any pattern entity)
+  for (let by = 0; by < baseRows; by++) {
+    for (let bx = 0; bx < baseCols; bx++) {
+      if (!(textGrid[by]?.[bx])) continue;
+      if (emitted.has(key(bx, by))) continue;
+
+      const rw = Math.min(cellSize, width - bx * cellSize);
+      const rh = Math.min(cellSize, height - by * cellSize);
+      if (rw <= 0 || rh <= 0) continue;
+
+      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"${tTag}/>`;
+    }
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+/**
  * Generates a single diff SVG from two seed strings.
  * Cells shared by both patterns are static. Cells unique to pattern A get data-g="a" (visible, animate off).
  * Cells unique to pattern B get data-g="b" (hidden, animate on).
@@ -1271,45 +1540,10 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
   const gridA = gridFromConfig(configA, dims);
   const gridB = gridFromConfig(configB, dims);
 
-  const { cols, rows, width, height } = dims;
-  const { cellSize, foregroundColor, backgroundColor, allowCropping = false, cropDirection = 'height' } = rest;
+  const { cols, rows, width, height, cellWidth, cellHeight } = dims;
+  const { foregroundColor, backgroundColor } = rest;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
-  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
-
-  for (let y = 0; y < Math.min(rows, gridA.length); y++) {
-    for (let x = 0; x < Math.min(cols, gridA[y]?.length || 0); x++) {
-      const inA = gridA[y][x];
-      const inB = gridB[y][x];
-      if (!inA && !inB) continue;
-
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
-
-      if (allowCropping) {
-        if (cropDirection === 'width' && x === cols - 1) {
-          rectWidth = Math.min(cellSize, width - x * cellSize);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          rectHeight = Math.min(cellSize, height - y * cellSize);
-        }
-      }
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
-      if (inA && inB) {
-        svg += `<rect ${pos}/>`;
-      } else if (inA) {
-        svg += `<rect ${pos} data-g="a"/>`;
-      } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
-      }
-    }
-  }
-
-  svg += '</svg>';
-  return svg;
+  return buildDiffSvg(gridA, gridB, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor);
 }
 
 /**
@@ -1339,6 +1573,10 @@ export interface GenerateDiffFromGridsOptions {
   allowCropping?: boolean;
   /** Which axis to crop */
   cropDirection?: CropDirection;
+  /** Effective cell width (may differ from cellSize when elongated) */
+  cellWidth?: number;
+  /** Effective cell height (may differ from cellSize when elongated) */
+  cellHeight?: number;
 }
 
 /**
@@ -1349,56 +1587,11 @@ export interface GenerateDiffFromGridsOptions {
  * Cells unique to To get data-g="b" (hidden, animate on).
  */
 export function generateDiffFromGrids(options: GenerateDiffFromGridsOptions): string {
-  const {
-    gridFrom,
-    gridTo,
-    cols,
-    rows,
-    cellSize,
-    width,
-    height,
-    foregroundColor,
-    backgroundColor,
-    allowCropping = false,
-    cropDirection = 'height',
-  } = options;
+  const { gridFrom, gridTo, cols, rows, width, height, foregroundColor, backgroundColor } = options;
+  const cw = options.cellWidth ?? options.cellSize;
+  const ch = options.cellHeight ?? options.cellSize;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
-  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
-
-  for (let y = 0; y < Math.min(rows, gridFrom.length, gridTo.length); y++) {
-    for (let x = 0; x < Math.min(cols, gridFrom[y]?.length || 0, gridTo[y]?.length || 0); x++) {
-      const inFrom = gridFrom[y][x];
-      const inTo = gridTo[y][x];
-      if (!inFrom && !inTo) continue;
-
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
-
-      if (allowCropping) {
-        if (cropDirection === 'width' && x === cols - 1) {
-          rectWidth = Math.min(cellSize, width - x * cellSize);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          rectHeight = Math.min(cellSize, height - y * cellSize);
-        }
-      }
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
-      if (inFrom && inTo) {
-        svg += `<rect ${pos}/>`;
-      } else if (inFrom) {
-        svg += `<rect ${pos} data-g="a"/>`;
-      } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
-      }
-    }
-  }
-
-  svg += '</svg>';
-  return svg;
+  return buildDiffSvg(gridFrom, gridTo, cols, rows, cw, ch, width, height, foregroundColor, backgroundColor);
 }
 
 /**
@@ -1429,45 +1622,10 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
   const gridFrom = gridFromConfig(fromConfig, dims);
   const gridTo = gridFromConfig(toConfig, dims);
 
-  const { cols, rows, width, height } = dims;
-  const { cellSize, foregroundColor, backgroundColor, allowCropping = false, cropDirection = 'height' } = fromConfig;
+  const { cols, rows, width, height, cellWidth, cellHeight } = dims;
+  const { foregroundColor, backgroundColor } = fromConfig;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
-  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
-
-  for (let y = 0; y < Math.min(rows, gridFrom.length); y++) {
-    for (let x = 0; x < Math.min(cols, gridFrom[y]?.length || 0); x++) {
-      const inFrom = gridFrom[y][x];
-      const inTo = gridTo[y][x];
-      if (!inFrom && !inTo) continue;
-
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
-
-      if (allowCropping) {
-        if (cropDirection === 'width' && x === cols - 1) {
-          rectWidth = Math.min(cellSize, width - x * cellSize);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          rectHeight = Math.min(cellSize, height - y * cellSize);
-        }
-      }
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
-      if (inFrom && inTo) {
-        svg += `<rect ${pos}/>`;
-      } else if (inFrom) {
-        svg += `<rect ${pos} data-g="a"/>`;
-      } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
-      }
-    }
-  }
-
-  svg += '</svg>';
-  return svg;
+  return buildDiffSvg(gridFrom, gridTo, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor);
 }
 
 // Logo Overlay Helper
@@ -1534,17 +1692,18 @@ export function generateSvgFromExport(
   let svg: string;
 
   if (fromStateType === 'text' && fromTextConfig && fonts) {
+    // Text always uses base-cell dimensions (never stretched by elongation)
+    const { baseCols, baseRows } = computeBaseDimensions(config);
     const parsedFonts = parseFonts(fonts);
     const effectiveTextConfig = options?.text !== undefined
       ? { ...fromTextConfig, text: options.text }
       : fromTextConfig;
-    const { grid } = generateTextGrid(effectiveTextConfig, dims.cols, dims.rows, parsedFonts);
+    const { grid } = generateTextGrid(effectiveTextConfig, baseCols, baseRows, parsedFonts);
     svg = gridToSvg(
-      grid, dims.cols, dims.rows,
+      grid, baseCols, baseRows,
       config.cellSize, dims.width,
       config.foregroundColor, config.backgroundColor,
       dims.height,
-      { allowCropping: config.allowCropping, cropDirection: config.cropDirection }
     );
   } else {
     svg = generateFragmentSvg({ config, seed: options?.seed });
@@ -1598,53 +1757,73 @@ export function generateDiffSvgFromExport(
     return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
   }
 
-  // At least one state is text — use grid-based approach
-  if (dims.cols <= 0 || dims.rows <= 0) return '';
+  // At least one state is text — use mixed-cell diff with entity grouping.
+  const { baseCols, baseRows } = computeBaseDimensions(config);
+  if (baseCols <= 0 || baseRows <= 0) return '';
 
-  let gridFrom: boolean[][];
-  let gridTo: boolean[][];
+  const elongateAxis = config.elongateAxis ?? 'none';
+  const elongateAmount = config.elongateAmount ?? 1;
 
-  if (fromIsText && fromTextConfig && fonts) {
-    const parsedFonts = parseFonts(fonts);
-    const effectiveFromTextConfig = options?.fromText !== undefined
-      ? { ...fromTextConfig, text: options.fromText }
-      : fromTextConfig;
-    gridFrom = generateTextGrid(effectiveFromTextConfig, dims.cols, dims.rows, parsedFonts).grid;
-  } else {
+  const mixedOpts = {
+    elongateAxis, elongateAmount, baseCols, baseRows,
+    cellSize: config.cellSize, width: dims.width, height: dims.height,
+    foregroundColor: config.foregroundColor, backgroundColor: config.backgroundColor,
+  };
+
+  let svg: string;
+
+  if (!fromIsText && toIsText && toTextConfig && fonts) {
+    // Pattern → Text
     const fromConfig = options?.fromSeed
       ? applySeededParam(config, options.fromSeed, config.seedParam ?? 'frequency')
       : config;
-    gridFrom = gridFromConfig(fromConfig, dims);
-  }
-
-  if (toIsText && toTextConfig && fonts) {
     const parsedFonts = parseFonts(fonts);
     const effectiveToTextConfig = options?.toText !== undefined
-      ? { ...toTextConfig, text: options.toText }
-      : toTextConfig;
-    gridTo = generateTextGrid(effectiveToTextConfig, dims.cols, dims.rows, parsedFonts).grid;
-  } else if (toConfig) {
+      ? { ...toTextConfig, text: options.toText } : toTextConfig;
+    svg = buildMixedCellDiffSvg({
+      entityGrid: gridFromConfig(fromConfig, dims),
+      textGrid: generateTextGrid(effectiveToTextConfig, baseCols, baseRows, parsedFonts).grid,
+      ...mixedOpts, patternIsFrom: true,
+    });
+  } else if (fromIsText && !toIsText && fromTextConfig && fonts && toConfig) {
+    // Text → Pattern
     const resolvedToConfig = options?.toSeed
       ? applySeededParam(toConfig, options.toSeed, toConfig.seedParam ?? 'frequency')
       : toConfig;
-    gridTo = gridFromConfig(resolvedToConfig, dims);
+    const parsedFonts = parseFonts(fonts);
+    const effectiveFromTextConfig = options?.fromText !== undefined
+      ? { ...fromTextConfig, text: options.fromText } : fromTextConfig;
+    svg = buildMixedCellDiffSvg({
+      entityGrid: gridFromConfig(resolvedToConfig, computeDimensions(resolvedToConfig)),
+      textGrid: generateTextGrid(effectiveFromTextConfig, baseCols, baseRows, parsedFonts).grid,
+      ...mixedOpts, patternIsFrom: false,
+    });
   } else {
-    return '';
+    // Text → Text (or missing data fallback)
+    let gridFrom: boolean[][];
+    let gridTo: boolean[][];
+    if (fromIsText && fromTextConfig && fonts) {
+      gridFrom = generateTextGrid(options?.fromText !== undefined
+        ? { ...fromTextConfig, text: options.fromText } : fromTextConfig, baseCols, baseRows, parseFonts(fonts)).grid;
+    } else {
+      const fc = options?.fromSeed ? applySeededParam(config, options.fromSeed, config.seedParam ?? 'frequency') : config;
+      gridFrom = gridFromConfig(fc, { cols: baseCols, rows: baseRows, width: dims.width, height: dims.height, cellWidth: config.cellSize, cellHeight: config.cellSize });
+    }
+    if (toIsText && toTextConfig && fonts) {
+      gridTo = generateTextGrid(options?.toText !== undefined
+        ? { ...toTextConfig, text: options.toText } : toTextConfig, baseCols, baseRows, parseFonts(fonts)).grid;
+    } else if (toConfig) {
+      const tc = options?.toSeed ? applySeededParam(toConfig, options.toSeed, toConfig.seedParam ?? 'frequency') : toConfig;
+      gridTo = gridFromConfig(tc, { cols: baseCols, rows: baseRows, width: dims.width, height: dims.height, cellWidth: config.cellSize, cellHeight: config.cellSize });
+    } else {
+      return '';
+    }
+    svg = generateDiffFromGrids({
+      gridFrom, gridTo, cols: baseCols, rows: baseRows,
+      cellSize: config.cellSize, width: dims.width, height: dims.height,
+      foregroundColor: config.foregroundColor, backgroundColor: config.backgroundColor,
+    });
   }
-
-  const svg = generateDiffFromGrids({
-    gridFrom,
-    gridTo,
-    cols: dims.cols,
-    rows: dims.rows,
-    cellSize: config.cellSize,
-    width: dims.width,
-    height: dims.height,
-    foregroundColor: config.foregroundColor,
-    backgroundColor: config.backgroundColor,
-    allowCropping: config.allowCropping,
-    cropDirection: config.cropDirection,
-  });
 
   return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
 }
@@ -1663,11 +1842,14 @@ export interface CellWithDistance extends CellPosition {
 // Extract grid position from SVG rect
 export function extractCellPositions(
   rects: SVGRectElement[],
-  cellSize: number
+  cellWidth: number,
+  cellHeight?: number
 ): CellPosition[] {
+  const cw = cellWidth;
+  const ch = cellHeight ?? cellWidth;
   return rects.map(rect => ({
-    x: Math.round(parseInt(rect.getAttribute('x') || '0') / cellSize),
-    y: Math.round(parseInt(rect.getAttribute('y') || '0') / cellSize),
+    x: Math.round(parseInt(rect.getAttribute('x') || '0') / cw),
+    y: Math.round(parseInt(rect.getAttribute('y') || '0') / ch),
     rectElement: rect
   }));
 }
@@ -1714,6 +1896,34 @@ export function calculateDistanceMap(
   }
 
   return distanceMap;
+}
+
+/**
+ * Group cells by their entity ID (data-eid attribute) so all cells in the
+ * same elongated entity get the same BFS distance → animate as one unit.
+ */
+export function applyEntityGrouping(cells: CellWithDistance[]): void {
+  const entityGroups = new Map<string, CellWithDistance[]>();
+
+  for (const cell of cells) {
+    const eid = cell.rectElement.getAttribute('data-eid');
+    if (eid) {
+      let group = entityGroups.get(eid);
+      if (!group) {
+        group = [];
+        entityGroups.set(eid, group);
+      }
+      group.push(cell);
+    }
+  }
+
+  // All cells in an entity get the minimum distance of the group
+  for (const group of entityGroups.values()) {
+    const minDist = Math.min(...group.map(c => c.distance));
+    for (const cell of group) {
+      cell.distance = minDist;
+    }
+  }
 }
 
 // Group cells into animation waves with randomization for organic feel
@@ -1784,7 +1994,8 @@ interface AnimState {
 function createConnectionPath(
   fromCell: CellPosition,
   toCell: CellPosition,
-  cellSize: number,
+  cellWidth: number,
+  cellHeight: number,
   svg: SVGSVGElement
 ): CellPosition[] {
   const path: CellPosition[] = [];
@@ -1799,12 +2010,11 @@ function createConnectionPath(
   let err = dx - dy;
 
   while (x0 !== x1 || y0 !== y1) {
-    // Create temporary rect for connection
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(x0 * cellSize));
-    rect.setAttribute('y', String(y0 * cellSize));
-    rect.setAttribute('width', String(cellSize));
-    rect.setAttribute('height', String(cellSize));
+    rect.setAttribute('x', String(x0 * cellWidth));
+    rect.setAttribute('y', String(y0 * cellHeight));
+    rect.setAttribute('width', String(cellWidth));
+    rect.setAttribute('height', String(cellHeight));
     rect.setAttribute('fill', 'currentColor');
     rect.setAttribute('opacity', '0');
     rect.setAttribute('data-connection', 'true');
@@ -1980,18 +2190,29 @@ export function useFragmentReveal(
 
     if (aRects.length === 0 && bRects.length === 0) return false;
 
-    // 2. Extract positions (determine cellSize from first rect)
-    const firstRect = aRects[0] || bRects[0] || sharedRects[0];
-    if (!firstRect) return false;
+    // 2. Extract positions
+    // Use minimum rect size as base cell size (handles mixed-size rects from elongated diffs)
+    const allRects = [...aRects, ...bRects, ...sharedRects];
+    if (allRects.length === 0) return false;
 
-    const cellSize = parseInt(firstRect.getAttribute('width') || '1');
+    let minW = Infinity, minH = Infinity;
+    for (const r of allRects) {
+      const w = parseInt(r.getAttribute('width') || '1');
+      const h = parseInt(r.getAttribute('height') || '1');
+      if (w < minW) minW = w;
+      if (h < minH) minH = h;
+    }
+    const cellWidth = minW;
+    const cellHeight = minH;
+
     const viewBox = svg.getAttribute('viewBox')?.split(' ') || [];
-    const gridCols = Math.round(parseInt(viewBox[2] || '1056') / cellSize);
-    const gridRows = Math.round(parseInt(viewBox[3] || '1056') / cellSize);
+    const gridCols = Math.round(parseInt(viewBox[2] || '1056') / cellWidth);
+    const gridRows = Math.round(parseInt(viewBox[3] || '1056') / cellHeight);
 
-    const aCells = extractCellPositions(aRects, cellSize);
-    const bCells = extractCellPositions(bRects, cellSize);
-    const sharedCells = extractCellPositions(sharedRects, cellSize);
+    // Always extract positions using base cell size so all rects map to the same grid
+    const aCells = extractCellPositions(aRects, cellWidth, cellHeight);
+    const bCells = extractCellPositions(bRects, cellWidth, cellHeight);
+    const sharedCells = extractCellPositions(sharedRects, cellWidth, cellHeight);
 
     // 3. Determine seed points
     let seedCells = sharedCells;
@@ -2013,7 +2234,7 @@ export function useFragmentReveal(
       });
 
       if (nearestA && nearestB) {
-        s.connectionPath = createConnectionPath(nearestA, nearestB, cellSize, svg);
+        s.connectionPath = createConnectionPath(nearestA, nearestB, cellWidth, cellHeight, svg);
         seedCells = [nearestA, nearestB]; // Use both endpoints as seeds
       }
     }
@@ -2038,6 +2259,10 @@ export function useFragmentReveal(
       distance: bDistances.get(`${cell.x},${cell.y}`) ?? (maxBDistance + 1),
       waveGroup: 0
     }));
+
+    // 5b. Group entity cells so elongated bars animate as units
+    applyEntityGrouping(aCellsWithDist);
+    applyEntityGrouping(bCellsWithDist);
 
     // 6. Group into waves
     const targetFrames = Math.max(1, Math.ceil(durationMs / 16.67));

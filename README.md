@@ -52,6 +52,8 @@ Open http://localhost:5173 to use the interactive tool locally.
 | `canvasHeight` | number | Canvas height in pixels (default: 1056) |
 | `allowCropping` | boolean | Enable partial cells at edges |
 | `cropDirection` | width, height | Which axis to crop |
+| `elongateAxis` | none, width, height | Stretch cells along an axis (default: none) |
+| `elongateAmount` | 2-12 | Stretch multiplier (e.g. 4 with width → cells are 4× wider) |
 | `animationDuration` | 100-5000 | Animation duration in milliseconds (default: 600) |
 
 ## Website Integration
