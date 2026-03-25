@@ -68,6 +68,34 @@ export function calculateDistanceMap(
   return distanceMap;
 }
 
+/**
+ * Group cells by their entity ID (data-eid attribute) so all cells in the
+ * same elongated entity get the same BFS distance → animate as one unit.
+ */
+export function applyEntityGrouping(cells: CellWithDistance[]): void {
+  const entityGroups = new Map<string, CellWithDistance[]>();
+
+  for (const cell of cells) {
+    const eid = cell.rectElement.getAttribute('data-eid');
+    if (eid) {
+      let group = entityGroups.get(eid);
+      if (!group) {
+        group = [];
+        entityGroups.set(eid, group);
+      }
+      group.push(cell);
+    }
+  }
+
+  // All cells in an entity get the minimum distance of the group
+  for (const group of entityGroups.values()) {
+    const minDist = Math.min(...group.map(c => c.distance));
+    for (const cell of group) {
+      cell.distance = minDist;
+    }
+  }
+}
+
 // Group cells into animation waves with randomization for organic feel
 export function groupIntoWaves(
   cellsWithDistance: CellWithDistance[],

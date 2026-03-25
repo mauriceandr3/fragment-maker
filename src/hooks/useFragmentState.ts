@@ -352,6 +352,8 @@ export function useFragmentState() {
   // --- Derived values ---
   const gridDimensions = useMemo(() => {
     const { cellWidth, cellHeight } = getCellDimensions({ cellSize, elongateAxis, elongateAmount });
+
+    // Entity-level dimensions (for pattern grids with elongation)
     let cols: number;
     let rows: number;
     if (allowCropping) {
@@ -366,7 +368,24 @@ export function useFragmentState() {
       cols = Math.ceil(canvasWidth / cellWidth);
       rows = Math.ceil(canvasHeight / cellHeight);
     }
-    return { cols, rows, cellWidth, cellHeight };
+
+    // Base-cell-level dimensions (for text grids - text should never be stretched)
+    let baseCols: number;
+    let baseRows: number;
+    if (allowCropping) {
+      if (cropDirection === 'width') {
+        baseCols = Math.ceil(canvasWidth / cellSize);
+        baseRows = Math.floor(canvasHeight / cellSize);
+      } else {
+        baseCols = Math.floor(canvasWidth / cellSize);
+        baseRows = Math.ceil(canvasHeight / cellSize);
+      }
+    } else {
+      baseCols = Math.floor(canvasWidth / cellSize);
+      baseRows = Math.floor(canvasHeight / cellSize);
+    }
+
+    return { cols, rows, cellWidth, cellHeight, baseCols, baseRows };
   }, [canvasWidth, canvasHeight, cellSize, allowCropping, cropDirection, elongateAxis, elongateAmount]);
 
   const displayForeground = invertColors ? backgroundColor : foregroundColor;

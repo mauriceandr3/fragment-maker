@@ -16,6 +16,7 @@ import {
   type GenerateDiffFromGridsOptions,
   PARAM_RANGES,
   getCellDimensions,
+  upscaleGridToBaseLevel,
   generateFragmentSvgDirect,
   generateFragmentDiffSvg,
   generateFragmentDiffFromConfigs,
@@ -24,7 +25,7 @@ import {
 
 // Re-export types that the tool needs
 export type { FragmentConfig, SeedableParam, FillType, CropDirection, ElongateAxis, GenerateFragmentDiffSvgOptions, GenerateFragmentDiffFromConfigsOptions, GenerateDiffFromGridsOptions };
-export { PARAM_RANGES, getCellDimensions, generateFragmentSvgDirect, generateFragmentDiffSvg, generateFragmentDiffFromConfigs, generateDiffFromGrids };
+export { PARAM_RANGES, getCellDimensions, upscaleGridToBaseLevel, generateFragmentSvgDirect, generateFragmentDiffSvg, generateFragmentDiffFromConfigs, generateDiffFromGrids };
 
 /**
  * Generates an array of configurations with one parameter varying across its range.
