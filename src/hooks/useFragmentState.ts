@@ -9,7 +9,8 @@ import {
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
 import { type GeneratorParams, type StateType, type LogoConfig, DEFAULT_LOGO_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
-import type { CropDirection } from "@/implementation-files/generateFragmentSvg";
+import type { CropDirection, ElongateAxis } from "@/implementation-files/generateFragmentSvg";
+import { getCellDimensions } from "@/implementation-files/generateFragmentSvg";
 
 // Default text configuration
 const DEFAULT_TEXT_CONFIG: TextConfig = {
@@ -54,6 +55,10 @@ export function useFragmentState() {
   // Cropping
   const [allowCropping, setAllowCropping] = useState(initialUrlState.allowCropping ?? false);
   const [cropDirection, setCropDirection] = useState<CropDirection>(initialUrlState.cropDirection ?? 'height');
+
+  // Cell elongation
+  const [elongateAxis, setElongateAxis] = useState<ElongateAxis>(initialUrlState.elongateAxis ?? 'none');
+  const [elongateAmount, setElongateAmount] = useState(initialUrlState.elongateAmount ?? 1);
 
   // Valid cell sizes based on current dimensions
   const validCellSizes = useMemo(() => {
@@ -153,6 +158,8 @@ export function useFragmentState() {
   const [debouncedCanvasHeight, setDebouncedCanvasHeight] = useState(canvasHeight);
   const [debouncedAllowCropping, setDebouncedAllowCropping] = useState(allowCropping);
   const [debouncedCropDirection, setDebouncedCropDirection] = useState(cropDirection);
+  const [debouncedElongateAxis, setDebouncedElongateAxis] = useState(elongateAxis);
+  const [debouncedElongateAmount, setDebouncedElongateAmount] = useState(elongateAmount);
   const [debouncedAnimationEnabled, setDebouncedAnimationEnabled] = useState(animationEnabled);
   const [debouncedAnimationDuration, setDebouncedAnimationDuration] = useState(animationDuration);
   const [debouncedToParams, setDebouncedToParams] = useState<GeneratorParams | null>(toParams);
@@ -204,6 +211,14 @@ export function useFragmentState() {
     }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
   }, [allowCropping, cropDirection]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedElongateAxis(elongateAxis);
+      setDebouncedElongateAmount(elongateAmount);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [elongateAxis, elongateAmount]);
 
   // Initialize toParams when animation is first enabled and no prior state exists
   useEffect(() => {
@@ -291,6 +306,8 @@ export function useFragmentState() {
       cellSize: debouncedCellSize,
       allowCropping: debouncedAllowCropping,
       cropDirection: debouncedCropDirection,
+      elongateAxis: debouncedElongateAxis,
+      elongateAmount: debouncedElongateAmount,
       foregroundColor: debouncedForeground,
       backgroundColor: debouncedBackground,
       invertColors: debouncedInvertColors,
@@ -314,6 +331,8 @@ export function useFragmentState() {
     debouncedCellSize,
     debouncedAllowCropping,
     debouncedCropDirection,
+    debouncedElongateAxis,
+    debouncedElongateAmount,
     debouncedForeground,
     debouncedBackground,
     debouncedInvertColors,
@@ -332,22 +351,23 @@ export function useFragmentState() {
 
   // --- Derived values ---
   const gridDimensions = useMemo(() => {
+    const { cellWidth, cellHeight } = getCellDimensions({ cellSize, elongateAxis, elongateAmount });
     let cols: number;
     let rows: number;
     if (allowCropping) {
       if (cropDirection === 'width') {
-        cols = Math.ceil(canvasWidth / cellSize);
-        rows = Math.floor(canvasHeight / cellSize);
+        cols = Math.ceil(canvasWidth / cellWidth);
+        rows = Math.floor(canvasHeight / cellHeight);
       } else {
-        cols = Math.floor(canvasWidth / cellSize);
-        rows = Math.ceil(canvasHeight / cellSize);
+        cols = Math.floor(canvasWidth / cellWidth);
+        rows = Math.ceil(canvasHeight / cellHeight);
       }
     } else {
-      cols = Math.floor(canvasWidth / cellSize);
-      rows = Math.floor(canvasHeight / cellSize);
+      cols = Math.ceil(canvasWidth / cellWidth);
+      rows = Math.ceil(canvasHeight / cellHeight);
     }
-    return { cols, rows };
-  }, [canvasWidth, canvasHeight, cellSize, allowCropping, cropDirection]);
+    return { cols, rows, cellWidth, cellHeight };
+  }, [canvasWidth, canvasHeight, cellSize, allowCropping, cropDirection, elongateAxis, elongateAmount]);
 
   const displayForeground = invertColors ? backgroundColor : foregroundColor;
   const displayBackground = invertColors ? foregroundColor : backgroundColor;
@@ -366,6 +386,8 @@ export function useFragmentState() {
     heightInputError, setHeightInputError,
     allowCropping, setAllowCropping,
     cropDirection, setCropDirection,
+    elongateAxis, setElongateAxis,
+    elongateAmount, setElongateAmount,
     invertColors, setInvertColors,
     params, setParams,
     isCollapsed, setIsCollapsed,
@@ -395,6 +417,8 @@ export function useFragmentState() {
       canvasHeight: debouncedCanvasHeight,
       allowCropping: debouncedAllowCropping,
       cropDirection: debouncedCropDirection,
+      elongateAxis: debouncedElongateAxis,
+      elongateAmount: debouncedElongateAmount,
       animationEnabled: debouncedAnimationEnabled,
       animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,

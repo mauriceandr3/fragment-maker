@@ -1,5 +1,5 @@
 import React from "react";
-import { type FillType } from "@/implementation-files/generateFragmentSvg";
+import { type FillType, type ElongateAxis } from "@/implementation-files/generateFragmentSvg";
 import { DEFAULT_LOGO_CONFIG, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import { isValidFontWeight, type TextOverlayConfig, type TextOverlayEntry } from "@/implementation-files/textOverlay";
 import { vectorizeAllEntries } from "@/lib/textVectorizer";
@@ -25,7 +25,9 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setForegroundColor, setBackgroundColor, setCustomPreset,
     setCellSize, setCanvasWidth, setCanvasHeight,
     setWidthInputError, setHeightInputError,
-    setAllowCropping, setCropDirection, setInvertColors,
+    setAllowCropping, setCropDirection,
+    setElongateAxis, setElongateAmount,
+    setInvertColors,
     setParams,
     setAnimationEnabled,
     setAnimationDuration,
@@ -35,6 +37,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     clearUrlParams,
     foregroundColor, backgroundColor, cellSize,
     canvasWidth, canvasHeight, allowCropping, cropDirection,
+    elongateAxis, elongateAmount,
     params,
   } = state;
 
@@ -157,7 +160,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
     // Text config fields only included when respective state type is 'text'
     const exportData: Record<string, unknown> = {
-      version: '2.4.0',
+      version: '2.5.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -177,6 +180,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         canvasHeight,
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
+        ...(elongateAxis !== 'none' ? { elongateAxis, elongateAmount } : {}),
       },
     };
 
@@ -208,6 +212,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         canvasHeight,
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
+        ...(elongateAxis !== 'none' ? { elongateAxis, elongateAmount } : {}),
       };
     }
 
@@ -364,6 +369,16 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         setCellSize(newCellSize);
         setAllowCropping(finalAllowCropping);
         setCropDirection(newCropDirection);
+
+        // Elongation
+        const validAxes: ElongateAxis[] = ['none', 'width', 'height'];
+        const newElongateAxis: ElongateAxis = validAxes.includes(config.elongateAxis) ? config.elongateAxis : 'none';
+        const newElongateAmount = newElongateAxis !== 'none'
+          ? Math.round(clamp(config.elongateAmount, 2, 16, 2))
+          : 1;
+        setElongateAxis(newElongateAxis);
+        setElongateAmount(newElongateAmount);
+
         setForegroundColor(newForeground);
         setBackgroundColor(newBackground);
         setCustomPreset({ background: getColorRgb(newBackground), foreground: getColorRgb(newForeground) });

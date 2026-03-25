@@ -27,6 +27,8 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
     heightInputError, setHeightInputError,
     allowCropping, setAllowCropping,
     cropDirection, setCropDirection,
+    elongateAxis, setElongateAxis,
+    elongateAmount, setElongateAmount,
     validCellSizes,
     params, setParams,
   } = state;
@@ -143,6 +145,49 @@ export function CanvasSettingsPanel({ state }: CanvasSettingsPanelProps) {
           <p className="text-xs text-red-400 mt-2">
             No valid sizes for these dimensions. Change dimensions or enable Allow cropping.
           </p>
+        )}
+      </div>
+
+      {/* Cell Stretch */}
+      <div>
+        <label className="block text-sm text-white/60 mb-2">
+          Cell Stretch
+          {elongateAxis !== 'none' && (
+            <span className="ml-2 text-xs text-white/40">
+              {elongateAxis === 'width'
+                ? `${cellSize * elongateAmount}×${cellSize}px`
+                : `${cellSize}×${cellSize * elongateAmount}px`}
+            </span>
+          )}
+        </label>
+        <RadioSelector
+          options={[
+            { label: 'Off', value: 'none' },
+            { label: 'Width', value: 'width' },
+            { label: 'Height', value: 'height' },
+          ]}
+          value={elongateAxis}
+          onChange={(v) => {
+            setElongateAxis(v);
+            if (v === 'none') {
+              setElongateAmount(1);
+            } else if (elongateAmount < 2) {
+              setElongateAmount(2);
+            }
+          }}
+        />
+        {elongateAxis !== 'none' && (
+          <div className="mt-3">
+            <Slider
+              label="Multiplier"
+              value={elongateAmount}
+              min={2}
+              max={12}
+              step={1}
+              onChange={(v) => setElongateAmount(Math.round(v))}
+              unit="×"
+            />
+          </div>
         )}
       </div>
 

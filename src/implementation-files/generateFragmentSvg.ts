@@ -41,6 +41,7 @@ export type SeedableParam =
   | 'fillAmount';
 
 export type CropDirection = 'width' | 'height';
+export type ElongateAxis = 'none' | 'width' | 'height';
 
 export interface FragmentConfig {
   /** Density threshold for noise (0-1) */
@@ -79,6 +80,10 @@ export interface FragmentConfig {
   allowCropping?: boolean;
   /** Which axis to crop: 'width' crops rightmost column, 'height' crops bottom row */
   cropDirection?: CropDirection;
+  /** Which axis to stretch cells along ('none' = square cells) */
+  elongateAxis?: ElongateAxis;
+  /** Multiplier for cell stretch (e.g. 4 with width axis = cells are 4x wide) */
+  elongateAmount?: number;
 }
 
 export interface GenerateFragmentSvgOptions {
@@ -404,6 +409,10 @@ export function generateGrid(
 export interface GridToSvgOptions {
   allowCropping?: boolean;
   cropDirection?: CropDirection;
+  /** Effective cell width (may differ from cellSize when elongated) */
+  cellWidth?: number;
+  /** Effective cell height (may differ from cellSize when elongated) */
+  cellHeight?: number;
 }
 
 /**
@@ -422,10 +431,9 @@ export function gridToSvg(
 ): string {
   const outputWidth = width;
   const outputHeight = height;
-  const { allowCropping = false, cropDirection = 'height' } = options ?? {};
+  const cw = options?.cellWidth ?? cellSize;
+  const ch = options?.cellHeight ?? cellSize;
 
-  // viewBox is always the exact canvas dimensions (not grid * cellSize)
-  // This ensures the SVG output matches the user's specified dimensions
   const viewBoxWidth = outputWidth;
   const viewBoxHeight = outputHeight;
 
@@ -434,33 +442,18 @@ export function gridToSvg(
   // Background rect to fill the entire canvas
   svg += `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${backgroundColor}"/>`;
 
-  // Render cells - with cropping, the last row/column may be partial
+  // Render cells - entities at the edge are clipped to canvas bounds
   for (let y = 0; y < Math.min(rows, grid.length); y++) {
     for (let x = 0; x < Math.min(cols, grid[y]?.length || 0); x++) {
-      // Only render foreground cells (background is already filled)
       if (!grid[y][x]) continue;
 
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
+      // Clip to canvas bounds (handles partial entities at edges)
+      const rectWidth = Math.min(cw, outputWidth - x * cw);
+      const rectHeight = Math.min(ch, outputHeight - y * ch);
 
-      if (allowCropping) {
-        // Calculate partial cell dimensions at edges
-        if (cropDirection === 'width' && x === cols - 1) {
-          // Last column may be narrower
-          const remainingWidth = outputWidth - x * cellSize;
-          rectWidth = Math.min(cellSize, remainingWidth);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          // Last row may be shorter
-          const remainingHeight = outputHeight - y * cellSize;
-          rectHeight = Math.min(cellSize, remainingHeight);
-        }
-      }
-
-      // Skip cells that would be completely outside the canvas
       if (rectWidth <= 0 || rectHeight <= 0) continue;
 
-      svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
+      svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
     }
   }
 
@@ -477,6 +470,24 @@ interface Dimensions {
   rows: number;
   width: number;
   height: number;
+  cellWidth: number;
+  cellHeight: number;
+}
+
+/**
+ * Compute effective cell dimensions from base cellSize + elongation settings.
+ */
+export function getCellDimensions(config: {
+  cellSize: number;
+  elongateAxis?: ElongateAxis;
+  elongateAmount?: number;
+}): { cellWidth: number; cellHeight: number } {
+  const { cellSize, elongateAxis = 'none', elongateAmount = 1 } = config;
+  const amount = Math.max(1, Math.round(elongateAmount));
+  return {
+    cellWidth: elongateAxis === 'width' ? cellSize * amount : cellSize,
+    cellHeight: elongateAxis === 'height' ? cellSize * amount : cellSize,
+  };
 }
 
 function computeDimensions(config: {
@@ -485,34 +496,39 @@ function computeDimensions(config: {
   canvasHeight?: number;
   allowCropping?: boolean;
   cropDirection?: CropDirection;
+  elongateAxis?: ElongateAxis;
+  elongateAmount?: number;
 }): Dimensions {
   const {
-    cellSize,
     canvasWidth = 1056,
     canvasHeight = 1056,
     allowCropping = false,
     cropDirection = 'height',
   } = config;
 
+  const { cellWidth, cellHeight } = getCellDimensions(config);
+
   const width = canvasWidth;
   const height = canvasHeight;
 
+  // Grid cols/rows are at entity (elongated cell) level.
+  // Use ceil so entities at the edge can be partially visible (clipped by viewBox).
   let cols: number;
   let rows: number;
   if (allowCropping) {
     if (cropDirection === 'width') {
-      cols = Math.ceil(width / cellSize);
-      rows = Math.floor(height / cellSize);
+      cols = Math.ceil(width / cellWidth);
+      rows = Math.floor(height / cellHeight);
     } else {
-      cols = Math.floor(width / cellSize);
-      rows = Math.ceil(height / cellSize);
+      cols = Math.floor(width / cellWidth);
+      rows = Math.ceil(height / cellHeight);
     }
   } else {
-    cols = Math.floor(width / cellSize);
-    rows = Math.floor(height / cellSize);
+    cols = Math.ceil(width / cellWidth);
+    rows = Math.ceil(height / cellHeight);
   }
 
-  return { cols, rows, width, height };
+  return { cols, rows, width, height, cellWidth, cellHeight };
 }
 
 function applySeededParam(
@@ -565,7 +581,7 @@ function renderConfigToSvg(params: RenderParams): string {
   return gridToSvg(
     grid, dims.cols, dims.rows, config.cellSize, dims.width,
     config.foregroundColor, config.backgroundColor, dims.height,
-    { allowCropping: config.allowCropping, cropDirection: config.cropDirection }
+    { cellWidth: dims.cellWidth, cellHeight: dims.cellHeight }
   );
 }
 
@@ -608,6 +624,50 @@ export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string
 }
 
 /**
+ * @internal Shared helper for building diff SVGs from two grids.
+ */
+function buildDiffSvg(
+  gridA: boolean[][],
+  gridB: boolean[][],
+  cols: number,
+  rows: number,
+  cw: number,
+  ch: number,
+  width: number,
+  height: number,
+  foregroundColor: string,
+  backgroundColor: string,
+): string {
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
+
+  for (let y = 0; y < Math.min(rows, gridA.length, gridB.length); y++) {
+    for (let x = 0; x < Math.min(cols, gridA[y]?.length || 0, gridB[y]?.length || 0); x++) {
+      const inA = gridA[y][x];
+      const inB = gridB[y][x];
+      if (!inA && !inB) continue;
+
+      const rectWidth = Math.min(cw, width - x * cw);
+      const rectHeight = Math.min(ch, height - y * ch);
+      if (rectWidth <= 0 || rectHeight <= 0) continue;
+
+      const pos = `x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
+
+      if (inA && inB) {
+        svg += `<rect ${pos}/>`;
+      } else if (inA) {
+        svg += `<rect ${pos} data-g="a"/>`;
+      } else {
+        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
+      }
+    }
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+/**
  * Generates a single diff SVG from two seed strings.
  * Cells shared by both patterns are static. Cells unique to pattern A get data-g="a" (visible, animate off).
  * Cells unique to pattern B get data-g="b" (hidden, animate on).
@@ -627,45 +687,10 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
   const gridA = gridFromConfig(configA, dims);
   const gridB = gridFromConfig(configB, dims);
 
-  const { cols, rows, width, height } = dims;
-  const { cellSize, foregroundColor, backgroundColor, allowCropping = false, cropDirection = 'height' } = rest;
+  const { cols, rows, width, height, cellWidth, cellHeight } = dims;
+  const { foregroundColor, backgroundColor } = rest;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
-  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
-
-  for (let y = 0; y < Math.min(rows, gridA.length); y++) {
-    for (let x = 0; x < Math.min(cols, gridA[y]?.length || 0); x++) {
-      const inA = gridA[y][x];
-      const inB = gridB[y][x];
-      if (!inA && !inB) continue;
-
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
-
-      if (allowCropping) {
-        if (cropDirection === 'width' && x === cols - 1) {
-          rectWidth = Math.min(cellSize, width - x * cellSize);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          rectHeight = Math.min(cellSize, height - y * cellSize);
-        }
-      }
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
-      if (inA && inB) {
-        svg += `<rect ${pos}/>`;
-      } else if (inA) {
-        svg += `<rect ${pos} data-g="a"/>`;
-      } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
-      }
-    }
-  }
-
-  svg += '</svg>';
-  return svg;
+  return buildDiffSvg(gridA, gridB, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor);
 }
 
 /**
@@ -695,6 +720,10 @@ export interface GenerateDiffFromGridsOptions {
   allowCropping?: boolean;
   /** Which axis to crop */
   cropDirection?: CropDirection;
+  /** Effective cell width (may differ from cellSize when elongated) */
+  cellWidth?: number;
+  /** Effective cell height (may differ from cellSize when elongated) */
+  cellHeight?: number;
 }
 
 /**
@@ -705,56 +734,11 @@ export interface GenerateDiffFromGridsOptions {
  * Cells unique to To get data-g="b" (hidden, animate on).
  */
 export function generateDiffFromGrids(options: GenerateDiffFromGridsOptions): string {
-  const {
-    gridFrom,
-    gridTo,
-    cols,
-    rows,
-    cellSize,
-    width,
-    height,
-    foregroundColor,
-    backgroundColor,
-    allowCropping = false,
-    cropDirection = 'height',
-  } = options;
+  const { gridFrom, gridTo, cols, rows, width, height, foregroundColor, backgroundColor } = options;
+  const cw = options.cellWidth ?? options.cellSize;
+  const ch = options.cellHeight ?? options.cellSize;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
-  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
-
-  for (let y = 0; y < Math.min(rows, gridFrom.length, gridTo.length); y++) {
-    for (let x = 0; x < Math.min(cols, gridFrom[y]?.length || 0, gridTo[y]?.length || 0); x++) {
-      const inFrom = gridFrom[y][x];
-      const inTo = gridTo[y][x];
-      if (!inFrom && !inTo) continue;
-
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
-
-      if (allowCropping) {
-        if (cropDirection === 'width' && x === cols - 1) {
-          rectWidth = Math.min(cellSize, width - x * cellSize);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          rectHeight = Math.min(cellSize, height - y * cellSize);
-        }
-      }
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
-      if (inFrom && inTo) {
-        svg += `<rect ${pos}/>`;
-      } else if (inFrom) {
-        svg += `<rect ${pos} data-g="a"/>`;
-      } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
-      }
-    }
-  }
-
-  svg += '</svg>';
-  return svg;
+  return buildDiffSvg(gridFrom, gridTo, cols, rows, cw, ch, width, height, foregroundColor, backgroundColor);
 }
 
 /**
@@ -785,45 +769,10 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
   const gridFrom = gridFromConfig(fromConfig, dims);
   const gridTo = gridFromConfig(toConfig, dims);
 
-  const { cols, rows, width, height } = dims;
-  const { cellSize, foregroundColor, backgroundColor, allowCropping = false, cropDirection = 'height' } = fromConfig;
+  const { cols, rows, width, height, cellWidth, cellHeight } = dims;
+  const { foregroundColor, backgroundColor } = fromConfig;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
-  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
-
-  for (let y = 0; y < Math.min(rows, gridFrom.length); y++) {
-    for (let x = 0; x < Math.min(cols, gridFrom[y]?.length || 0); x++) {
-      const inFrom = gridFrom[y][x];
-      const inTo = gridTo[y][x];
-      if (!inFrom && !inTo) continue;
-
-      let rectWidth = cellSize;
-      let rectHeight = cellSize;
-
-      if (allowCropping) {
-        if (cropDirection === 'width' && x === cols - 1) {
-          rectWidth = Math.min(cellSize, width - x * cellSize);
-        }
-        if (cropDirection === 'height' && y === rows - 1) {
-          rectHeight = Math.min(cellSize, height - y * cellSize);
-        }
-      }
-      if (rectWidth <= 0 || rectHeight <= 0) continue;
-
-      const pos = `x="${x * cellSize}" y="${y * cellSize}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
-      if (inFrom && inTo) {
-        svg += `<rect ${pos}/>`;
-      } else if (inFrom) {
-        svg += `<rect ${pos} data-g="a"/>`;
-      } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
-      }
-    }
-  }
-
-  svg += '</svg>';
-  return svg;
+  return buildDiffSvg(gridFrom, gridTo, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor);
 }
 
 // ============================================================================
@@ -904,7 +853,7 @@ export function generateSvgFromExport(
       config.cellSize, dims.width,
       config.foregroundColor, config.backgroundColor,
       dims.height,
-      { allowCropping: config.allowCropping, cropDirection: config.cropDirection }
+      { cellWidth: dims.cellWidth, cellHeight: dims.cellHeight }
     );
   } else {
     svg = generateFragmentSvg({ config, seed: options?.seed });
@@ -1002,8 +951,8 @@ export function generateDiffSvgFromExport(
     height: dims.height,
     foregroundColor: config.foregroundColor,
     backgroundColor: config.backgroundColor,
-    allowCropping: config.allowCropping,
-    cropDirection: config.cropDirection,
+    cellWidth: dims.cellWidth,
+    cellHeight: dims.cellHeight,
   });
 
   return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);

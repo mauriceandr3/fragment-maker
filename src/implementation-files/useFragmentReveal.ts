@@ -29,7 +29,8 @@ interface AnimState {
 function createConnectionPath(
   fromCell: CellPosition,
   toCell: CellPosition,
-  cellSize: number,
+  cellWidth: number,
+  cellHeight: number,
   svg: SVGSVGElement
 ): CellPosition[] {
   const path: CellPosition[] = [];
@@ -44,12 +45,11 @@ function createConnectionPath(
   let err = dx - dy;
 
   while (x0 !== x1 || y0 !== y1) {
-    // Create temporary rect for connection
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(x0 * cellSize));
-    rect.setAttribute('y', String(y0 * cellSize));
-    rect.setAttribute('width', String(cellSize));
-    rect.setAttribute('height', String(cellSize));
+    rect.setAttribute('x', String(x0 * cellWidth));
+    rect.setAttribute('y', String(y0 * cellHeight));
+    rect.setAttribute('width', String(cellWidth));
+    rect.setAttribute('height', String(cellHeight));
     rect.setAttribute('fill', 'currentColor');
     rect.setAttribute('opacity', '0');
     rect.setAttribute('data-connection', 'true');
@@ -225,18 +225,19 @@ export function useFragmentReveal(
 
     if (aRects.length === 0 && bRects.length === 0) return false;
 
-    // 2. Extract positions (determine cellSize from first rect)
+    // 2. Extract positions (determine cell dimensions from first rect)
     const firstRect = aRects[0] || bRects[0] || sharedRects[0];
     if (!firstRect) return false;
 
-    const cellSize = parseInt(firstRect.getAttribute('width') || '1');
+    const cellWidth = parseInt(firstRect.getAttribute('width') || '1');
+    const cellHeight = parseInt(firstRect.getAttribute('height') || '1');
     const viewBox = svg.getAttribute('viewBox')?.split(' ') || [];
-    const gridCols = Math.round(parseInt(viewBox[2] || '1056') / cellSize);
-    const gridRows = Math.round(parseInt(viewBox[3] || '1056') / cellSize);
+    const gridCols = Math.round(parseInt(viewBox[2] || '1056') / cellWidth);
+    const gridRows = Math.round(parseInt(viewBox[3] || '1056') / cellHeight);
 
-    const aCells = extractCellPositions(aRects, cellSize);
-    const bCells = extractCellPositions(bRects, cellSize);
-    const sharedCells = extractCellPositions(sharedRects, cellSize);
+    const aCells = extractCellPositions(aRects, cellWidth, cellHeight);
+    const bCells = extractCellPositions(bRects, cellWidth, cellHeight);
+    const sharedCells = extractCellPositions(sharedRects, cellWidth, cellHeight);
 
     // 3. Determine seed points
     let seedCells = sharedCells;
@@ -258,7 +259,7 @@ export function useFragmentReveal(
       });
 
       if (nearestA && nearestB) {
-        s.connectionPath = createConnectionPath(nearestA, nearestB, cellSize, svg);
+        s.connectionPath = createConnectionPath(nearestA, nearestB, cellWidth, cellHeight, svg);
         seedCells = [nearestA, nearestB]; // Use both endpoints as seeds
       }
     }

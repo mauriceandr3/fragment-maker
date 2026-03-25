@@ -23,6 +23,8 @@ export function useFragmentGeneration(state: FragmentState) {
     canvasHeight,
     allowCropping,
     cropDirection,
+    elongateAxis,
+    elongateAmount,
     gridDimensions,
     viewMode,
     debounced,
@@ -83,7 +85,7 @@ export function useFragmentGeneration(state: FragmentState) {
         displayForeground,
         displayBackground,
         canvasHeight,
-        { allowCropping, cropDirection }
+        { cellWidth: gridDimensions.cellWidth, cellHeight: gridDimensions.cellHeight }
       );
     }
 
@@ -106,9 +108,11 @@ export function useFragmentGeneration(state: FragmentState) {
       canvasHeight,
       allowCropping,
       cropDirection,
+      elongateAxis,
+      elongateAmount,
     };
     return generateFragmentSvgDirect(config);
-  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection, gridDimensions, fromStateType, fromTextConfig]);
+  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection, elongateAxis, elongateAmount, gridDimensions, fromStateType, fromTextConfig]);
 
   // Generate diff SVG for animation preview
   // Supports all four combinations: Pattern↔Pattern, Pattern↔Text, Text↔Pattern, Text↔Text
@@ -131,6 +135,8 @@ export function useFragmentGeneration(state: FragmentState) {
         canvasHeight: debounced.canvasHeight,
         allowCropping: debounced.allowCropping,
         cropDirection: debounced.cropDirection,
+        elongateAxis: debounced.elongateAxis,
+        elongateAmount: debounced.elongateAmount,
       };
 
       const fromConfig = {
@@ -206,8 +212,8 @@ export function useFragmentGeneration(state: FragmentState) {
       height: debounced.canvasHeight,
       foregroundColor: displayForeground,
       backgroundColor: displayBackground,
-      allowCropping: debounced.allowCropping,
-      cropDirection: debounced.cropDirection,
+      cellWidth: gridDimensions.cellWidth,
+      cellHeight: gridDimensions.cellHeight,
     });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
@@ -231,7 +237,7 @@ export function useFragmentGeneration(state: FragmentState) {
         displayForeground,
         displayBackground,
         debounced.canvasHeight,
-        { allowCropping: debounced.allowCropping, cropDirection: debounced.cropDirection }
+        { cellWidth: gridDimensions.cellWidth, cellHeight: gridDimensions.cellHeight }
       );
     }
 
@@ -253,6 +259,8 @@ export function useFragmentGeneration(state: FragmentState) {
       canvasHeight: debounced.canvasHeight,
       allowCropping: debounced.allowCropping,
       cropDirection: debounced.cropDirection,
+      elongateAxis: debounced.elongateAxis,
+      elongateAmount: debounced.elongateAmount,
     });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
@@ -276,6 +284,8 @@ export function useFragmentGeneration(state: FragmentState) {
       canvasHeight: debounced.canvasHeight,
       allowCropping: debounced.allowCropping,
       cropDirection: debounced.cropDirection,
+      elongateAxis: debounced.elongateAxis,
+      elongateAmount: debounced.elongateAmount,
     };
     return generateGridVariations(baseConfig, 'frequency', 20);
   }, [debounced]);
