@@ -1,4 +1,4 @@
-import { type FillType } from '../implementation-files/generateFragmentSvg';
+import { type FillType, type ElongateAxis } from '../implementation-files/generateFragmentSvg';
 import type { TextConfig } from '../implementation-files/generateTextGrid';
 import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
 import type { LogoConfig } from '../app/components/fragment/types';
@@ -47,6 +47,8 @@ export interface UrlSerializableState {
   cellSize: number;
   allowCropping: boolean;
   cropDirection: 'width' | 'height';
+  elongateAxis: ElongateAxis;
+  elongateAmount: number;
   presetOrCustomMode?: 'presets' | 'custom';
   foregroundColor: string;
   backgroundColor: string;
@@ -86,6 +88,8 @@ const PARAM_KEYS = {
   cellSize: 'cs',
   allowCropping: 'cr',
   cropDirection: 'cd',
+  elongateAxis: 'ea',
+  elongateAmount: 'em',
   foregroundColor: 'fg',
   backgroundColor: 'bg',
   invertColors: 'ic',
@@ -160,6 +164,8 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   cellSize: DEFAULT_CELL_SIZE,
   allowCropping: false,
   cropDirection: 'height',
+  elongateAxis: 'none',
+  elongateAmount: 1,
   foregroundColor: '#FCFCFC',
   backgroundColor: '#000000',
   invertColors: false,
@@ -209,6 +215,10 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   addIfChanged(PARAM_KEYS.invertFill, state.invertFill ? '1' : '0', DEFAULTS.invertFill ? '1' : '0');
   addIfChanged(PARAM_KEYS.allowCropping, state.allowCropping ? '1' : '0', DEFAULTS.allowCropping ? '1' : '0');
   addIfChanged(PARAM_KEYS.invertColors, state.invertColors ? '1' : '0', DEFAULTS.invertColors ? '1' : '0');
+
+  // Elongation
+  addIfChanged(PARAM_KEYS.elongateAxis, state.elongateAxis, DEFAULTS.elongateAxis);
+  addIfChanged(PARAM_KEYS.elongateAmount, String(state.elongateAmount), String(DEFAULTS.elongateAmount));
 
   // Colors: strip '#'
   addIfChanged(PARAM_KEYS.foregroundColor, state.foregroundColor.replace('#', ''), DEFAULTS.foregroundColor.replace('#', ''));
@@ -362,6 +372,14 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   if (cd === 'width' || cd === 'height') {
     result.cropDirection = cd;
   }
+
+  // Elongation
+  const ea = sp.get(PARAM_KEYS.elongateAxis);
+  if (ea === 'none' || ea === 'width' || ea === 'height') {
+    result.elongateAxis = ea;
+  }
+  const em = clampNum(sp.get(PARAM_KEYS.elongateAmount), 1, 16);
+  if (em !== undefined) result.elongateAmount = Math.round(em);
 
   const presetOrCustomMode = sp.get('pcm');
   if (presetOrCustomMode === 'presets' || presetOrCustomMode === 'custom') {

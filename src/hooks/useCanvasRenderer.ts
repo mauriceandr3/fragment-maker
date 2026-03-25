@@ -4,7 +4,7 @@ import { isTransparent } from "@/lib/colorUtils";
 export function useCanvasRenderer(options: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   grid: boolean[][];
-  gridDimensions: { cols: number; rows: number };
+  gridDimensions: { cols: number; rows: number; cellWidth: number; cellHeight: number };
   displayForeground: string;
   displayBackground: string;
   scale: number;
@@ -31,9 +31,9 @@ export function useCanvasRenderer(options: {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { cols, rows } = gridDimensions;
-    const fractionalCellWidth = cellSize * scale;
-    const fractionalCellHeight = cellSize * scale;
+    const { cols, rows, cellWidth, cellHeight } = gridDimensions;
+    const fractionalCellWidth = cellWidth * scale;
+    const fractionalCellHeight = cellHeight * scale;
 
     const scaledCanvasWidth = Math.round(canvasWidth * scale);
     const scaledCanvasHeight = Math.round(canvasHeight * scale);
@@ -68,17 +68,9 @@ export function useCanvasRenderer(options: {
 
         const cellX = Math.round(x * fractionalCellWidth);
         const nextCellX = Math.round((x + 1) * fractionalCellWidth);
-        let rectWidth = nextCellX - cellX;
-        let rectHeight = nextCellY - cellY;
-
-        if (allowCropping) {
-          if (cropDirection === 'width' && x === cols - 1) {
-            rectWidth = Math.min(rectWidth, scaledCanvasWidth - cellX);
-          }
-          if (cropDirection === 'height' && y === rows - 1) {
-            rectHeight = Math.min(rectHeight, scaledCanvasHeight - cellY);
-          }
-        }
+        // Clip to canvas bounds (handles both cropping and partial elongated entities)
+        const rectWidth = Math.min(nextCellX - cellX, scaledCanvasWidth - cellX);
+        const rectHeight = Math.min(nextCellY - cellY, scaledCanvasHeight - cellY);
 
         if (rectWidth <= 0 || rectHeight <= 0) continue;
 

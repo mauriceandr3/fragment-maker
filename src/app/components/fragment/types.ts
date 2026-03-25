@@ -1,4 +1,6 @@
-import { type FillType } from "@/implementation-files/generateFragmentSvg";
+import { type FillType, type ElongateAxis } from "@/implementation-files/generateFragmentSvg";
+
+export type { ElongateAxis };
 
 export type {
   TextOverlayEntry,

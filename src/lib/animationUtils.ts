@@ -12,11 +12,14 @@ export interface CellWithDistance extends CellPosition {
 // Extract grid position from SVG rect
 export function extractCellPositions(
   rects: SVGRectElement[],
-  cellSize: number
+  cellWidth: number,
+  cellHeight?: number
 ): CellPosition[] {
+  const cw = cellWidth;
+  const ch = cellHeight ?? cellWidth;
   return rects.map(rect => ({
-    x: Math.round(parseInt(rect.getAttribute('x') || '0') / cellSize),
-    y: Math.round(parseInt(rect.getAttribute('y') || '0') / cellSize),
+    x: Math.round(parseInt(rect.getAttribute('x') || '0') / cw),
+    y: Math.round(parseInt(rect.getAttribute('y') || '0') / ch),
     rectElement: rect
   }));
 }
