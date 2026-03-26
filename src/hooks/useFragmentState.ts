@@ -9,7 +9,7 @@ import {
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
 import { type GeneratorParams, type StateType, type LogoConfig, DEFAULT_LOGO_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
-import type { CropDirection, ElongateAxis } from "@/implementation-files/generateFragmentSvg";
+import type { CropDirection, ElongateAxis, ColorMode } from "@/implementation-files/generateFragmentSvg";
 import { getCellDimensions } from "@/implementation-files/generateFragmentSvg";
 
 // Default text configuration
@@ -86,6 +86,11 @@ export function useFragmentState() {
     setHeightInputValue(String(canvasHeight));
     setHeightInputError(null);
   }, [canvasHeight]);
+
+  // Multi-color state
+  const [colorMode, setColorMode] = useState<ColorMode>(initialUrlState.colorMode ?? 'mono');
+  const [multiColors, setMultiColors] = useState<string[]>(initialUrlState.multiColors ?? ['#FCFCFC', '#C2A3FF']);
+  const [colorProportions, setColorProportions] = useState<number[]>(initialUrlState.colorProportions ?? [0.5, 0.5]);
 
   const [invertColors, setInvertColors] = useState(initialUrlState.invertColors ?? false);
   const [params, setParams] = useState<GeneratorParams>({
@@ -171,6 +176,9 @@ export function useFragmentState() {
   const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoConfig>(logoConfig);
   const [debouncedPresetOrCustomMode, setDebouncedPresetOrCustomMode] = useState<'presets' | 'custom'>(presetOrCustomMode);
   const [debouncedTextOverlayConfig, setDebouncedTextOverlayConfig] = useState<TextOverlayConfig>(textOverlayConfig);
+  const [debouncedColorMode, setDebouncedColorMode] = useState<ColorMode>(colorMode);
+  const [debouncedMultiColors, setDebouncedMultiColors] = useState<string[]>(multiColors);
+  const [debouncedColorProportions, setDebouncedColorProportions] = useState<number[]>(colorProportions);
 
   // Debounce effects
   useEffect(() => {
@@ -287,6 +295,15 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [textOverlayConfig]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedColorMode(colorMode);
+      setDebouncedMultiColors(multiColors);
+      setDebouncedColorProportions(colorProportions);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [colorMode, multiColors, colorProportions]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -311,6 +328,9 @@ export function useFragmentState() {
       foregroundColor: debouncedForeground,
       backgroundColor: debouncedBackground,
       invertColors: debouncedInvertColors,
+      colorMode: debouncedColorMode,
+      multiColors: debouncedMultiColors,
+      colorProportions: debouncedColorProportions,
       animationEnabled: debouncedAnimationEnabled,
       animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,
@@ -336,6 +356,9 @@ export function useFragmentState() {
     debouncedForeground,
     debouncedBackground,
     debouncedInvertColors,
+    debouncedColorMode,
+    debouncedMultiColors,
+    debouncedColorProportions,
     debouncedAnimationEnabled,
     debouncedAnimationDuration,
     debouncedToParams,
@@ -408,6 +431,9 @@ export function useFragmentState() {
     elongateAxis, setElongateAxis,
     elongateAmount, setElongateAmount,
     invertColors, setInvertColors,
+    colorMode, setColorMode,
+    multiColors, setMultiColors,
+    colorProportions, setColorProportions,
     params, setParams,
     isCollapsed, setIsCollapsed,
     viewMode, setViewMode,
@@ -432,6 +458,9 @@ export function useFragmentState() {
       background: debouncedBackground,
       cellSize: debouncedCellSize,
       invertColors: debouncedInvertColors,
+      colorMode: debouncedColorMode,
+      multiColors: debouncedMultiColors,
+      colorProportions: debouncedColorProportions,
       canvasWidth: debouncedCanvasWidth,
       canvasHeight: debouncedCanvasHeight,
       allowCropping: debouncedAllowCropping,

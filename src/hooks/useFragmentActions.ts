@@ -28,6 +28,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAllowCropping, setCropDirection,
     setElongateAxis, setElongateAmount,
     setInvertColors,
+    setColorMode, setMultiColors, setColorProportions,
     setParams,
     setAnimationEnabled,
     setAnimationDuration,
@@ -38,6 +39,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     foregroundColor, backgroundColor, cellSize,
     canvasWidth, canvasHeight, allowCropping, cropDirection,
     elongateAxis, elongateAmount,
+    colorMode, multiColors, colorProportions,
     params,
   } = state;
 
@@ -181,6 +183,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
         ...(elongateAxis !== 'none' ? { elongateAxis, elongateAmount } : {}),
+        ...(colorMode !== 'mono' ? { colorMode, colors: multiColors, colorProportions } : {}),
       },
     };
 
@@ -213,6 +216,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
         ...(elongateAxis !== 'none' ? { elongateAxis, elongateAmount } : {}),
+        ...(colorMode !== 'mono' ? { colorMode, colors: multiColors, colorProportions } : {}),
       };
     }
 
@@ -382,6 +386,22 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         setForegroundColor(newForeground);
         setBackgroundColor(newBackground);
         setCustomPreset({ background: getColorRgb(newBackground), foreground: getColorRgb(newForeground) });
+
+        // Multi-color
+        const validColorModes = ['mono', 'duo', 'tri'] as const;
+        const newColorMode = validColorModes.includes(config.colorMode) ? config.colorMode : 'mono';
+        setColorMode(newColorMode);
+        if (newColorMode !== 'mono' && Array.isArray(config.colors)) {
+          const validColors = config.colors.filter((c: unknown) => typeof c === 'string' && hexRegex.test(c as string));
+          if (validColors.length >= 2) setMultiColors(validColors);
+          if (Array.isArray(config.colorProportions)) {
+            const props = config.colorProportions.filter((p: unknown) => typeof p === 'number' && !isNaN(p as number));
+            if (props.length >= 2) {
+              const total = props.reduce((a: number, b: number) => a + b, 0);
+              setColorProportions(props.map((p: number) => p / total));
+            }
+          }
+        }
 
         setParams((prev) => ({
           ...prev,

@@ -700,6 +700,7 @@ export type SeedableParam =
 
 export type CropDirection = 'width' | 'height';
 export type ElongateAxis = 'none' | 'width' | 'height';
+export type ColorMode = 'mono' | 'duo' | 'tri';
 
 export interface FragmentConfig {
   /** Density threshold for noise (0-1) */
@@ -742,6 +743,12 @@ export interface FragmentConfig {
   elongateAxis?: ElongateAxis;
   /** Multiplier for cell stretch (e.g. 4 with width axis = cells are 4x wide) */
   elongateAmount?: number;
+  /** Color mode: mono (single foreground), duo (2 colors), tri (3 colors). Defaults to 'mono'. */
+  colorMode?: ColorMode;
+  /** Array of foreground colors (1-3 hex strings). Used when colorMode is 'duo' or 'tri'. */
+  colors?: string[];
+  /** Proportions for each color (0-1 values summing to 1). Length matches colors array. */
+  colorProportions?: number[];
 }
 
 export interface GenerateFragmentSvgOptions {
@@ -1012,6 +1019,74 @@ function applyDirectionalNeighbors(
   }
 }
 
+// Multi-Color Assignment
+
+/**
+ * Assigns a color index to each filled cell in the grid based on proportions.
+ * Uses seeded randomness so the same seed always produces the same assignment.
+ * Returns null for mono mode (no assignment needed).
+ */
+export function assignCellColors(
+  grid: boolean[][],
+  seed: number,
+  colorMode: ColorMode,
+  proportions: number[],
+): number[][] | null {
+  if (colorMode === 'mono') return null;
+
+  const rows = grid.length;
+  const cols = grid[0]?.length || 0;
+
+  // Collect all filled cell coordinates
+  const filledCells: { x: number; y: number }[] = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (grid[y][x]) filledCells.push({ x, y });
+    }
+  }
+
+  // Fisher-Yates shuffle using seeded random
+  for (let i = filledCells.length - 1; i > 0; i--) {
+    const r = seededRandom(seed, i, 9999);
+    const j = Math.floor(r * (i + 1));
+    [filledCells[i], filledCells[j]] = [filledCells[j], filledCells[i]];
+  }
+
+  // Initialize result grid with -1 (unfilled)
+  const result: number[][] = Array.from({ length: rows }, () => Array(cols).fill(-1));
+
+  // Assign colors based on proportions
+  const total = filledCells.length;
+  let assigned = 0;
+  for (let colorIdx = 0; colorIdx < proportions.length; colorIdx++) {
+    const count = colorIdx === proportions.length - 1
+      ? total - assigned  // Last color gets remainder to avoid rounding gaps
+      : Math.round(proportions[colorIdx] * total);
+    for (let i = 0; i < count && assigned < total; i++, assigned++) {
+      const cell = filledCells[assigned];
+      result[cell.y][cell.x] = colorIdx;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Resolves the fill color for a cell given multi-color state.
+ * Returns foregroundColor for mono mode, or the assigned color from the colors array.
+ */
+function getCellColor(
+  colorAssignments: number[][] | null,
+  colors: string[] | undefined,
+  foregroundColor: string,
+  x: number,
+  y: number,
+): string {
+  if (!colorAssignments || !colors) return foregroundColor;
+  const idx = colorAssignments[y]?.[x] ?? 0;
+  return colors[idx] ?? foregroundColor;
+}
+
 // Exported Internal Functions (for tool use)
 
 /**
@@ -1104,6 +1179,10 @@ export interface GridToSvgOptions {
   cellWidth?: number;
   /** Effective cell height (may differ from cellSize when elongated) */
   cellHeight?: number;
+  /** Per-cell color assignments (from assignCellColors). null for mono mode. */
+  colorAssignments?: number[][] | null;
+  /** Array of foreground colors for multi-color mode. */
+  colors?: string[];
 }
 
 /**
@@ -1124,6 +1203,8 @@ export function gridToSvg(
   const outputHeight = height;
   const cw = options?.cellWidth ?? cellSize;
   const ch = options?.cellHeight ?? cellSize;
+  const colorAssignments = options?.colorAssignments;
+  const colors = options?.colors;
 
   const viewBoxWidth = outputWidth;
   const viewBoxHeight = outputHeight;
@@ -1144,7 +1225,8 @@ export function gridToSvg(
 
       if (rectWidth <= 0 || rectHeight <= 0) continue;
 
-      svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"/>`;
+      const fill = getCellColor(colorAssignments ?? null, colors, foregroundColor, x, y);
+      svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}"/>`;
     }
   }
 
@@ -1292,11 +1374,21 @@ function renderConfigToSvg(params: RenderParams): string {
   }
 
   const grid = gridFromConfig(config, dims);
+  const colorMode = config.colorMode ?? 'mono';
+  const colorAssignments = assignCellColors(
+    grid, config.seed,
+    colorMode,
+    config.colorProportions ?? [1],
+  );
 
   return gridToSvg(
     grid, dims.cols, dims.rows, config.cellSize, dims.width,
     config.foregroundColor, config.backgroundColor, dims.height,
-    { cellWidth: dims.cellWidth, cellHeight: dims.cellHeight }
+    {
+      cellWidth: dims.cellWidth, cellHeight: dims.cellHeight,
+      colorAssignments,
+      colors: config.colors,
+    }
   );
 }
 
@@ -1339,6 +1431,12 @@ export function generateFragmentSvg(options: GenerateFragmentSvgOptions): string
 /**
  * @internal Shared helper for building diff SVGs from two grids.
  */
+interface DiffColorOptions {
+  colorAssignmentsA?: number[][] | null;
+  colorAssignmentsB?: number[][] | null;
+  colors?: string[];
+}
+
 function buildDiffSvg(
   gridA: boolean[][],
   gridB: boolean[][],
@@ -1350,6 +1448,7 @@ function buildDiffSvg(
   height: number,
   foregroundColor: string,
   backgroundColor: string,
+  colorOpts?: DiffColorOptions,
 ): string {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
   svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
@@ -1364,14 +1463,16 @@ function buildDiffSvg(
       const rectHeight = Math.min(ch, height - y * ch);
       if (rectWidth <= 0 || rectHeight <= 0) continue;
 
-      const pos = `x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${foregroundColor}"`;
-
       if (inA && inB) {
-        svg += `<rect ${pos}/>`;
+        // Shared cell: use "to" state color (instant adopt)
+        const fill = getCellColor(colorOpts?.colorAssignmentsB ?? null, colorOpts?.colors, foregroundColor, x, y);
+        svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}"/>`;
       } else if (inA) {
-        svg += `<rect ${pos} data-g="a"/>`;
+        const fill = getCellColor(colorOpts?.colorAssignmentsA ?? null, colorOpts?.colors, foregroundColor, x, y);
+        svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}" data-g="a"/>`;
       } else {
-        svg += `<rect ${pos} data-g="b" style="opacity:0"/>`;
+        const fill = getCellColor(colorOpts?.colorAssignmentsB ?? null, colorOpts?.colors, foregroundColor, x, y);
+        svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}" data-g="b" style="opacity:0"/>`;
       }
     }
   }
@@ -1396,6 +1497,12 @@ export interface MixedCellDiffOptions {
   backgroundColor: string;
   /** true = pattern is "from" (visible, animates out), text is "to" */
   patternIsFrom: boolean;
+  /** Multi-color: per-cell color assignments for entity grid (at entity level) */
+  entityColorAssignments?: number[][] | null;
+  /** Multi-color: per-cell color assignments for text grid (at base level) */
+  textColorAssignments?: number[][] | null;
+  /** Multi-color: array of foreground colors */
+  colors?: string[];
 }
 
 /**
@@ -1407,7 +1514,8 @@ export interface MixedCellDiffOptions {
 export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
   const { entityGrid, textGrid, elongateAxis, elongateAmount,
           baseCols, baseRows, cellSize, width, height,
-          foregroundColor, backgroundColor, patternIsFrom } = opts;
+          foregroundColor, backgroundColor, patternIsFrom,
+          entityColorAssignments, textColorAssignments, colors } = opts;
 
   const stretchX = elongateAxis === 'width' ? elongateAmount : 1;
   const stretchY = elongateAxis === 'height' ? elongateAmount : 1;
@@ -1417,6 +1525,11 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
   const pTag = patternIsFrom ? ' data-g="a"' : ' data-g="b" style="opacity:0"';
   const tTag = patternIsFrom ? ' data-g="b" style="opacity:0"' : ' data-g="a"';
 
+  // Multi-color helpers: entity-level color for pattern cells, base-level for text cells
+  const entityFill = (ex: number, ey: number) =>
+    getCellColor(entityColorAssignments ?? null, colors, foregroundColor, ex, ey);
+  const textFill = (bx: number, by: number) =>
+    getCellColor(textColorAssignments ?? null, colors, foregroundColor, bx, by);
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
   svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
 
@@ -1429,6 +1542,7 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
     for (let ex = 0; ex < entityCols; ex++) {
       if (!entityGrid[ey][ex]) continue;
 
+      const eFill = entityFill(ex, ey);
       const baseXStart = ex * stretchX;
       const baseYStart = ey * stretchY;
       const baseXEnd = Math.min(baseXStart + stretchX, baseCols);
@@ -1450,7 +1564,7 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
                 const rw = Math.min((bx - runStart) * cellSize, width - runStart * cellSize);
                 const rh = Math.min(cellSize, height - by * cellSize);
                 if (rw > 0 && rh > 0) {
-                  svg += `<rect x="${runStart * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"${pTag}/>`;
+                  svg += `<rect x="${runStart * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${eFill}"${pTag}/>`;
                 }
                 for (let i = runStart; i < bx; i++) emitted.add(key(i, by));
                 runStart = -1;
@@ -1460,7 +1574,8 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
                 const rw = Math.min(cellSize, width - bx * cellSize);
                 const rh = Math.min(cellSize, height - by * cellSize);
                 if (rw > 0 && rh > 0) {
-                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"/>`;
+                  const sf = patternIsFrom ? textFill(bx, by) : eFill;
+                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${sf}"/>`;
                 }
                 emitted.add(key(bx, by));
               }
@@ -1482,7 +1597,7 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
                 const rw = Math.min(cellSize, width - bx * cellSize);
                 const rh = Math.min((by - runStart) * cellSize, height - runStart * cellSize);
                 if (rw > 0 && rh > 0) {
-                  svg += `<rect x="${bx * cellSize}" y="${runStart * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"${pTag}/>`;
+                  svg += `<rect x="${bx * cellSize}" y="${runStart * cellSize}" width="${rw}" height="${rh}" fill="${eFill}"${pTag}/>`;
                 }
                 for (let i = runStart; i < by; i++) emitted.add(key(bx, i));
                 runStart = -1;
@@ -1491,7 +1606,8 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
                 const rw = Math.min(cellSize, width - bx * cellSize);
                 const rh = Math.min(cellSize, height - by * cellSize);
                 if (rw > 0 && rh > 0) {
-                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"/>`;
+                  const sf = patternIsFrom ? textFill(bx, by) : eFill;
+                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${sf}"/>`;
                 }
                 emitted.add(key(bx, by));
               }
@@ -1512,7 +1628,7 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
       const rh = Math.min(cellSize, height - by * cellSize);
       if (rw <= 0 || rh <= 0) continue;
 
-      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${foregroundColor}"${tTag}/>`;
+      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${textFill(bx, by)}"${tTag}/>`;
     }
   }
 
@@ -1543,7 +1659,16 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
   const { cols, rows, width, height, cellWidth, cellHeight } = dims;
   const { foregroundColor, backgroundColor } = rest;
 
-  return buildDiffSvg(gridA, gridB, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor);
+  const colorMode = rest.colorMode ?? 'mono';
+  const proportions = rest.colorProportions ?? [1];
+  const colorAssignmentsA = assignCellColors(gridA, configA.seed, colorMode, proportions);
+  const colorAssignmentsB = assignCellColors(gridB, configB.seed, colorMode, proportions);
+
+  return buildDiffSvg(gridA, gridB, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor, {
+    colorAssignmentsA,
+    colorAssignmentsB,
+    colors: rest.colors,
+  });
 }
 
 /**
@@ -1577,6 +1702,8 @@ export interface GenerateDiffFromGridsOptions {
   cellWidth?: number;
   /** Effective cell height (may differ from cellSize when elongated) */
   cellHeight?: number;
+  /** Multi-color options for diff rendering */
+  colorOpts?: DiffColorOptions;
 }
 
 /**
@@ -1591,7 +1718,7 @@ export function generateDiffFromGrids(options: GenerateDiffFromGridsOptions): st
   const cw = options.cellWidth ?? options.cellSize;
   const ch = options.cellHeight ?? options.cellSize;
 
-  return buildDiffSvg(gridFrom, gridTo, cols, rows, cw, ch, width, height, foregroundColor, backgroundColor);
+  return buildDiffSvg(gridFrom, gridTo, cols, rows, cw, ch, width, height, foregroundColor, backgroundColor, options.colorOpts);
 }
 
 /**
@@ -1625,7 +1752,17 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
   const { cols, rows, width, height, cellWidth, cellHeight } = dims;
   const { foregroundColor, backgroundColor } = fromConfig;
 
-  return buildDiffSvg(gridFrom, gridTo, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor);
+  // Multi-color: compute color assignments for both grids
+  const colorMode = fromConfig.colorMode ?? 'mono';
+  const proportions = fromConfig.colorProportions ?? [1];
+  const colorAssignmentsA = assignCellColors(gridFrom, fromConfig.seed, colorMode, proportions);
+  const colorAssignmentsB = assignCellColors(gridTo, toConfig.seed, colorMode, proportions);
+
+  return buildDiffSvg(gridFrom, gridTo, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor, {
+    colorAssignmentsA,
+    colorAssignmentsB,
+    colors: fromConfig.colors,
+  });
 }
 
 // Logo Overlay Helper
@@ -1699,11 +1836,14 @@ export function generateSvgFromExport(
       ? { ...fromTextConfig, text: options.text }
       : fromTextConfig;
     const { grid } = generateTextGrid(effectiveTextConfig, baseCols, baseRows, parsedFonts);
+    const colorMode = config.colorMode ?? 'mono';
+    const textColorAssignments = assignCellColors(grid, config.seed, colorMode, config.colorProportions ?? [1]);
     svg = gridToSvg(
       grid, baseCols, baseRows,
       config.cellSize, dims.width,
       config.foregroundColor, config.backgroundColor,
       dims.height,
+      { colorAssignments: textColorAssignments, colors: config.colors },
     );
   } else {
     svg = generateFragmentSvg({ config, seed: options?.seed });
@@ -1764,10 +1904,14 @@ export function generateDiffSvgFromExport(
   const elongateAxis = config.elongateAxis ?? 'none';
   const elongateAmount = config.elongateAmount ?? 1;
 
+  const colorMode = config.colorMode ?? 'mono';
+  const colorProportions = config.colorProportions ?? [1];
+
   const mixedOpts = {
     elongateAxis, elongateAmount, baseCols, baseRows,
     cellSize: config.cellSize, width: dims.width, height: dims.height,
     foregroundColor: config.foregroundColor, backgroundColor: config.backgroundColor,
+    colors: config.colors,
   };
 
   let svg: string;
@@ -1780,10 +1924,13 @@ export function generateDiffSvgFromExport(
     const parsedFonts = parseFonts(fonts);
     const effectiveToTextConfig = options?.toText !== undefined
       ? { ...toTextConfig, text: options.toText } : toTextConfig;
+    const entityGrid = gridFromConfig(fromConfig, dims);
+    const textGrid = generateTextGrid(effectiveToTextConfig, baseCols, baseRows, parsedFonts).grid;
     svg = buildMixedCellDiffSvg({
-      entityGrid: gridFromConfig(fromConfig, dims),
-      textGrid: generateTextGrid(effectiveToTextConfig, baseCols, baseRows, parsedFonts).grid,
+      entityGrid, textGrid,
       ...mixedOpts, patternIsFrom: true,
+      entityColorAssignments: assignCellColors(entityGrid, fromConfig.seed, colorMode, colorProportions),
+      textColorAssignments: assignCellColors(textGrid, config.seed, colorMode, colorProportions),
     });
   } else if (fromIsText && !toIsText && fromTextConfig && fonts && toConfig) {
     // Text → Pattern
@@ -1793,20 +1940,26 @@ export function generateDiffSvgFromExport(
     const parsedFonts = parseFonts(fonts);
     const effectiveFromTextConfig = options?.fromText !== undefined
       ? { ...fromTextConfig, text: options.fromText } : fromTextConfig;
+    const entityGrid = gridFromConfig(resolvedToConfig, computeDimensions(resolvedToConfig));
+    const textGrid = generateTextGrid(effectiveFromTextConfig, baseCols, baseRows, parsedFonts).grid;
     svg = buildMixedCellDiffSvg({
-      entityGrid: gridFromConfig(resolvedToConfig, computeDimensions(resolvedToConfig)),
-      textGrid: generateTextGrid(effectiveFromTextConfig, baseCols, baseRows, parsedFonts).grid,
+      entityGrid, textGrid,
       ...mixedOpts, patternIsFrom: false,
+      entityColorAssignments: assignCellColors(entityGrid, resolvedToConfig.seed, colorMode, colorProportions),
+      textColorAssignments: assignCellColors(textGrid, config.seed, colorMode, colorProportions),
     });
   } else {
     // Text → Text (or missing data fallback)
     let gridFrom: boolean[][];
     let gridTo: boolean[][];
+    let seedFrom = config.seed;
+    let seedTo = config.seed;
     if (fromIsText && fromTextConfig && fonts) {
       gridFrom = generateTextGrid(options?.fromText !== undefined
         ? { ...fromTextConfig, text: options.fromText } : fromTextConfig, baseCols, baseRows, parseFonts(fonts)).grid;
     } else {
       const fc = options?.fromSeed ? applySeededParam(config, options.fromSeed, config.seedParam ?? 'frequency') : config;
+      seedFrom = fc.seed;
       gridFrom = gridFromConfig(fc, { cols: baseCols, rows: baseRows, width: dims.width, height: dims.height, cellWidth: config.cellSize, cellHeight: config.cellSize });
     }
     if (toIsText && toTextConfig && fonts) {
@@ -1814,6 +1967,7 @@ export function generateDiffSvgFromExport(
         ? { ...toTextConfig, text: options.toText } : toTextConfig, baseCols, baseRows, parseFonts(fonts)).grid;
     } else if (toConfig) {
       const tc = options?.toSeed ? applySeededParam(toConfig, options.toSeed, toConfig.seedParam ?? 'frequency') : toConfig;
+      seedTo = tc.seed;
       gridTo = gridFromConfig(tc, { cols: baseCols, rows: baseRows, width: dims.width, height: dims.height, cellWidth: config.cellSize, cellHeight: config.cellSize });
     } else {
       return '';
@@ -1822,6 +1976,11 @@ export function generateDiffSvgFromExport(
       gridFrom, gridTo, cols: baseCols, rows: baseRows,
       cellSize: config.cellSize, width: dims.width, height: dims.height,
       foregroundColor: config.foregroundColor, backgroundColor: config.backgroundColor,
+      colorOpts: {
+        colorAssignmentsA: assignCellColors(gridFrom, seedFrom, colorMode, colorProportions),
+        colorAssignmentsB: assignCellColors(gridTo, seedTo, colorMode, colorProportions),
+        colors: config.colors,
+      },
     });
   }
 

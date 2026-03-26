@@ -1,5 +1,6 @@
 import { useEffect, type RefObject } from "react";
 import { isTransparent } from "@/lib/colorUtils";
+import { assignCellColors, type ColorMode } from "@/implementation-files/generateFragmentSvg";
 
 export function useCanvasRenderer(options: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -15,12 +16,17 @@ export function useCanvasRenderer(options: {
   cropDirection: 'width' | 'height';
   viewMode: 'single' | 'grid' | 'chars';
   animationEnabled: boolean;
+  colorMode: ColorMode;
+  multiColors: string[];
+  colorProportions: number[];
+  seed: number;
 }) {
   const {
     canvasRef, grid, gridDimensions,
     displayForeground, displayBackground,
     scale, cellSize, canvasWidth, canvasHeight,
     allowCropping, cropDirection, viewMode, animationEnabled,
+    colorMode, multiColors, colorProportions, seed,
   } = options;
 
   useEffect(() => {
@@ -47,6 +53,9 @@ export function useCanvasRenderer(options: {
     const scaledCanvasHeight = Math.round(canvasHeight * scale);
     canvas.width = scaledCanvasWidth;
     canvas.height = scaledCanvasHeight;
+
+    // Multi-color assignments
+    const colorAssignments = assignCellColors(grid, seed, colorMode, colorProportions);
 
     const drawCheckerboard = (x0: number, y0: number, w: number, h: number, squareSize = 8) => {
       const saved = ctx.fillStyle;
@@ -82,13 +91,20 @@ export function useCanvasRenderer(options: {
 
         if (rectWidth <= 0 || rectHeight <= 0) continue;
 
-        if (isTransparent(displayForeground)) {
+        // Resolve cell color
+        let cellColor = displayForeground;
+        if (colorAssignments && multiColors.length > 0) {
+          const idx = colorAssignments[y]?.[x] ?? 0;
+          cellColor = multiColors[idx] ?? displayForeground;
+        }
+
+        if (isTransparent(cellColor)) {
           drawCheckerboard(cellX, cellY, rectWidth, rectHeight);
         } else {
-          ctx.fillStyle = displayForeground;
+          ctx.fillStyle = cellColor;
           ctx.fillRect(cellX, cellY, rectWidth, rectHeight);
         }
       }
     }
-  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled]);
+  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed]);
 }

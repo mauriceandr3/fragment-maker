@@ -1,4 +1,4 @@
-import { type FillType, type ElongateAxis } from '../implementation-files/generateFragmentSvg';
+import { type FillType, type ElongateAxis, type ColorMode } from '../implementation-files/generateFragmentSvg';
 import type { TextConfig } from '../implementation-files/generateTextGrid';
 import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
 import type { LogoConfig } from '../app/components/fragment/types';
@@ -53,6 +53,9 @@ export interface UrlSerializableState {
   foregroundColor: string;
   backgroundColor: string;
   invertColors: boolean;
+  colorMode: ColorMode;
+  multiColors: string[];
+  colorProportions: number[];
   animationEnabled: boolean;
   animationDuration: number; // milliseconds
   toParams: GeneratorParamsUrl | null;
@@ -93,6 +96,9 @@ const PARAM_KEYS = {
   foregroundColor: 'fg',
   backgroundColor: 'bg',
   invertColors: 'ic',
+  colorMode: 'cm',
+  multiColors: 'mc',
+  colorProportions: 'cp',
   animationEnabled: 'ae',
   animationDuration: 'ad',
   // To params (for animation)
@@ -169,6 +175,9 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   foregroundColor: '#FCFCFC',
   backgroundColor: '#000000',
   invertColors: false,
+  colorMode: 'mono',
+  multiColors: ['#FCFCFC', '#C2A3FF'],
+  colorProportions: [0.5, 0.5],
   animationEnabled: false,
   animationDuration: 600, // 600ms = 0.6s
   toParams: null,
@@ -215,6 +224,13 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
   addIfChanged(PARAM_KEYS.invertFill, state.invertFill ? '1' : '0', DEFAULTS.invertFill ? '1' : '0');
   addIfChanged(PARAM_KEYS.allowCropping, state.allowCropping ? '1' : '0', DEFAULTS.allowCropping ? '1' : '0');
   addIfChanged(PARAM_KEYS.invertColors, state.invertColors ? '1' : '0', DEFAULTS.invertColors ? '1' : '0');
+
+  // Multi-color
+  addIfChanged(PARAM_KEYS.colorMode, state.colorMode, DEFAULTS.colorMode);
+  if (state.colorMode !== 'mono') {
+    params.set(PARAM_KEYS.multiColors, state.multiColors.map(c => c.replace('#', '')).join(','));
+    params.set(PARAM_KEYS.colorProportions, state.colorProportions.map(p => String(Math.round(p * 100))).join(','));
+  }
 
   // Elongation
   addIfChanged(PARAM_KEYS.elongateAxis, state.elongateAxis, DEFAULTS.elongateAxis);
@@ -395,6 +411,25 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
 
   const ic = parseBool(sp.get('ic'));
   if (ic !== undefined) result.invertColors = ic;
+
+  // Multi-color
+  const cm = sp.get(PARAM_KEYS.colorMode);
+  if (cm === 'duo' || cm === 'tri') {
+    result.colorMode = cm;
+    const mc = sp.get(PARAM_KEYS.multiColors);
+    if (mc) {
+      const parsed = mc.split(',').filter(c => HEX_COLOR_REGEX.test(c)).map(c => '#' + c.toUpperCase());
+      if (parsed.length >= 2) result.multiColors = parsed;
+    }
+    const cp = sp.get(PARAM_KEYS.colorProportions);
+    if (cp) {
+      const parsed = cp.split(',').map(Number).filter(n => !isNaN(n) && n >= 0);
+      if (parsed.length >= 2) {
+        const total = parsed.reduce((a, b) => a + b, 0);
+        result.colorProportions = parsed.map(p => p / total); // normalize to sum to 1
+      }
+    }
+  }
 
   // Colors
   const fg = sp.get('fg');

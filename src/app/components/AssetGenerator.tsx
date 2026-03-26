@@ -54,6 +54,10 @@ export function AssetGenerator() {
     cropDirection: state.cropDirection,
     viewMode: state.viewMode,
     animationEnabled: state.animationEnabled,
+    colorMode: state.colorMode,
+    multiColors: state.multiColors,
+    colorProportions: state.colorProportions,
+    seed: state.params.seed,
   });
 
   const { onMouseEnter: animationMouseEnter, onMouseLeave: animationMouseLeave } =

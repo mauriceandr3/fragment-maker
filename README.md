@@ -54,6 +54,9 @@ Open http://localhost:5173 to use the interactive tool locally.
 | `cropDirection` | width, height | Which axis to crop |
 | `elongateAxis` | none, width, height | Stretch cells along an axis (default: none) |
 | `elongateAmount` | 2-12 | Stretch multiplier (e.g. 4 with width → cells are 4× wider) |
+| `colorMode` | mono, duo, tri | Color mode (default: mono). `duo` uses 2 foreground colors, `tri` uses 3. |
+| `colors` | string[] | Array of foreground colors (hex). Length matches colorMode (2 for duo, 3 for tri). |
+| `colorProportions` | number[] | Proportion of cells per color (0-1 values summing to 1, e.g. `[0.4, 0.3, 0.3]`). |
 | `animationDuration` | 100-5000 | Animation duration in milliseconds (default: 600) |
 
 ## Website Integration

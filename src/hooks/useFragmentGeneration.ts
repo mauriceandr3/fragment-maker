@@ -5,7 +5,7 @@ import {
   generateFragmentDiffFromConfigs,
   generateDiffFromGrids,
 } from "@/lib/generateFragmentSvgGrid";
-import { generateGrid as generateGridCore, gridToSvg, buildMixedCellDiffSvg } from "@/implementation-files/generateFragmentSvg";
+import { generateGrid as generateGridCore, gridToSvg, buildMixedCellDiffSvg, assignCellColors } from "@/implementation-files/generateFragmentSvg";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import type { FragmentState } from "./useFragmentState";
@@ -30,6 +30,9 @@ export function useFragmentGeneration(state: FragmentState) {
     debounced,
     fromStateType,
     fromTextConfig,
+    colorMode,
+    multiColors,
+    colorProportions,
   } = state;
 
   const [grid, setGrid] = useState<boolean[][]>([]);
@@ -77,6 +80,7 @@ export function useFragmentGeneration(state: FragmentState) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
       }
       const result = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts);
+      const textColorAssignments = assignCellColors(result.grid, params.seed, colorMode, colorProportions);
       return gridToSvg(
         result.grid,
         baseCols,
@@ -86,6 +90,7 @@ export function useFragmentGeneration(state: FragmentState) {
         displayForeground,
         displayBackground,
         canvasHeight,
+        { colorAssignments: textColorAssignments, colors: colorMode !== 'mono' ? multiColors : undefined },
       );
     }
 
@@ -110,9 +115,12 @@ export function useFragmentGeneration(state: FragmentState) {
       cropDirection,
       elongateAxis,
       elongateAmount,
+      colorMode,
+      colors: colorMode !== 'mono' ? multiColors : undefined,
+      colorProportions,
     };
     return generateFragmentSvgDirect(config);
-  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection, elongateAxis, elongateAmount, gridDimensions, fromStateType, fromTextConfig]);
+  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection, elongateAxis, elongateAmount, gridDimensions, fromStateType, fromTextConfig, colorMode, multiColors, colorProportions]);
 
   // Generate diff SVG for animation preview
   // Supports all four combinations: Pattern↔Pattern, Pattern↔Text, Text↔Pattern, Text↔Text
@@ -137,6 +145,9 @@ export function useFragmentGeneration(state: FragmentState) {
         cropDirection: debounced.cropDirection,
         elongateAxis: debounced.elongateAxis,
         elongateAmount: debounced.elongateAmount,
+        colorMode: debounced.colorMode,
+        colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
+        colorProportions: debounced.colorProportions,
       };
 
       const fromConfig = {
@@ -186,28 +197,38 @@ export function useFragmentGeneration(state: FragmentState) {
       baseCols, baseRows, cellSize: debounced.cellSize,
       width: debounced.canvasWidth, height: debounced.canvasHeight,
       foregroundColor: displayForeground, backgroundColor: displayBackground,
+      colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
     };
 
     if (!fromIsText && toIsText) {
+      const entityGrid = generatePatternEntityGrid(debounced.params);
+      const textGrid = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid;
       return buildMixedCellDiffSvg({
-        entityGrid: generatePatternEntityGrid(debounced.params),
-        textGrid: generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid,
+        entityGrid, textGrid,
         ...mixedOpts, patternIsFrom: true,
+        entityColorAssignments: assignCellColors(entityGrid, debounced.params.seed, debounced.colorMode, debounced.colorProportions),
+        textColorAssignments: assignCellColors(textGrid, debounced.params.seed, debounced.colorMode, debounced.colorProportions),
       });
     } else if (fromIsText && !toIsText) {
+      const entityGrid = generatePatternEntityGrid(debounced.toParams);
+      const textGrid = generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid;
       return buildMixedCellDiffSvg({
-        entityGrid: generatePatternEntityGrid(debounced.toParams),
-        textGrid: generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid,
+        entityGrid, textGrid,
         ...mixedOpts, patternIsFrom: false,
+        entityColorAssignments: assignCellColors(entityGrid, debounced.toParams.seed, debounced.colorMode, debounced.colorProportions),
+        textColorAssignments: assignCellColors(textGrid, debounced.params.seed, debounced.colorMode, debounced.colorProportions),
       });
     } else {
       // Text → Text
       const gridFrom = generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid;
       const gridTo = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid;
+      const colorAssignmentsA = assignCellColors(gridFrom, debounced.params.seed, debounced.colorMode, debounced.colorProportions);
+      const colorAssignmentsB = assignCellColors(gridTo, debounced.toParams.seed, debounced.colorMode, debounced.colorProportions);
       return generateDiffFromGrids({
         gridFrom, gridTo, cols: baseCols, rows: baseRows,
         cellSize: debounced.cellSize, width: debounced.canvasWidth, height: debounced.canvasHeight,
         foregroundColor: displayForeground, backgroundColor: displayBackground,
+        colorOpts: { colorAssignmentsA, colorAssignmentsB, colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined },
       });
     }
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
@@ -258,6 +279,9 @@ export function useFragmentGeneration(state: FragmentState) {
       cropDirection: debounced.cropDirection,
       elongateAxis: debounced.elongateAxis,
       elongateAmount: debounced.elongateAmount,
+      colorMode: debounced.colorMode,
+      colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
+      colorProportions: debounced.colorProportions,
     });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
@@ -283,6 +307,9 @@ export function useFragmentGeneration(state: FragmentState) {
       cropDirection: debounced.cropDirection,
       elongateAxis: debounced.elongateAxis,
       elongateAmount: debounced.elongateAmount,
+      colorMode: debounced.colorMode,
+      colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
+      colorProportions: debounced.colorProportions,
     };
     return generateGridVariations(baseConfig, 'frequency', 20);
   }, [debounced]);
