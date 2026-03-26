@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TextConfig, HorizontalAlignment, VerticalAlignment, FontResolution } from "./types";
+import type { TextConfig, HorizontalAlignment, VerticalAlignment, FontResolution, GeneratorParams } from "./types";
 import { RESOLUTION_MIN_HEIGHT } from "./types";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
@@ -7,6 +7,7 @@ import { Slider } from "../ui/Slider";
 import { ButtonGroup } from "../ui/ButtonGroup";
 import { Checkbox } from "../ui/Checkbox";
 import { Section } from '../ui/Section';
+import { ParametersPanel } from "./ParametersPanel";
 
 const fonts: FontData = FONTS;
 
@@ -16,11 +17,16 @@ interface TextConfigPanelProps {
   title?: string;
   cols: number;
   rows: number;
+  patternEnabled?: boolean;
+  onPatternEnabledChange?: (enabled: boolean) => void;
+  patternParams?: GeneratorParams;
+  onPatternParamsChange?: (params: GeneratorParams) => void;
+  onRandomizePattern?: () => void;
 }
 
 const MAX_TEXT_LENGTH = 500;
 
-export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows }: TextConfigPanelProps) {
+export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows, patternEnabled, onPatternEnabledChange, patternParams, onPatternParamsChange, onRandomizePattern }: TextConfigPanelProps) {
   const handleTextChange = (text: string) => {
     const limitedText = text.slice(0, MAX_TEXT_LENGTH);
     setConfig({ ...config, text: limitedText });
@@ -127,6 +133,25 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows 
         checked={config.invert}
         onChange={(checked) => setConfig({ ...config, invert: checked })}
       />
+
+      {/* Pattern Overlay */}
+      {onPatternEnabledChange && (
+        <Checkbox
+          label="Add Pattern"
+          description="Overlay pattern cells on text"
+          checked={patternEnabled ?? false}
+          onChange={onPatternEnabledChange}
+        />
+      )}
+
+      {patternEnabled && patternParams && onPatternParamsChange && (
+        <ParametersPanel
+          params={patternParams}
+          setParams={onPatternParamsChange}
+          title="Pattern Overlay"
+          onRandomize={onRandomizePattern}
+        />
+      )}
 
       {/* Validation Messages */}
       {(validation.gridTooSmall || validation.isTruncated || validation.unsupportedChars.length > 0) && (

@@ -144,6 +144,26 @@ export function useFragmentState() {
     initialUrlState.toTextConfig ?? { ...DEFAULT_TEXT_CONFIG }
   );
 
+  // Pattern overlay on text states
+  const [fromTextPatternEnabled, setFromTextPatternEnabled] = useState(initialUrlState.fromTextPatternEnabled ?? false);
+  const [fromTextPatternParams, setFromTextPatternParams] = useState<GeneratorParams>(
+    initialUrlState.fromTextPatternParams ?? {
+      threshold: 0.5, gamma: 1.0, scale: 1, frequency: 0.1, contrast: 1.0,
+      seed: Math.round(Math.random() * 10000) / 10000,
+      directionalNeighbors: 8, directionDensity: 50, fillAmount: 50,
+      fillType: 'linear', invertFill: false,
+    }
+  );
+  const [toTextPatternEnabled, setToTextPatternEnabled] = useState(initialUrlState.toTextPatternEnabled ?? false);
+  const [toTextPatternParams, setToTextPatternParams] = useState<GeneratorParams>(
+    initialUrlState.toTextPatternParams ?? {
+      threshold: 0.5, gamma: 1.0, scale: 1, frequency: 0.1, contrast: 1.0,
+      seed: Math.round(Math.random() * 10000) / 10000,
+      directionalNeighbors: 8, directionDensity: 50, fillAmount: 50,
+      fillType: 'linear', invertFill: false,
+    }
+  );
+
   // Logo overlay configuration
   const [logoConfig, setLogoConfig] = useState<LogoConfig>(
     initialUrlState.logoConfig ?? { ...DEFAULT_LOGO_CONFIG }
@@ -181,6 +201,10 @@ export function useFragmentState() {
   const [debouncedMultiColors, setDebouncedMultiColors] = useState<string[]>(multiColors);
   const [debouncedColorProportions, setDebouncedColorProportions] = useState<number[]>(colorProportions);
   const [debouncedTextColor, setDebouncedTextColor] = useState(textColor);
+  const [debouncedFromTextPatternEnabled, setDebouncedFromTextPatternEnabled] = useState(fromTextPatternEnabled);
+  const [debouncedFromTextPatternParams, setDebouncedFromTextPatternParams] = useState<GeneratorParams>(fromTextPatternParams);
+  const [debouncedToTextPatternEnabled, setDebouncedToTextPatternEnabled] = useState(toTextPatternEnabled);
+  const [debouncedToTextPatternParams, setDebouncedToTextPatternParams] = useState<GeneratorParams>(toTextPatternParams);
 
   // Debounce effects
   useEffect(() => {
@@ -307,6 +331,17 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [colorMode, multiColors, colorProportions, textColor]);
 
+  // Debounce text pattern overlay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFromTextPatternEnabled(fromTextPatternEnabled);
+      setDebouncedFromTextPatternParams(fromTextPatternParams);
+      setDebouncedToTextPatternEnabled(toTextPatternEnabled);
+      setDebouncedToTextPatternParams(toTextPatternParams);
+    }, DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [fromTextPatternEnabled, fromTextPatternParams, toTextPatternEnabled, toTextPatternParams]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -346,6 +381,10 @@ export function useFragmentState() {
       logoConfig: debouncedLogoConfig,
       presetOrCustomMode: debouncedPresetOrCustomMode,
       textOverlayConfig: debouncedTextOverlayConfig,
+      fromTextPatternEnabled: debouncedFromTextPatternEnabled,
+      fromTextPatternParams: debouncedFromTextPatternParams,
+      toTextPatternEnabled: debouncedToTextPatternEnabled,
+      toTextPatternParams: debouncedToTextPatternParams,
     };
     updateUrlFromState(state);
   }, [
@@ -375,6 +414,10 @@ export function useFragmentState() {
     debouncedLogoConfig,
     debouncedPresetOrCustomMode,
     debouncedTextOverlayConfig,
+    debouncedFromTextPatternEnabled,
+    debouncedFromTextPatternParams,
+    debouncedToTextPatternEnabled,
+    debouncedToTextPatternParams,
   ]);
 
   // --- Derived values ---
@@ -454,6 +497,10 @@ export function useFragmentState() {
     toStateType, setToStateType,
     fromTextConfig, setFromTextConfig,
     toTextConfig, setToTextConfig,
+    fromTextPatternEnabled, setFromTextPatternEnabled,
+    fromTextPatternParams, setFromTextPatternParams,
+    toTextPatternEnabled, setToTextPatternEnabled,
+    toTextPatternParams, setToTextPatternParams,
     logoConfig, setLogoConfig,
     textOverlayConfig, setTextOverlayConfig,
     presetOrCustomMode, setPresetOrCustomMode,
@@ -481,6 +528,10 @@ export function useFragmentState() {
       toStateType: debouncedToStateType,
       fromTextConfig: debouncedFromTextConfig,
       toTextConfig: debouncedToTextConfig,
+      fromTextPatternEnabled: debouncedFromTextPatternEnabled,
+      fromTextPatternParams: debouncedFromTextPatternParams,
+      toTextPatternEnabled: debouncedToTextPatternEnabled,
+      toTextPatternParams: debouncedToTextPatternParams,
       showEndState: debouncedShowEndState,
       logoConfig: debouncedLogoConfig,
       textOverlayConfig: debouncedTextOverlayConfig,

@@ -72,6 +72,11 @@ export interface UrlSerializableState {
   logoConfig: LogoConfig;
   // Text overlay configuration
   textOverlayConfig: TextOverlayConfig;
+  // Pattern overlay on text states
+  fromTextPatternEnabled: boolean;
+  fromTextPatternParams: GeneratorParamsUrl | null;
+  toTextPatternEnabled: boolean;
+  toTextPatternParams: GeneratorParamsUrl | null;
 }
 
 // Short URL keys for each state field
@@ -142,6 +147,31 @@ const PARAM_KEYS = {
   presetOrCustomMode: 'pcm',
   // Text overlay
   textOverlayEnabled: 'txoe',
+  // Text pattern overlay
+  fromTextPatternEnabled: 'ftpe',
+  fromTpThreshold: 'ftp_t',
+  fromTpGamma: 'ftp_g',
+  fromTpScale: 'ftp_sc',
+  fromTpFrequency: 'ftp_f',
+  fromTpContrast: 'ftp_c',
+  fromTpSeed: 'ftp_s',
+  fromTpDn: 'ftp_dn',
+  fromTpDd: 'ftp_dd',
+  fromTpFa: 'ftp_fa',
+  fromTpFt: 'ftp_ft',
+  fromTpIf: 'ftp_if',
+  toTextPatternEnabled: 'ttpe',
+  toTpThreshold: 'ttp_t',
+  toTpGamma: 'ttp_g',
+  toTpScale: 'ttp_sc',
+  toTpFrequency: 'ttp_f',
+  toTpContrast: 'ttp_c',
+  toTpSeed: 'ttp_s',
+  toTpDn: 'ttp_dn',
+  toTpDd: 'ttp_dd',
+  toTpFa: 'ttp_fa',
+  toTpFt: 'ttp_ft',
+  toTpIf: 'ttp_if',
 } as const;
 
 // Default text configuration
@@ -191,6 +221,10 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   showEndState: false,
   logoConfig: DEFAULT_LOGO_CONFIG,
   textOverlayConfig: DEFAULT_TEXT_OVERLAY_CONFIG,
+  fromTextPatternEnabled: false,
+  fromTextPatternParams: null,
+  toTextPatternEnabled: false,
+  toTextPatternParams: null,
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -285,6 +319,23 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.fromFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
   }
 
+  // From text pattern overlay (only when fromStateType is 'text' and overlay enabled)
+  if (state.fromStateType === 'text' && state.fromTextPatternEnabled && state.fromTextPatternParams) {
+    params.set(PARAM_KEYS.fromTextPatternEnabled, '1');
+    const tp = state.fromTextPatternParams;
+    params.set(PARAM_KEYS.fromTpThreshold, String(tp.threshold));
+    params.set(PARAM_KEYS.fromTpGamma, String(tp.gamma));
+    params.set(PARAM_KEYS.fromTpScale, String(tp.scale));
+    params.set(PARAM_KEYS.fromTpFrequency, String(tp.frequency));
+    params.set(PARAM_KEYS.fromTpContrast, String(tp.contrast));
+    params.set(PARAM_KEYS.fromTpSeed, String(tp.seed));
+    params.set(PARAM_KEYS.fromTpDn, String(tp.directionalNeighbors));
+    params.set(PARAM_KEYS.fromTpDd, String(tp.directionDensity));
+    params.set(PARAM_KEYS.fromTpFa, String(tp.fillAmount));
+    params.set(PARAM_KEYS.fromTpFt, tp.fillType);
+    params.set(PARAM_KEYS.fromTpIf, tp.invertFill ? '1' : '0');
+  }
+
   // Logo (only when enabled, to keep URLs short)
   if (state.logoConfig.enabled) {
     params.set(PARAM_KEYS.logoEnabled, '1');
@@ -323,6 +374,23 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.toWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
     addIfChanged(PARAM_KEYS.toInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
     addIfChanged(PARAM_KEYS.toFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
+  }
+
+  // To text pattern overlay (only when toStateType is 'text' and overlay enabled)
+  if (state.animationEnabled && state.toStateType === 'text' && state.toTextPatternEnabled && state.toTextPatternParams) {
+    params.set(PARAM_KEYS.toTextPatternEnabled, '1');
+    const tp = state.toTextPatternParams;
+    params.set(PARAM_KEYS.toTpThreshold, String(tp.threshold));
+    params.set(PARAM_KEYS.toTpGamma, String(tp.gamma));
+    params.set(PARAM_KEYS.toTpScale, String(tp.scale));
+    params.set(PARAM_KEYS.toTpFrequency, String(tp.frequency));
+    params.set(PARAM_KEYS.toTpContrast, String(tp.contrast));
+    params.set(PARAM_KEYS.toTpSeed, String(tp.seed));
+    params.set(PARAM_KEYS.toTpDn, String(tp.directionalNeighbors));
+    params.set(PARAM_KEYS.toTpDd, String(tp.directionDensity));
+    params.set(PARAM_KEYS.toTpFa, String(tp.fillAmount));
+    params.set(PARAM_KEYS.toTpFt, tp.fillType);
+    params.set(PARAM_KEYS.toTpIf, tp.invertFill ? '1' : '0');
   }
 
   return params.toString();
@@ -587,6 +655,49 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     if (entries.length > 0) {
       result.textOverlayConfig = { enabled: true, entries };
     }
+  }
+
+  // From text pattern overlay
+  const parsePatternOverlayParams = (prefix: 'ftp' | 'ttp'): GeneratorParamsUrl | null => {
+    const keys = prefix === 'ftp'
+      ? { t: PARAM_KEYS.fromTpThreshold, g: PARAM_KEYS.fromTpGamma, sc: PARAM_KEYS.fromTpScale,
+          f: PARAM_KEYS.fromTpFrequency, c: PARAM_KEYS.fromTpContrast, s: PARAM_KEYS.fromTpSeed,
+          dn: PARAM_KEYS.fromTpDn, dd: PARAM_KEYS.fromTpDd, fa: PARAM_KEYS.fromTpFa,
+          ft: PARAM_KEYS.fromTpFt, if_: PARAM_KEYS.fromTpIf }
+      : { t: PARAM_KEYS.toTpThreshold, g: PARAM_KEYS.toTpGamma, sc: PARAM_KEYS.toTpScale,
+          f: PARAM_KEYS.toTpFrequency, c: PARAM_KEYS.toTpContrast, s: PARAM_KEYS.toTpSeed,
+          dn: PARAM_KEYS.toTpDn, dd: PARAM_KEYS.toTpDd, fa: PARAM_KEYS.toTpFa,
+          ft: PARAM_KEYS.toTpFt, if_: PARAM_KEYS.toTpIf };
+
+    const tVal = sp.get(keys.t);
+    if (tVal === null) return null;
+
+    return {
+      threshold: clampNum(tVal, 0, 1) ?? DEFAULTS.threshold,
+      gamma: clampNum(sp.get(keys.g), 0.1, 3) ?? DEFAULTS.gamma,
+      scale: clampNum(sp.get(keys.sc), 0.25, 1.0) ?? DEFAULTS.scale,
+      frequency: clampNum(sp.get(keys.f), 0.01, 0.5) ?? DEFAULTS.frequency,
+      contrast: clampNum(sp.get(keys.c), 0.1, 3) ?? DEFAULTS.contrast,
+      seed: clampNum(sp.get(keys.s), 0, 1) ?? Math.random(),
+      directionalNeighbors: Math.floor(clampNum(sp.get(keys.dn), 0, 999) ?? DEFAULTS.directionalNeighbors),
+      directionDensity: Math.floor(clampNum(sp.get(keys.dd), 0, 999) ?? DEFAULTS.directionDensity),
+      fillAmount: Math.floor(clampNum(sp.get(keys.fa), 0, 100) ?? DEFAULTS.fillAmount),
+      fillType: (VALID_FILL_TYPES.includes(sp.get(keys.ft) as FillType)
+        ? sp.get(keys.ft) as FillType : DEFAULTS.fillType),
+      invertFill: parseBool(sp.get(keys.if_)) ?? DEFAULTS.invertFill,
+    };
+  };
+
+  const ftpe = parseBool(sp.get(PARAM_KEYS.fromTextPatternEnabled));
+  if (ftpe) {
+    result.fromTextPatternEnabled = true;
+    result.fromTextPatternParams = parsePatternOverlayParams('ftp');
+  }
+
+  const ttpe = parseBool(sp.get(PARAM_KEYS.toTextPatternEnabled));
+  if (ttpe) {
+    result.toTextPatternEnabled = true;
+    result.toTextPatternParams = parsePatternOverlayParams('ttp');
   }
 
   return result;

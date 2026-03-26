@@ -67,6 +67,13 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setToParams(generateRandomParams());
   };
 
+  const randomizeFromTextPatternParams = () => {
+    state.setFromTextPatternParams(generateRandomParams());
+  };
+  const randomizeToTextPatternParams = () => {
+    state.setToTextPatternParams(generateRandomParams());
+  };
+
   const swapFromTo = () => {
     const currentToParams = state.toParams;
     if (!currentToParams) return;
@@ -83,6 +90,15 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setToStateType(currentFromStateType);
     setFromTextConfig(currentToTextConfig);
     setToTextConfig(currentFromTextConfig);
+
+    const currentFromTpe = state.fromTextPatternEnabled;
+    const currentToTpe = state.toTextPatternEnabled;
+    const currentFromTpp = state.fromTextPatternParams;
+    const currentToTpp = state.toTextPatternParams;
+    state.setFromTextPatternEnabled(currentToTpe);
+    state.setToTextPatternEnabled(currentFromTpe);
+    state.setFromTextPatternParams(currentToTpp);
+    state.setToTextPatternParams(currentFromTpp);
   };
 
   const resetToDefaults = () => {
@@ -111,6 +127,8 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAnimationEnabled(false);
     setAnimationDuration(600);
     setToParams(null);
+    state.setFromTextPatternEnabled(false);
+    state.setToTextPatternEnabled(false);
     state.setShowEndState(false);
     state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
     state.setTextOverlayConfig({ ...DEFAULT_TEXT_OVERLAY_CONFIG });
@@ -156,13 +174,27 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   };
 
   const exportSettingsAsJson = async () => {
-    const { animationEnabled, toParams, fromStateType, toStateType, fromTextConfig, toTextConfig } = state;
+    const { animationEnabled, toParams, fromStateType, toStateType, fromTextConfig, toTextConfig, fromTextPatternEnabled, fromTextPatternParams, toTextPatternEnabled, toTextPatternParams } = state;
+
+    const buildPatternOverlayConfig = (p: typeof fromTextPatternParams) => ({
+      threshold: p.threshold,
+      gamma: p.gamma,
+      scale: p.scale,
+      frequency: p.frequency,
+      contrast: p.contrast,
+      seed: p.seed,
+      directionalNeighbors: p.directionalNeighbors,
+      directionDensity: p.directionDensity,
+      fillAmount: p.fillAmount,
+      fillType: p.fillType,
+      invertFill: p.invertFill,
+    });
 
     // Build the export data object
     // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
     // Text config fields only included when respective state type is 'text'
     const exportData: Record<string, unknown> = {
-      version: '2.5.0',
+      version: '2.6.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -238,6 +270,9 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         invert: fromTextConfig.invert,
         fontResolution: fromTextConfig.fontResolution,
       };
+      if (fromTextPatternEnabled) {
+        exportData.fromTextPatternConfig = buildPatternOverlayConfig(fromTextPatternParams);
+      }
     }
 
     // Add toStateType only when it's 'text' (absent defaults to 'pattern')
@@ -252,6 +287,9 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         invert: toTextConfig.invert,
         fontResolution: toTextConfig.fontResolution,
       };
+      if (toTextPatternEnabled) {
+        exportData.toTextPatternConfig = buildPatternOverlayConfig(toTextPatternParams);
+      }
     }
 
     // Include logo config when enabled (absent = logo disabled for backward compat)
@@ -518,22 +556,58 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           return { text, charHeight, alignment, verticalAlignment, wordWrap, invert, fontResolution };
         };
 
+        // Helper to parse pattern overlay config from imported JSON
+        const parsePatternOverlayConfig = (cfg: unknown) => {
+          if (!cfg || typeof cfg !== 'object') return null;
+          const p = cfg as Record<string, unknown>;
+          const validFillTypesLocal: FillType[] = ['linear', 'radial', 'angular', 'diamond', 'square', 'box'];
+          return {
+            threshold: clamp(p.threshold, 0, 1, 0.5),
+            gamma: clamp(p.gamma, 0.1, 3, 1.0),
+            scale: clamp(p.scale, 0.25, 1.0, 1.0),
+            frequency: clamp(p.frequency, 0.01, 0.5, 0.1),
+            contrast: clamp(p.contrast, 0.1, 3, 1.0),
+            seed: clamp(p.seed, 0, 1, Math.round(Math.random() * 10000) / 10000),
+            directionalNeighbors: Math.floor(clamp(p.directionalNeighbors, 0, 999, 8)),
+            directionDensity: Math.floor(clamp(p.directionDensity, 0, 999, 50)),
+            fillAmount: Math.floor(clamp(p.fillAmount, 0, 100, 50)),
+            fillType: (validFillTypesLocal.includes(p.fillType as FillType) ? p.fillType as FillType : 'linear'),
+            invertFill: typeof p.invertFill === 'boolean' ? p.invertFill : false,
+          };
+        };
+
         // Import fromStateType
         if (data.fromStateType === 'text') {
           setFromStateType('text');
           setFromTextConfig(parseTextConfig(data.fromTextConfig));
+          if (data.fromTextPatternConfig && typeof data.fromTextPatternConfig === 'object') {
+            state.setFromTextPatternEnabled(true);
+            const parsed = parsePatternOverlayConfig(data.fromTextPatternConfig);
+            if (parsed) state.setFromTextPatternParams(parsed);
+          } else {
+            state.setFromTextPatternEnabled(false);
+          }
         } else {
           // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
           setFromStateType('pattern');
+          state.setFromTextPatternEnabled(false);
         }
 
         // Import toStateType
         if (data.toStateType === 'text') {
           setToStateType('text');
           setToTextConfig(parseTextConfig(data.toTextConfig));
+          if (data.toTextPatternConfig && typeof data.toTextPatternConfig === 'object') {
+            state.setToTextPatternEnabled(true);
+            const parsed = parsePatternOverlayConfig(data.toTextPatternConfig);
+            if (parsed) state.setToTextPatternParams(parsed);
+          } else {
+            state.setToTextPatternEnabled(false);
+          }
         } else {
           // Default to 'pattern' (v2.1.0 files or explicit 'pattern')
           setToStateType('pattern');
+          state.setToTextPatternEnabled(false);
         }
 
         // Import logo config (v2.3.0+)
@@ -592,6 +666,8 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
   return {
     randomizeParams,
     randomizeToParams,
+    randomizeFromTextPatternParams,
+    randomizeToTextPatternParams,
     swapFromTo,
     resetToDefaults,
     exportToSVG,

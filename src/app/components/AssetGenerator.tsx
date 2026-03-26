@@ -151,8 +151,13 @@ export function AssetGenerator() {
                                   config={state.fromTextConfig}
                                   setConfig={state.setFromTextConfig}
                                   title="From"
-                                  cols={state.gridDimensions.cols}
-                                  rows={state.gridDimensions.rows}
+                                  cols={state.gridDimensions.baseCols}
+                                  rows={state.gridDimensions.baseRows}
+                                  patternEnabled={state.fromTextPatternEnabled}
+                                  onPatternEnabledChange={state.setFromTextPatternEnabled}
+                                  patternParams={state.fromTextPatternParams}
+                                  onPatternParamsChange={state.setFromTextPatternParams}
+                                  onRandomizePattern={actions.randomizeFromTextPatternParams}
                                 />
                               )}
                             </div>
@@ -173,8 +178,13 @@ export function AssetGenerator() {
                                   config={state.toTextConfig}
                                   setConfig={state.setToTextConfig}
                                   title="To"
-                                  cols={state.gridDimensions.cols}
-                                  rows={state.gridDimensions.rows}
+                                  cols={state.gridDimensions.baseCols}
+                                  rows={state.gridDimensions.baseRows}
+                                  patternEnabled={state.toTextPatternEnabled}
+                                  onPatternEnabledChange={state.setToTextPatternEnabled}
+                                  patternParams={state.toTextPatternParams}
+                                  onPatternParamsChange={state.setToTextPatternParams}
+                                  onRandomizePattern={actions.randomizeToTextPatternParams}
                                 />
                               )}
                             </div>
@@ -197,8 +207,13 @@ export function AssetGenerator() {
                                 config={state.fromTextConfig}
                                 setConfig={state.setFromTextConfig}
                                 title="Text"
-                                cols={state.gridDimensions.cols}
-                                rows={state.gridDimensions.rows}
+                                cols={state.gridDimensions.baseCols}
+                                rows={state.gridDimensions.baseRows}
+                                patternEnabled={state.fromTextPatternEnabled}
+                                onPatternEnabledChange={state.setFromTextPatternEnabled}
+                                patternParams={state.fromTextPatternParams}
+                                onPatternParamsChange={state.setFromTextPatternParams}
+                                onRandomizePattern={actions.randomizeFromTextPatternParams}
                               />
                             )}
                           </div>

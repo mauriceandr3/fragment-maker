@@ -3,9 +3,8 @@ import {
   generateGridVariations,
   generateFragmentSvgDirect,
   generateFragmentDiffFromConfigs,
-  generateDiffFromGrids,
 } from "@/lib/generateFragmentSvgGrid";
-import { generateGrid as generateGridCore, gridToSvg, buildMixedCellDiffSvg, assignCellColors } from "@/implementation-files/generateFragmentSvg";
+import { generateGrid as generateGridCore, gridToSvg, assignCellColors, generateCombinedTextPatternGrid, buildCompositeDiffSvg, type FragmentConfig, type CompositeDiffSide } from "@/implementation-files/generateFragmentSvg";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import type { FragmentState } from "./useFragmentState";
@@ -30,25 +29,46 @@ export function useFragmentGeneration(state: FragmentState) {
     debounced,
     fromStateType,
     fromTextConfig,
+    fromTextPatternEnabled,
+    fromTextPatternParams,
     colorMode,
     multiColors,
     colorProportions,
     textColor,
   } = state;
 
+  // Helper to build a FragmentConfig from GeneratorParams + shared settings
+  const buildPatternConfig = (p: typeof fromTextPatternParams): FragmentConfig => ({
+    threshold: p.threshold, gamma: p.gamma, frequency: p.frequency,
+    contrast: p.contrast, seed: p.seed,
+    directionalNeighbors: p.directionalNeighbors, directionDensity: p.directionDensity,
+    fillAmount: p.fillAmount, fillType: p.fillType, invertFill: p.invertFill,
+    foregroundColor: displayForeground, backgroundColor: displayBackground,
+    cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection,
+    elongateAxis, elongateAmount, colorMode,
+    colors: colorMode !== 'mono' ? multiColors : undefined,
+    colorProportions,
+    textColor: colorMode !== 'mono' ? textColor : undefined,
+  });
+
   const [grid, setGrid] = useState<boolean[][]>([]);
   const [hasGeneratedGrid, setHasGeneratedGrid] = useState(false);
 
   // Generate grid for single view (from state)
-  // Supports both pattern and text state types
+  // Supports both pattern and text state types, with optional pattern overlay
   const regenerateGrid = useCallback(() => {
     let newGrid: boolean[][];
     if (fromStateType === 'text') {
       // Text always uses base-cell dimensions (never stretched)
       const { baseCols, baseRows } = gridDimensions;
       if (!baseCols || !baseRows || baseCols <= 0 || baseRows <= 0) return;
-      const result = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts);
-      newGrid = result.grid;
+      const textGrid = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts).grid;
+      if (fromTextPatternEnabled) {
+        const patternConfig = buildPatternConfig(fromTextPatternParams);
+        newGrid = generateCombinedTextPatternGrid(textGrid, patternConfig, baseCols, baseRows).grid;
+      } else {
+        newGrid = textGrid;
+      }
     } else {
       const { cols, rows } = gridDimensions;
       if (!cols || !rows || cols <= 0 || rows <= 0) {
@@ -64,7 +84,10 @@ export function useFragmentGeneration(state: FragmentState) {
       );
     }
     setGrid(newGrid);
-  }, [gridDimensions, params, fromStateType, fromTextConfig]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridDimensions, params, fromStateType, fromTextConfig, fromTextPatternEnabled, fromTextPatternParams,
+    displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection,
+    elongateAxis, elongateAmount, colorMode, multiColors, colorProportions, textColor]);
 
   // Trigger grid regeneration when parameters change
   useEffect(() => {
@@ -80,18 +103,23 @@ export function useFragmentGeneration(state: FragmentState) {
       if (baseCols <= 0 || baseRows <= 0) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
       }
-      const result = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts);
-      // Text uses a single solid color (textColor in multi-color mode, foreground in mono)
+      const textGrid = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts).grid;
+
+      if (fromTextPatternEnabled) {
+        const patternConfig = buildPatternConfig(fromTextPatternParams);
+        const { grid: combinedGrid, colorAssignments, effectiveColors } =
+          generateCombinedTextPatternGrid(textGrid, patternConfig, baseCols, baseRows);
+        return gridToSvg(
+          combinedGrid, baseCols, baseRows, cellSize, canvasWidth,
+          effectiveColors[0], displayBackground, canvasHeight,
+          { colorAssignments, colors: effectiveColors },
+        );
+      }
+
       const effectiveTextColor = colorMode !== 'mono' ? textColor : displayForeground;
       return gridToSvg(
-        result.grid,
-        baseCols,
-        baseRows,
-        cellSize,
-        canvasWidth,
-        effectiveTextColor,
-        displayBackground,
-        canvasHeight,
+        textGrid, baseCols, baseRows, cellSize, canvasWidth,
+        effectiveTextColor, displayBackground, canvasHeight,
       );
     }
 
@@ -121,7 +149,7 @@ export function useFragmentGeneration(state: FragmentState) {
       colorProportions,
     };
     return generateFragmentSvgDirect(config);
-  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection, elongateAxis, elongateAmount, gridDimensions, fromStateType, fromTextConfig, colorMode, multiColors, colorProportions]);
+  }, [params, displayForeground, displayBackground, cellSize, canvasWidth, canvasHeight, allowCropping, cropDirection, elongateAxis, elongateAmount, gridDimensions, fromStateType, fromTextConfig, fromTextPatternEnabled, fromTextPatternParams, colorMode, multiColors, colorProportions, textColor]);
 
   // Generate diff SVG for animation preview
   // Supports all four combinations: Pattern↔Pattern, Pattern↔Text, Text↔Pattern, Text↔Text
@@ -182,7 +210,7 @@ export function useFragmentGeneration(state: FragmentState) {
       return generateFragmentDiffFromConfigs({ fromConfig, toConfig });
     }
 
-    // At least one state is text — use mixed-cell diff with entity grouping.
+    // At least one state is text — use composite diff for entity bar preservation.
     const { baseCols, baseRows, cols: entityCols, rows: entityRows } = gridDimensions;
     if (baseCols <= 0 || baseRows <= 0) return '';
 
@@ -193,46 +221,59 @@ export function useFragmentGeneration(state: FragmentState) {
         p.fillType, p.invertFill, p.directionalNeighbors, p.directionDensity,
       );
 
-    const mixedOpts = {
-      elongateAxis: debounced.elongateAxis, elongateAmount: debounced.elongateAmount,
+    const fromHasOverlay = fromIsText && debounced.fromTextPatternEnabled;
+    const toHasOverlay = toIsText && debounced.toTextPatternEnabled;
+    const dColors = debounced.colorMode !== 'mono' ? debounced.multiColors : undefined;
+    const dTextColor = debounced.colorMode !== 'mono' ? debounced.textColor : undefined;
+
+    // Helper to build a CompositeDiffSide for a text state (with optional pattern overlay)
+    const buildTextSide = (
+      textConfig: typeof debounced.fromTextConfig,
+      patternEnabled: boolean,
+      patternParams: typeof debounced.fromTextPatternParams,
+    ): CompositeDiffSide => {
+      const textGrid = generateTextGrid(textConfig, baseCols, baseRows, fonts).grid;
+      const side: CompositeDiffSide = {
+        textGrid,
+        textColor: dTextColor ?? displayForeground,
+      };
+      if (patternEnabled) {
+        const entityGrid = generatePatternEntityGrid(patternParams);
+        side.entityGrid = entityGrid;
+        side.entityColorAssignments = assignCellColors(entityGrid, patternParams.seed, debounced.colorMode, debounced.colorProportions);
+        side.colors = dColors;
+      }
+      return side;
+    };
+
+    // Helper to build a CompositeDiffSide for a pattern-only state
+    const buildPatternSide = (p: typeof debounced.params): CompositeDiffSide => {
+      const entityGrid = generatePatternEntityGrid(p);
+      return {
+        entityGrid,
+        entityColorAssignments: assignCellColors(entityGrid, p.seed, debounced.colorMode, debounced.colorProportions),
+        colors: dColors,
+      };
+    };
+
+    // Use composite diff for all text-involved cases (handles entity bars on both sides)
+    const compositeOpts = {
+      elongateAxis: debounced.elongateAxis,
+      elongateAmount: Math.max(1, Math.round(debounced.elongateAmount)),
       baseCols, baseRows, cellSize: debounced.cellSize,
       width: debounced.canvasWidth, height: debounced.canvasHeight,
       foregroundColor: displayForeground, backgroundColor: displayBackground,
-      colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
-      textColor: debounced.colorMode !== 'mono' ? debounced.textColor : undefined,
     };
 
-    if (!fromIsText && toIsText) {
-      const entityGrid = generatePatternEntityGrid(debounced.params);
-      const textGrid = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid;
-      return buildMixedCellDiffSvg({
-        entityGrid, textGrid,
-        ...mixedOpts, patternIsFrom: true,
-        entityColorAssignments: assignCellColors(entityGrid, debounced.params.seed, debounced.colorMode, debounced.colorProportions),
-        textColorAssignments: assignCellColors(textGrid, debounced.params.seed, debounced.colorMode, debounced.colorProportions),
-      });
-    } else if (fromIsText && !toIsText) {
-      const entityGrid = generatePatternEntityGrid(debounced.toParams);
-      const textGrid = generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid;
-      return buildMixedCellDiffSvg({
-        entityGrid, textGrid,
-        ...mixedOpts, patternIsFrom: false,
-        entityColorAssignments: assignCellColors(entityGrid, debounced.toParams.seed, debounced.colorMode, debounced.colorProportions),
-        textColorAssignments: assignCellColors(textGrid, debounced.params.seed, debounced.colorMode, debounced.colorProportions),
-      });
-    } else {
-      // Text → Text
-      const gridFrom = generateTextGrid(debounced.fromTextConfig, baseCols, baseRows, fonts).grid;
-      const gridTo = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid;
-      const colorAssignmentsA = assignCellColors(gridFrom, debounced.params.seed, debounced.colorMode, debounced.colorProportions);
-      const colorAssignmentsB = assignCellColors(gridTo, debounced.toParams.seed, debounced.colorMode, debounced.colorProportions);
-      return generateDiffFromGrids({
-        gridFrom, gridTo, cols: baseCols, rows: baseRows,
-        cellSize: debounced.cellSize, width: debounced.canvasWidth, height: debounced.canvasHeight,
-        foregroundColor: displayForeground, backgroundColor: displayBackground,
-        colorOpts: { colorAssignmentsA, colorAssignmentsB, colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined },
-      });
-    }
+    const fromSide: CompositeDiffSide = fromIsText
+      ? buildTextSide(debounced.fromTextConfig, fromHasOverlay, debounced.fromTextPatternParams)
+      : buildPatternSide(debounced.params);
+
+    const toSide: CompositeDiffSide = toIsText
+      ? buildTextSide(debounced.toTextConfig, toHasOverlay, debounced.toTextPatternParams)
+      : buildPatternSide(debounced.toParams);
+
+    return buildCompositeDiffSvg({ from: fromSide, to: toSide, ...compositeOpts });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
   // Generate static SVG for the "to" state (used by Show End State preview)
@@ -245,20 +286,40 @@ export function useFragmentGeneration(state: FragmentState) {
     const toIsText = debounced.toStateType === 'text';
 
     if (toIsText) {
-      // Text always uses base-cell dimensions (never stretched)
       const { baseCols, baseRows } = gridDimensions;
       if (baseCols <= 0 || baseRows <= 0) return '';
-      const result = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts);
+      const textGrid = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts).grid;
+
+      if (debounced.toTextPatternEnabled) {
+        const patternConfig: FragmentConfig = {
+          threshold: debounced.toTextPatternParams.threshold, gamma: debounced.toTextPatternParams.gamma,
+          frequency: debounced.toTextPatternParams.frequency, contrast: debounced.toTextPatternParams.contrast,
+          seed: debounced.toTextPatternParams.seed,
+          directionalNeighbors: debounced.toTextPatternParams.directionalNeighbors,
+          directionDensity: debounced.toTextPatternParams.directionDensity,
+          fillAmount: debounced.toTextPatternParams.fillAmount,
+          fillType: debounced.toTextPatternParams.fillType, invertFill: debounced.toTextPatternParams.invertFill,
+          foregroundColor: displayForeground, backgroundColor: displayBackground,
+          cellSize: debounced.cellSize, canvasWidth: debounced.canvasWidth, canvasHeight: debounced.canvasHeight,
+          allowCropping: debounced.allowCropping, cropDirection: debounced.cropDirection,
+          elongateAxis: debounced.elongateAxis, elongateAmount: debounced.elongateAmount,
+          colorMode: debounced.colorMode,
+          colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
+          colorProportions: debounced.colorProportions,
+          textColor: debounced.colorMode !== 'mono' ? debounced.textColor : undefined,
+        };
+        const { grid, colorAssignments, effectiveColors } = generateCombinedTextPatternGrid(textGrid, patternConfig, baseCols, baseRows);
+        return gridToSvg(
+          grid, baseCols, baseRows, debounced.cellSize, debounced.canvasWidth,
+          effectiveColors[0], displayBackground, debounced.canvasHeight,
+          { colorAssignments, colors: effectiveColors },
+        );
+      }
+
       const effectiveTextColor = debounced.colorMode !== 'mono' ? debounced.textColor : displayForeground;
       return gridToSvg(
-        result.grid,
-        baseCols,
-        baseRows,
-        debounced.cellSize,
-        debounced.canvasWidth,
-        effectiveTextColor,
-        displayBackground,
-        debounced.canvasHeight,
+        textGrid, baseCols, baseRows, debounced.cellSize, debounced.canvasWidth,
+        effectiveTextColor, displayBackground, debounced.canvasHeight,
       );
     }
 
