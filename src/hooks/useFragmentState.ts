@@ -91,6 +91,7 @@ export function useFragmentState() {
   const [colorMode, setColorMode] = useState<ColorMode>(initialUrlState.colorMode ?? 'mono');
   const [multiColors, setMultiColors] = useState<string[]>(initialUrlState.multiColors ?? ['#FCFCFC', '#C2A3FF']);
   const [colorProportions, setColorProportions] = useState<number[]>(initialUrlState.colorProportions ?? [0.5, 0.5]);
+  const [textColor, setTextColor] = useState(initialUrlState.textColor ?? '#FCFCFC');
 
   const [invertColors, setInvertColors] = useState(initialUrlState.invertColors ?? false);
   const [params, setParams] = useState<GeneratorParams>({
@@ -179,6 +180,7 @@ export function useFragmentState() {
   const [debouncedColorMode, setDebouncedColorMode] = useState<ColorMode>(colorMode);
   const [debouncedMultiColors, setDebouncedMultiColors] = useState<string[]>(multiColors);
   const [debouncedColorProportions, setDebouncedColorProportions] = useState<number[]>(colorProportions);
+  const [debouncedTextColor, setDebouncedTextColor] = useState(textColor);
 
   // Debounce effects
   useEffect(() => {
@@ -300,9 +302,10 @@ export function useFragmentState() {
       setDebouncedColorMode(colorMode);
       setDebouncedMultiColors(multiColors);
       setDebouncedColorProportions(colorProportions);
+      setDebouncedTextColor(textColor);
     }, DEBOUNCE_DELAY);
     return () => clearTimeout(timer);
-  }, [colorMode, multiColors, colorProportions]);
+  }, [colorMode, multiColors, colorProportions, textColor]);
 
   // --- URL sync ---
   useEffect(() => {
@@ -331,6 +334,7 @@ export function useFragmentState() {
       colorMode: debouncedColorMode,
       multiColors: debouncedMultiColors,
       colorProportions: debouncedColorProportions,
+      textColor: debouncedTextColor,
       animationEnabled: debouncedAnimationEnabled,
       animationDuration: debouncedAnimationDuration,
       toParams: debouncedToParams,
@@ -359,6 +363,7 @@ export function useFragmentState() {
     debouncedColorMode,
     debouncedMultiColors,
     debouncedColorProportions,
+    debouncedTextColor,
     debouncedAnimationEnabled,
     debouncedAnimationDuration,
     debouncedToParams,
@@ -434,6 +439,7 @@ export function useFragmentState() {
     colorMode, setColorMode,
     multiColors, setMultiColors,
     colorProportions, setColorProportions,
+    textColor, setTextColor,
     params, setParams,
     isCollapsed, setIsCollapsed,
     viewMode, setViewMode,
@@ -461,6 +467,7 @@ export function useFragmentState() {
       colorMode: debouncedColorMode,
       multiColors: debouncedMultiColors,
       colorProportions: debouncedColorProportions,
+      textColor: debouncedTextColor,
       canvasWidth: debouncedCanvasWidth,
       canvasHeight: debouncedCanvasHeight,
       allowCropping: debouncedAllowCropping,

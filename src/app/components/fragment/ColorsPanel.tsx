@@ -209,6 +209,37 @@ function MultiColorControls({ state }: { state: FragmentState }) {
   );
 }
 
+function TextColorSelector({ state }: { state: FragmentState }) {
+  const { multiColors, colorMode, textColor, setTextColor } = state;
+
+  const colorCount = colorMode === 'tri' ? 3 : 2;
+  const options = multiColors.slice(0, colorCount);
+
+  return (
+    <div>
+      <label className="block text-sm text-white/60 mb-2">Text Color</label>
+      <div className="flex gap-2">
+        {options.map((color, i) => {
+          const isActive = getColorRgb(textColor).toUpperCase() === getColorRgb(color).toUpperCase();
+          return (
+            <button
+              key={i}
+              onClick={() => setTextColor(color)}
+              className={`w-10 h-10 rounded-lg transition-all ${
+                isActive
+                  ? 'ring-2 ring-white/60 ring-offset-2 ring-offset-black/80 scale-110'
+                  : 'border border-white/20 hover:border-white/40'
+              }`}
+              style={{ backgroundColor: color }}
+              title={`Color ${i + 1}: ${color}`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function BackgroundColorControl({ state }: { state: FragmentState }) {
   const { backgroundColor, setBackgroundColor } = state;
 
@@ -237,7 +268,9 @@ function BackgroundColorControl({ state }: { state: FragmentState }) {
 }
 
 export function ColorsPanel({ state }: ColorsPanelProps) {
-  const { colorMode, setColorMode, setMultiColors, setColorProportions } = state;
+  const { colorMode, setColorMode, setMultiColors, setColorProportions,
+    fromStateType, toStateType, animationEnabled } = state;
+  const hasTextState = fromStateType === 'text' || (animationEnabled && toStateType === 'text');
 
   const handleColorModeChange = (mode: ColorMode) => {
     setColorMode(mode);
@@ -275,6 +308,14 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
         <MonoColorControls state={state} />
       ) : (
         <MultiColorControls state={state} />
+      )}
+
+      {/* Text Color — pick which color to use for text when in multi-color mode */}
+      {colorMode !== 'mono' && hasTextState && (
+        <>
+          <div className="border-t border-white/10 my-4"></div>
+          <TextColorSelector state={state} />
+        </>
       )}
     </Section>
   );

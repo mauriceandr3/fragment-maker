@@ -33,6 +33,7 @@ export function useFragmentGeneration(state: FragmentState) {
     colorMode,
     multiColors,
     colorProportions,
+    textColor,
   } = state;
 
   const [grid, setGrid] = useState<boolean[][]>([]);
@@ -80,17 +81,17 @@ export function useFragmentGeneration(state: FragmentState) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Invalid dimensions</text></svg>`;
       }
       const result = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts);
-      const textColorAssignments = assignCellColors(result.grid, params.seed, colorMode, colorProportions);
+      // Text uses a single solid color (textColor in multi-color mode, foreground in mono)
+      const effectiveTextColor = colorMode !== 'mono' ? textColor : displayForeground;
       return gridToSvg(
         result.grid,
         baseCols,
         baseRows,
         cellSize,
         canvasWidth,
-        displayForeground,
+        effectiveTextColor,
         displayBackground,
         canvasHeight,
-        { colorAssignments: textColorAssignments, colors: colorMode !== 'mono' ? multiColors : undefined },
       );
     }
 
@@ -198,6 +199,7 @@ export function useFragmentGeneration(state: FragmentState) {
       width: debounced.canvasWidth, height: debounced.canvasHeight,
       foregroundColor: displayForeground, backgroundColor: displayBackground,
       colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
+      textColor: debounced.colorMode !== 'mono' ? debounced.textColor : undefined,
     };
 
     if (!fromIsText && toIsText) {
@@ -247,13 +249,14 @@ export function useFragmentGeneration(state: FragmentState) {
       const { baseCols, baseRows } = gridDimensions;
       if (baseCols <= 0 || baseRows <= 0) return '';
       const result = generateTextGrid(debounced.toTextConfig, baseCols, baseRows, fonts);
+      const effectiveTextColor = debounced.colorMode !== 'mono' ? debounced.textColor : displayForeground;
       return gridToSvg(
         result.grid,
         baseCols,
         baseRows,
         debounced.cellSize,
         debounced.canvasWidth,
-        displayForeground,
+        effectiveTextColor,
         displayBackground,
         debounced.canvasHeight,
       );

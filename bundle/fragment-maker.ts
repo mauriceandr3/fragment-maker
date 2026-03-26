@@ -749,6 +749,8 @@ export interface FragmentConfig {
   colors?: string[];
   /** Proportions for each color (0-1 values summing to 1). Length matches colors array. */
   colorProportions?: number[];
+  /** Color to use for text rendering in multi-color mode (hex). Defaults to foregroundColor. */
+  textColor?: string;
 }
 
 export interface GenerateFragmentSvgOptions {
@@ -1122,7 +1124,7 @@ export function generateGrid(
         ? fillThreshold > effectiveFillAmount
         : fillThreshold <= effectiveFillAmount;
 
-      row.push(shouldFill && noise > threshold);
+      row.push(shouldFill && noise < threshold);
     }
     grid.push(row);
   }
@@ -1503,6 +1505,8 @@ export interface MixedCellDiffOptions {
   textColorAssignments?: number[][] | null;
   /** Multi-color: array of foreground colors */
   colors?: string[];
+  /** Color to use for text cells (defaults to foregroundColor) */
+  textColor?: string;
 }
 
 /**
@@ -1515,21 +1519,20 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
   const { entityGrid, textGrid, elongateAxis, elongateAmount,
           baseCols, baseRows, cellSize, width, height,
           foregroundColor, backgroundColor, patternIsFrom,
-          entityColorAssignments, textColorAssignments, colors } = opts;
+          entityColorAssignments, colors, textColor: textColorOpt } = opts;
 
   const stretchX = elongateAxis === 'width' ? elongateAmount : 1;
   const stretchY = elongateAxis === 'height' ? elongateAmount : 1;
   const entityCols = entityGrid[0]?.length || 0;
   const entityRows = entityGrid.length;
+  const tFill = textColorOpt ?? foregroundColor;
 
   const pTag = patternIsFrom ? ' data-g="a"' : ' data-g="b" style="opacity:0"';
   const tTag = patternIsFrom ? ' data-g="b" style="opacity:0"' : ' data-g="a"';
 
-  // Multi-color helpers: entity-level color for pattern cells, base-level for text cells
+  // Multi-color for pattern cells only; text uses textColor
   const entityFill = (ex: number, ey: number) =>
     getCellColor(entityColorAssignments ?? null, colors, foregroundColor, ex, ey);
-  const textFill = (bx: number, by: number) =>
-    getCellColor(textColorAssignments ?? null, colors, foregroundColor, bx, by);
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">`;
   svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
 
@@ -1537,7 +1540,12 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
   const emitted = new Set<number>(); // by * baseCols + bx
   const key = (bx: number, by: number) => by * baseCols + bx;
 
-  // 1. Process each entity — emit shared cells individually, pattern-only as merged rects
+  // Collect shared cells and entity rects in two passes:
+  // 1a. First pass: find shared cells, emit them FIRST (behind entity bars in SVG order)
+  // 1b. Second pass: emit entity bars ON TOP (they cover shared cells initially,
+  //     then animate to opacity 0, revealing the foreground-colored text underneath)
+  const entityRects: Array<{ x: number; y: number; w: number; h: number; fill: string }> = [];
+
   for (let ey = 0; ey < entityRows; ey++) {
     for (let ex = 0; ex < entityCols; ex++) {
       if (!entityGrid[ey][ex]) continue;
@@ -1548,74 +1556,32 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
       const baseXEnd = Math.min(baseXStart + stretchX, baseCols);
       const baseYEnd = Math.min(baseYStart + stretchY, baseRows);
 
-      if (elongateAxis === 'width') {
-        // Width stretch: merge pattern-only runs along X within each row
-        for (let by = baseYStart; by < baseYEnd; by++) {
-          let runStart = -1;
-          for (let bx = baseXStart; bx <= baseXEnd; bx++) {
-            const inText = bx < baseXEnd && (textGrid[by]?.[bx] ?? false);
-            const isPatternOnly = bx < baseXEnd && !inText;
-
-            if (isPatternOnly && runStart < 0) runStart = bx;
-
-            if (!isPatternOnly || bx === baseXEnd) {
-              if (runStart >= 0) {
-                // Emit merged pattern-only rect
-                const rw = Math.min((bx - runStart) * cellSize, width - runStart * cellSize);
-                const rh = Math.min(cellSize, height - by * cellSize);
-                if (rw > 0 && rh > 0) {
-                  svg += `<rect x="${runStart * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${eFill}"${pTag}/>`;
-                }
-                for (let i = runStart; i < bx; i++) emitted.add(key(i, by));
-                runStart = -1;
-              }
-              // Emit shared cell
-              if (bx < baseXEnd && inText) {
-                const rw = Math.min(cellSize, width - bx * cellSize);
-                const rh = Math.min(cellSize, height - by * cellSize);
-                if (rw > 0 && rh > 0) {
-                  const sf = patternIsFrom ? textFill(bx, by) : eFill;
-                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${sf}"/>`;
-                }
-                emitted.add(key(bx, by));
-              }
-            }
-          }
-        }
-      } else {
-        // Height stretch: merge pattern-only runs along Y within each column
+      // Emit shared cells (behind bars)
+      for (let by = baseYStart; by < baseYEnd; by++) {
         for (let bx = baseXStart; bx < baseXEnd; bx++) {
-          let runStart = -1;
-          for (let by = baseYStart; by <= baseYEnd; by++) {
-            const inText = by < baseYEnd && (textGrid[by]?.[bx] ?? false);
-            const isPatternOnly = by < baseYEnd && !inText;
-
-            if (isPatternOnly && runStart < 0) runStart = by;
-
-            if (!isPatternOnly || by === baseYEnd) {
-              if (runStart >= 0) {
-                const rw = Math.min(cellSize, width - bx * cellSize);
-                const rh = Math.min((by - runStart) * cellSize, height - runStart * cellSize);
-                if (rw > 0 && rh > 0) {
-                  svg += `<rect x="${bx * cellSize}" y="${runStart * cellSize}" width="${rw}" height="${rh}" fill="${eFill}"${pTag}/>`;
-                }
-                for (let i = runStart; i < by; i++) emitted.add(key(bx, i));
-                runStart = -1;
-              }
-              if (by < baseYEnd && inText) {
-                const rw = Math.min(cellSize, width - bx * cellSize);
-                const rh = Math.min(cellSize, height - by * cellSize);
-                if (rw > 0 && rh > 0) {
-                  const sf = patternIsFrom ? textFill(bx, by) : eFill;
-                  svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${sf}"/>`;
-                }
-                emitted.add(key(bx, by));
-              }
+          emitted.add(key(bx, by));
+          if (textGrid[by]?.[bx]) {
+            const rw = Math.min(cellSize, width - bx * cellSize);
+            const rh = Math.min(cellSize, height - by * cellSize);
+            if (rw > 0 && rh > 0) {
+              svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${tFill}"/>`;
             }
           }
         }
       }
+
+      // Collect entity rect for second pass
+      const rw = Math.min((baseXEnd - baseXStart) * cellSize, width - baseXStart * cellSize);
+      const rh = Math.min((baseYEnd - baseYStart) * cellSize, height - baseYStart * cellSize);
+      if (rw > 0 && rh > 0) {
+        entityRects.push({ x: baseXStart * cellSize, y: baseYStart * cellSize, w: rw, h: rh, fill: eFill });
+      }
     }
+  }
+
+  // Emit entity bars on top (they cover the shared cells)
+  for (const r of entityRects) {
+    svg += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.fill}"${pTag}/>`;
   }
 
   // 2. Emit text-only cells (not covered by any pattern entity)
@@ -1628,7 +1594,7 @@ export function buildMixedCellDiffSvg(opts: MixedCellDiffOptions): string {
       const rh = Math.min(cellSize, height - by * cellSize);
       if (rw <= 0 || rh <= 0) continue;
 
-      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${textFill(bx, by)}"${tTag}/>`;
+      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${tFill}"${tTag}/>`;
     }
   }
 
@@ -1836,14 +1802,14 @@ export function generateSvgFromExport(
       ? { ...fromTextConfig, text: options.text }
       : fromTextConfig;
     const { grid } = generateTextGrid(effectiveTextConfig, baseCols, baseRows, parsedFonts);
-    const colorMode = config.colorMode ?? 'mono';
-    const textColorAssignments = assignCellColors(grid, config.seed, colorMode, config.colorProportions ?? [1]);
+    // Text uses a single solid color (textColor in multi-color mode, foreground in mono)
+    const effectiveTextColor = (config.colorMode ?? 'mono') !== 'mono' && config.textColor
+      ? config.textColor : config.foregroundColor;
     svg = gridToSvg(
       grid, baseCols, baseRows,
       config.cellSize, dims.width,
-      config.foregroundColor, config.backgroundColor,
+      effectiveTextColor, config.backgroundColor,
       dims.height,
-      { colorAssignments: textColorAssignments, colors: config.colors },
     );
   } else {
     svg = generateFragmentSvg({ config, seed: options?.seed });
@@ -1912,6 +1878,7 @@ export function generateDiffSvgFromExport(
     cellSize: config.cellSize, width: dims.width, height: dims.height,
     foregroundColor: config.foregroundColor, backgroundColor: config.backgroundColor,
     colors: config.colors,
+    textColor: config.textColor,
   };
 
   let svg: string;

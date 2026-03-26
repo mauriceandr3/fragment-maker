@@ -56,6 +56,7 @@ export interface UrlSerializableState {
   colorMode: ColorMode;
   multiColors: string[];
   colorProportions: number[];
+  textColor: string;
   animationEnabled: boolean;
   animationDuration: number; // milliseconds
   toParams: GeneratorParamsUrl | null;
@@ -99,6 +100,7 @@ const PARAM_KEYS = {
   colorMode: 'cm',
   multiColors: 'mc',
   colorProportions: 'cp',
+  textColor: 'tc',
   animationEnabled: 'ae',
   animationDuration: 'ad',
   // To params (for animation)
@@ -178,6 +180,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   colorMode: 'mono',
   multiColors: ['#FCFCFC', '#C2A3FF'],
   colorProportions: [0.5, 0.5],
+  textColor: '#FCFCFC',
   animationEnabled: false,
   animationDuration: 600, // 600ms = 0.6s
   toParams: null,
@@ -231,6 +234,9 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     params.set(PARAM_KEYS.multiColors, state.multiColors.map(c => c.replace('#', '')).join(','));
     params.set(PARAM_KEYS.colorProportions, state.colorProportions.map(p => String(Math.round(p * 100))).join(','));
   }
+
+  // Text color (only when non-default)
+  addIfChanged(PARAM_KEYS.textColor, state.textColor.replace('#', ''), DEFAULTS.textColor.replace('#', ''));
 
   // Elongation
   addIfChanged(PARAM_KEYS.elongateAxis, state.elongateAxis, DEFAULTS.elongateAxis);
@@ -400,6 +406,12 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   const presetOrCustomMode = sp.get('pcm');
   if (presetOrCustomMode === 'presets' || presetOrCustomMode === 'custom') {
     result.presetOrCustomMode = presetOrCustomMode;
+  }
+
+  // Text color
+  const tc = sp.get(PARAM_KEYS.textColor);
+  if (tc !== null && HEX_COLOR_REGEX.test(tc)) {
+    result.textColor = '#' + tc.toUpperCase();
   }
 
   // Booleans

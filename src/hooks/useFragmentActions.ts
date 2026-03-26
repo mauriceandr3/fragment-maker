@@ -28,7 +28,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     setAllowCropping, setCropDirection,
     setElongateAxis, setElongateAmount,
     setInvertColors,
-    setColorMode, setMultiColors, setColorProportions,
+    setColorMode, setMultiColors, setColorProportions, setTextColor,
     setParams,
     setAnimationEnabled,
     setAnimationDuration,
@@ -39,7 +39,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     foregroundColor, backgroundColor, cellSize,
     canvasWidth, canvasHeight, allowCropping, cropDirection,
     elongateAxis, elongateAmount,
-    colorMode, multiColors, colorProportions,
+    colorMode, multiColors, colorProportions, textColor,
     params,
   } = state;
 
@@ -183,7 +183,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
         ...(elongateAxis !== 'none' ? { elongateAxis, elongateAmount } : {}),
-        ...(colorMode !== 'mono' ? { colorMode, colors: multiColors, colorProportions } : {}),
+        ...(colorMode !== 'mono' ? { colorMode, colors: multiColors, colorProportions, textColor } : {}),
       },
     };
 
@@ -216,7 +216,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         allowCropping,
         ...(allowCropping ? { cropDirection } : {}),
         ...(elongateAxis !== 'none' ? { elongateAxis, elongateAmount } : {}),
-        ...(colorMode !== 'mono' ? { colorMode, colors: multiColors, colorProportions } : {}),
+        ...(colorMode !== 'mono' ? { colorMode, colors: multiColors, colorProportions, textColor } : {}),
       };
     }
 
@@ -400,6 +400,10 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
               const total = props.reduce((a: number, b: number) => a + b, 0);
               setColorProportions(props.map((p: number) => p / total));
             }
+          }
+          // Text color
+          if (typeof config.textColor === 'string' && hexRegex.test(config.textColor)) {
+            setTextColor(config.textColor);
           }
         }
 
