@@ -243,7 +243,9 @@ When animation is enabled, the **Export Video** button appears in the control pa
 
 ### Responsive Container Sizing
 
-Use `useFragmentSize` to regenerate the SVG when the container resizes. It only triggers when the size changes by at least one `cellSize`.
+Use `useFragmentSize` to regenerate the SVG when the container resizes. It snaps dimensions UP to cell boundaries so the SVG fully covers the container — use `overflow-hidden` on the container to clip the small excess at edges.
+
+Pass the config's `elongateAxis` and `elongateAmount` as the third argument so the hook accounts for elongated cells:
 
 ```tsx
 import { useRef, useMemo } from 'react';
@@ -251,7 +253,10 @@ import { generateSvgFromExport, useFragmentSize, type FragmentExport } from './f
 
 function ResponsiveFragment({ seed }: { seed: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const size = useFragmentSize(containerRef, fragmentExport.config.cellSize);
+  const size = useFragmentSize(containerRef, fragmentExport.config.cellSize, {
+    elongateAxis: fragmentExport.config.elongateAxis,
+    elongateAmount: fragmentExport.config.elongateAmount,
+  });
 
   const responsiveExport = useMemo(() => {
     if (!size) return null;
@@ -269,7 +274,7 @@ function ResponsiveFragment({ seed }: { seed: string }) {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', aspectRatio: '16/9' }}
+      style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden' }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
@@ -283,7 +288,10 @@ import { generateDiffSvgFromExport, useFragmentReveal, useFragmentSize } from '.
 
 function ResponsiveAnimatedCard({ title }: { title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const size = useFragmentSize(containerRef, fragmentExport.config.cellSize);
+  const size = useFragmentSize(containerRef, fragmentExport.config.cellSize, {
+    elongateAxis: fragmentExport.config.elongateAxis,
+    elongateAmount: fragmentExport.config.elongateAmount,
+  });
 
   const responsiveExport = useMemo(() => {
     if (!size) return null;
@@ -314,7 +322,7 @@ function ResponsiveAnimatedCard({ title }: { title: string }) {
       ref={containerRef}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      style={{ width: '100%', aspectRatio: '16/9' }}
+      style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden' }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

@@ -59,6 +59,7 @@ export function ConfigPanel({
           className="flex-1"
           fullWidth
           icon={<FileJson className="w-4 h-4" />}
+          data-action="export-json"
         >
           Export JSON
         </Button>
