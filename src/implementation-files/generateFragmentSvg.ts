@@ -29,7 +29,7 @@ import { type TextOverlayConfig, generateTextOverlaySvg } from './textOverlay';
 // Types
 // ============================================================================
 
-export type FillType = 'linear' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
+export type FillType = 'linear' | 'linearHorizontal' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
 
 export type SeedableParam =
   | 'threshold'
@@ -236,6 +236,9 @@ function calculateFillThreshold(
   switch (fillType) {
     case 'linear':
       return (y / rows) * 100;
+
+    case 'linearHorizontal':
+      return (x / cols) * 100;
 
     case 'radial': {
       const dx = x - centerX;

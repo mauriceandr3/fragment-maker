@@ -378,7 +378,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         };
 
         const hexRegex = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
-        const validFillTypes: FillType[] = ['linear', 'radial', 'angular', 'diamond', 'square', 'box'];
+        const validFillTypes: FillType[] = ['linear', 'linearHorizontal', 'radial', 'angular', 'diamond', 'square', 'box'];
 
         const newWidth = Math.round(clamp(config.canvasWidth, MIN_CANVAS_DIMENSION, MAX_CANVAS_DIMENSION, DEFAULT_WIDTH));
         const newHeight = Math.round(clamp(config.canvasHeight, MIN_CANVAS_DIMENSION, MAX_CANVAS_DIMENSION, DEFAULT_HEIGHT));
@@ -561,7 +561,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         const parsePatternOverlayConfig = (cfg: unknown) => {
           if (!cfg || typeof cfg !== 'object') return null;
           const p = cfg as Record<string, unknown>;
-          const validFillTypesLocal: FillType[] = ['linear', 'radial', 'angular', 'diamond', 'square', 'box'];
+          const validFillTypesLocal: FillType[] = ['linear', 'linearHorizontal', 'radial', 'angular', 'diamond', 'square', 'box'];
           return {
             threshold: clamp(p.threshold, 0, 1, 0.5),
             gamma: clamp(p.gamma, 0.1, 3, 1.0),

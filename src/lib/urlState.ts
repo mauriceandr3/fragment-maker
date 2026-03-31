@@ -399,7 +399,7 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
 }
 
 const HEX_COLOR_REGEX = /^[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
-const VALID_FILL_TYPES: FillType[] = ['linear', 'radial', 'angular', 'diamond', 'square', 'box'];
+const VALID_FILL_TYPES: FillType[] = ['linear', 'linearHorizontal', 'radial', 'angular', 'diamond', 'square', 'box'];
 
 function clampNum(val: string | null, min: number, max: number): number | undefined {
   if (val === null) return undefined;

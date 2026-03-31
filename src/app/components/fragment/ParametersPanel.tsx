@@ -106,6 +106,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
               value={params.fillType}
               options={[
                 { value: 'linear', label: 'Linear' },
+                { value: 'linearHorizontal', label: 'Linear H' },
                 { value: 'radial', label: 'Radial' },
                 { value: 'angular', label: 'Angular' },
                 { value: 'diamond', label: 'Diamond' },
