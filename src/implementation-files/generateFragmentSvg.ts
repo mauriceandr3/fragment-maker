@@ -387,6 +387,7 @@ export function assignCellColors(
   seed: number,
   colorMode: ColorMode,
   proportions: number[],
+  frequency: number = 1,
 ): number[][] | null {
   if (colorMode === 'mono') return null;
 
@@ -401,9 +402,13 @@ export function assignCellColors(
     }
   }
 
+  // Derive a shuffle seed that incorporates frequency so color distribution
+  // changes when frequency changes, even if the grid pattern is identical.
+  const shuffleSeed = seed + Math.round(frequency * 10000);
+
   // Fisher-Yates shuffle using seeded random
   for (let i = filledCells.length - 1; i > 0; i--) {
-    const r = seededRandom(seed, i, 9999);
+    const r = seededRandom(shuffleSeed, i, 9999);
     const j = Math.floor(r * (i + 1));
     [filledCells[i], filledCells[j]] = [filledCells[j], filledCells[i]];
   }
@@ -552,7 +557,7 @@ export function generateCombinedTextPatternGrid(
   const colorMode = patternConfig.colorMode ?? 'mono';
   const proportions = patternConfig.colorProportions ?? [1];
   const entityColorAssignments = assignCellColors(
-    entityGrid, patternConfig.seed, colorMode, proportions,
+    entityGrid, patternConfig.seed, colorMode, proportions, patternConfig.frequency,
   );
   const textColor = patternConfig.textColor ?? patternConfig.foregroundColor;
   const patternColors = patternConfig.colors ?? [patternConfig.foregroundColor];
@@ -799,6 +804,7 @@ function renderConfigToSvg(params: RenderParams): string {
     grid, config.seed,
     colorMode,
     config.colorProportions ?? [1],
+    config.frequency,
   );
 
   return gridToSvg(
@@ -886,9 +892,16 @@ function buildDiffSvg(
       if (rectWidth <= 0 || rectHeight <= 0) continue;
 
       if (inA && inB) {
-        // Shared cell: use "to" state color (instant adopt)
-        const fill = getCellColor(colorOpts?.colorAssignmentsB ?? null, colorOpts?.colors, foregroundColor, x, y);
-        svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}"/>`;
+        const fillA = getCellColor(colorOpts?.colorAssignmentsA ?? null, colorOpts?.colors, foregroundColor, x, y);
+        const fillB = getCellColor(colorOpts?.colorAssignmentsB ?? null, colorOpts?.colors, foregroundColor, x, y);
+        if (fillA === fillB) {
+          // Same color in both states — static, no animation needed
+          svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fillA}"/>`;
+        } else {
+          // Different colors — animate from A to B via fade out/in
+          svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fillB}" data-g="b" style="opacity:0"/>`;
+          svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fillA}" data-g="a"/>`;
+        }
       } else if (inA) {
         const fill = getCellColor(colorOpts?.colorAssignmentsA ?? null, colorOpts?.colors, foregroundColor, x, y);
         svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}" data-g="a"/>`;
@@ -1138,7 +1151,6 @@ export function buildCompositeDiffSvg(opts: CompositeDiffOptions): string {
   svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
 
   // --- 1. Shared cells (behind everything) ---
-  // Use to-side color: text color if it's a to-text cell, else to-entity color
   for (let by = 0; by < baseRows; by++) {
     for (let bx = 0; bx < baseCols; bx++) {
       if (!isFromCell(bx, by) || !isToCell(bx, by)) continue;
@@ -1146,16 +1158,31 @@ export function buildCompositeDiffSvg(opts: CompositeDiffOptions): string {
       const rh = Math.min(cellSize, height - by * cellSize);
       if (rw <= 0 || rh <= 0) continue;
 
-      // To-side text takes priority for color
-      let fill: string;
-      if (to.textGrid?.[by]?.[bx]) {
-        fill = toTFill;
+      // Resolve from-side and to-side colors
+      let fillFrom: string;
+      if (from.textGrid?.[by]?.[bx]) {
+        fillFrom = fromTFill;
       } else {
         const ex = Math.floor(bx / stretchX);
         const ey = Math.floor(by / stretchY);
-        fill = toEntityFill(ex, ey);
+        fillFrom = fromEntityFill(ex, ey);
       }
-      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fill}"/>`;
+      let fillTo: string;
+      if (to.textGrid?.[by]?.[bx]) {
+        fillTo = toTFill;
+      } else {
+        const ex = Math.floor(bx / stretchX);
+        const ey = Math.floor(by / stretchY);
+        fillTo = toEntityFill(ex, ey);
+      }
+
+      if (fillFrom === fillTo) {
+        svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fillFrom}"/>`;
+      } else {
+        // Different colors — animate from A to B via fade out/in
+        svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fillTo}" data-g="b" style="opacity:0"/>`;
+        svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fillFrom}" data-g="a"/>`;
+      }
     }
   }
 
@@ -1260,8 +1287,8 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
 
   const colorMode = rest.colorMode ?? 'mono';
   const proportions = rest.colorProportions ?? [1];
-  const colorAssignmentsA = assignCellColors(gridA, configA.seed, colorMode, proportions);
-  const colorAssignmentsB = assignCellColors(gridB, configB.seed, colorMode, proportions);
+  const colorAssignmentsA = assignCellColors(gridA, configA.seed, colorMode, proportions, configA.frequency);
+  const colorAssignmentsB = assignCellColors(gridB, configB.seed, colorMode, proportions, configB.frequency);
 
   return buildDiffSvg(gridA, gridB, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor, {
     colorAssignmentsA,
@@ -1354,8 +1381,8 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
   // Multi-color: compute color assignments for both grids
   const colorMode = fromConfig.colorMode ?? 'mono';
   const proportions = fromConfig.colorProportions ?? [1];
-  const colorAssignmentsA = assignCellColors(gridFrom, fromConfig.seed, colorMode, proportions);
-  const colorAssignmentsB = assignCellColors(gridTo, toConfig.seed, colorMode, proportions);
+  const colorAssignmentsA = assignCellColors(gridFrom, fromConfig.seed, colorMode, proportions, fromConfig.frequency);
+  const colorAssignmentsB = assignCellColors(gridTo, toConfig.seed, colorMode, proportions, toConfig.frequency);
 
   return buildDiffSvg(gridFrom, gridTo, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor, {
     colorAssignmentsA,
@@ -1529,7 +1556,7 @@ export function generateDiffSvgFromExport(
     if (patternOverlayConfig) {
       const overlayDims = computeDimensions(patternOverlayConfig);
       side.entityGrid = gridFromConfig(patternOverlayConfig, overlayDims);
-      side.entityColorAssignments = assignCellColors(side.entityGrid, patternOverlayConfig.seed, colorMode, colorProportions);
+      side.entityColorAssignments = assignCellColors(side.entityGrid, patternOverlayConfig.seed, colorMode, colorProportions, patternOverlayConfig.frequency);
       side.colors = config.colors;
     }
     return side;
@@ -1543,7 +1570,7 @@ export function generateDiffSvgFromExport(
     const entityGrid = gridFromConfig(resolved, computeDimensions(resolved));
     return {
       entityGrid,
-      entityColorAssignments: assignCellColors(entityGrid, resolved.seed, colorMode, colorProportions),
+      entityColorAssignments: assignCellColors(entityGrid, resolved.seed, colorMode, colorProportions, resolved.frequency),
       colors: config.colors,
     };
   };

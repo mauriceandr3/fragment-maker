@@ -300,7 +300,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         y: state.logoConfig.y,
         size: state.logoConfig.size,
         color: state.logoConfig.color,
-        useForeground: state.logoConfig.useForeground,
+        colorSource: state.logoConfig.colorSource,
       };
     }
 
@@ -614,13 +614,20 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         // Import logo config (v2.3.0+)
         // Missing logo section defaults to disabled for backward compatibility
         if (data.logo && typeof data.logo === 'object') {
+          const validSources = ['custom', 'color1', 'color2', 'color3'];
+          let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
+          if (typeof data.logo.colorSource === 'string' && validSources.includes(data.logo.colorSource)) {
+            colorSource = data.logo.colorSource as typeof colorSource;
+          } else if ((data.logo as Record<string, unknown>).useForeground === true) {
+            colorSource = 'color1'; // migrate old useForeground setting
+          }
           state.setLogoConfig({
             enabled: typeof data.logo.enabled === 'boolean' ? data.logo.enabled : false,
             x: Math.round(clamp(data.logo.x, 0, 100, DEFAULT_LOGO_CONFIG.x)),
             y: Math.round(clamp(data.logo.y, 0, 100, DEFAULT_LOGO_CONFIG.y)),
             size: Math.round(clamp(data.logo.size, 5, 50, 15)),
             color: typeof data.logo.color === 'string' && hexRegex.test(data.logo.color) ? data.logo.color : '#FCFCFC',
-            useForeground: typeof data.logo.useForeground === 'boolean' ? data.logo.useForeground : false,
+            colorSource,
           });
         } else {
           state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });

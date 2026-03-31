@@ -1,17 +1,18 @@
 import { type RefObject, useEffect, type CSSProperties } from "react";
 import { Square, LayoutGrid, Type } from "lucide-react";
 import { CharPreviewPanel } from "./CharPreviewPanel";
-import { isTransparent, getColorRgb } from "@/lib/colorUtils";
+import { isTransparent } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { GridSkeleton, GridItem } from "./GridItem";
 import { getLogoSvg } from "@/lib/dfinityLogo";
+import { resolveLogoColor } from "@/lib/resolveLogoColor";
 import type { LogoConfig, TextOverlayConfig, TextOverlayZOrder } from "./types";
 
-function LogoOverlay({ logoConfig, foregroundColor }: { logoConfig: LogoConfig; foregroundColor: string }) {
+function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { logoConfig: LogoConfig; foregroundColor: string; colorMode: string; multiColors: string[] }) {
   if (!logoConfig.enabled) return null;
 
-  const effectiveColor = logoConfig.useForeground ? getColorRgb(foregroundColor) : logoConfig.color;
+  const effectiveColor = resolveLogoColor(logoConfig, colorMode as 'mono' | 'duo' | 'tri', multiColors, foregroundColor);
 
   // x/y are 0–100%. At 0 the logo is flush to the left/top edge,
   // at 100 it's flush to the right/bottom edge.
@@ -195,7 +196,7 @@ export function PreviewPanel({
                   dangerouslySetInnerHTML={{ __html: diffSvg }}
                 />
                 <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-                <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} />
+                <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />
               </div>
             </div>
             {state.showEndState && generation.toStateSvg && (
@@ -214,7 +215,7 @@ export function PreviewPanel({
                     dangerouslySetInnerHTML={{ __html: generation.toStateSvg }}
                   />
                   <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-                  <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} />
+                  <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />
                 </div>
               </div>
             )}
@@ -228,7 +229,7 @@ export function PreviewPanel({
               style={{ imageRendering: 'pixelated' }}
             />
             <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-            <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} />
+            <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />
           </div>
         )
       )}

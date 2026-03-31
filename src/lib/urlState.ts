@@ -144,7 +144,7 @@ const PARAM_KEYS = {
   logoY: 'ly',
   logoSize: 'ls',
   logoColor: 'lc',
-  logoUseForeground: 'luf',
+  logoColorSource: 'lcs',
   presetOrCustomMode: 'pcm',
   // Text overlay
   textOverlayEnabled: 'txoe',
@@ -344,7 +344,7 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.logoY, String(state.logoConfig.y), String(DEFAULTS.logoConfig.y));
     addIfChanged(PARAM_KEYS.logoSize, String(state.logoConfig.size), String(DEFAULTS.logoConfig.size));
     addIfChanged(PARAM_KEYS.logoColor, state.logoConfig.color.replace('#', ''), DEFAULTS.logoConfig.color.replace('#', ''));
-    addIfChanged(PARAM_KEYS.logoUseForeground, state.logoConfig.useForeground ? '1' : '0', '0');
+    addIfChanged(PARAM_KEYS.logoColorSource, state.logoConfig.colorSource, 'custom');
   }
 
   // Text overlay (only when enabled, to keep URLs short)
@@ -615,14 +615,21 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     const ly = clampNum(sp.get(PARAM_KEYS.logoY), 0, 100);
     const ls = clampNum(sp.get(PARAM_KEYS.logoSize), 5, 50);
     const lc = sp.get(PARAM_KEYS.logoColor);
-    const luf = parseBool(sp.get(PARAM_KEYS.logoUseForeground));
+    const lcs = sp.get(PARAM_KEYS.logoColorSource);
+    const luf = sp.get('luf'); // backward compat: old URLs used 'luf' for useForeground
+    let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
+    if (lcs && ['custom', 'color1', 'color2', 'color3'].includes(lcs)) {
+      colorSource = lcs as typeof colorSource;
+    } else if (luf === '1') {
+      colorSource = 'color1'; // migrate old useForeground=true to color1
+    }
     result.logoConfig = {
       enabled: true,
       x: lx ?? DEFAULT_LOGO_CONFIG.x,
       y: ly ?? DEFAULT_LOGO_CONFIG.y,
       size: ls ?? 15,
       color: (lc && HEX_COLOR_REGEX.test(lc)) ? '#' + lc.toUpperCase() : '#FCFCFC',
-      useForeground: luf ?? false,
+      colorSource,
     };
   }
 

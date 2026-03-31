@@ -45,13 +45,16 @@ export interface GeneratorParams {
   invertFill: boolean;
 }
 
+/** Which primary color the logo tracks, or 'custom' for a user-chosen color. */
+export type LogoColorSource = 'custom' | 'color1' | 'color2' | 'color3';
+
 export interface LogoConfig {
   enabled: boolean;
   x: number;        // horizontal position 0–100% (0 = left edge, 100 = right edge)
   y: number;        // vertical position 0–100% (0 = top edge, 100 = bottom edge)
   size: number;     // percentage of canvas width (5–50)
   color: string;    // hex color, e.g. '#C2A3FF'
-  useForeground: boolean; // when true, logo color tracks the foreground color
+  colorSource: LogoColorSource; // which color the logo uses
 }
 
 export const DEFAULT_LOGO_CONFIG: LogoConfig = {
@@ -60,7 +63,7 @@ export const DEFAULT_LOGO_CONFIG: LogoConfig = {
   y: 97,
   size: 15,
   color: '#FCFCFC',
-  useForeground: false,
+  colorSource: 'custom',
 };
 
 export const DEBOUNCE_DELAY = 100;

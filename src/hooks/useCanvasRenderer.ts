@@ -20,13 +20,14 @@ export function useCanvasRenderer(options: {
   multiColors: string[];
   colorProportions: number[];
   seed: number;
+  frequency: number;
 }) {
   const {
     canvasRef, grid, gridDimensions,
     displayForeground, displayBackground,
     scale, cellSize, canvasWidth, canvasHeight,
     allowCropping, cropDirection, viewMode, animationEnabled,
-    colorMode, multiColors, colorProportions, seed,
+    colorMode, multiColors, colorProportions, seed, frequency,
   } = options;
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export function useCanvasRenderer(options: {
     canvas.height = scaledCanvasHeight;
 
     // Multi-color assignments
-    const colorAssignments = assignCellColors(grid, seed, colorMode, colorProportions);
+    const colorAssignments = assignCellColors(grid, seed, colorMode, colorProportions, frequency);
 
     const drawCheckerboard = (x0: number, y0: number, w: number, h: number, squareSize = 8) => {
       const saved = ctx.fillStyle;
@@ -106,5 +107,5 @@ export function useCanvasRenderer(options: {
         }
       }
     }
-  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed]);
+  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed, frequency]);
 }

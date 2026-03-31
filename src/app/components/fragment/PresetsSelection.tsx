@@ -3,7 +3,7 @@ import type { FragmentState } from '@/hooks/useFragmentState';
 import type { FragmentActions } from '@/hooks/useFragmentActions';
 import type { GeneratorParams, StateType, LogoConfig } from './types';
 import type { TextConfig } from '@/implementation-files/generateTextGrid';
-import type { CropDirection, ElongateAxis } from '@/implementation-files/generateFragmentSvg';
+import type { CropDirection, ElongateAxis, ColorMode } from '@/implementation-files/generateFragmentSvg';
 import { Section } from '../ui/Section';
 import { RadioSelector } from '../ui/RadioSelector';
 import { CanvasSettingsPanel } from './CanvasSettingsPanel';
@@ -26,6 +26,8 @@ interface PresetCustomization {
     colors?: boolean;
     /** Show the full logo panel */
     logo?: boolean;
+    /** When true (with logo: true), only show the logo color picker (no position, size, or custom color). */
+    logoColorOnly?: boolean;
     /** Show the full animation panel */
     animation?: boolean;
     /** Show the from/to parameter panels. When true, all fields are unlocked. */
@@ -63,6 +65,9 @@ interface PresetConfig {
     foregroundColor: string;
     backgroundColor: string;
     invertColors: boolean;
+    colorMode?: ColorMode;
+    multiColors?: string[];
+    colorProportions?: number[];
     // Animation
     animationEnabled: boolean;
     animationDuration: number;
@@ -90,8 +95,8 @@ const DEFAULT_TEXT_CONFIG: TextConfig = {
 
 const PRESETS: PresetConfig[] = [
     {
-        label: 'Twitter',
-        value: 'twitter',
+        label: 'Stark',
+        value: 'stark',
         customization: {
             colors: true,
             lockedColors: ['colorMode', 'foreground', 'background'],
@@ -102,10 +107,10 @@ const PRESETS: PresetConfig[] = [
             ],
             stateTypeLocked: true,
         },
-        canvasWidth: 1200,
-        canvasHeight: 675,
-        cellSize: 25,
-        allowCropping: false,
+        canvasWidth: 700,
+        canvasHeight: 400,
+        cellSize: 15,
+        allowCropping: true,
         cropDirection: 'height',
         elongateAxis: 'width',
         elongateAmount: 3,
@@ -118,9 +123,9 @@ const PRESETS: PresetConfig[] = [
             enabled: true,
             x: 50,
             y: 50,
-            size: 29,
+            size: 30,
             color: '#00F9E1',
-            useForeground: true,
+            colorSource: 'color1',
         },
         fromStateType: 'pattern',
         params: {
@@ -154,166 +159,138 @@ const PRESETS: PresetConfig[] = [
         toTextConfig: DEFAULT_TEXT_CONFIG,
     },
     {
-        label: 'Discord',
-        value: 'discord',
+        label: 'Bordered',
+        value: 'bordered',
         customization: {
-            parameters: true,
             colors: true,
+            lockedColors: ['colorMode', 'invertColors'],
+            logo: true,
+            logoColorOnly: true,
+            parameters: true,
+            lockedParams: [
+                'threshold', 'gamma', 'contrast', 'fillAmount',
+                'fillType', 'invertFill', 'directionalNeighbors', 'directionDensity',
+            ],
+            stateTypeLocked: true,
         },
-        canvasWidth: 960,
-        canvasHeight: 540,
-        cellSize: 12,
-        allowCropping: true,
-        cropDirection: 'width',
-        foregroundColor: '#7B68EE',
-        backgroundColor: '#0D0D0D',
+        canvasWidth: 700,
+        canvasHeight: 400,
+        cellSize: 50,
+        allowCropping: false,
+        cropDirection: 'height',
+        foregroundColor: '#FCFCFC',
+        backgroundColor: '#000000',
         invertColors: false,
-        animationEnabled: false,
+        colorMode: 'tri',
+        multiColors: ['#FCFCFC', '#262626', '#000000'],
+        colorProportions: [0.17, 0.55, 0.28],
+        animationEnabled: true,
         animationDuration: 600,
         logoConfig: {
-            enabled: false,
-            x: 97,
-            y: 97,
-            size: 15,
+            enabled: true,
+            x: 50,
+            y: 50,
+            size: 30,
             color: '#FCFCFC',
-            useForeground: false,
+            colorSource: 'color1',
         },
         fromStateType: 'pattern',
         params: {
-            threshold: 0.6,
-            gamma: 0.8,
+            threshold: 0.61,
+            gamma: 0.4,
             scale: 1,
-            frequency: 0.15,
-            contrast: 1.8,
-            seed: 0.7891,
-            directionalNeighbors: 6,
-            directionDensity: 80,
-            fillAmount: 40,
-            fillType: 'diamond',
+            frequency: 0.1,
+            contrast: 0.1,
+            seed: 0.6639,
+            directionalNeighbors: 0,
+            directionDensity: 0,
+            fillAmount: 21,
+            fillType: 'box',
             invertFill: true,
         },
         fromTextConfig: DEFAULT_TEXT_CONFIG,
         toStateType: 'pattern',
-        toParams: null,
+        toParams: {
+            threshold: 0.55,
+            gamma: 0.7,
+            scale: 1,
+            frequency: 0.07,
+            contrast: 0.1,
+            seed: 0.6639,
+            directionalNeighbors: 0,
+            directionDensity: 0,
+            fillAmount: 22,
+            fillType: 'box',
+            invertFill: true,
+        },
         toTextConfig: DEFAULT_TEXT_CONFIG,
     },
     {
-        label: 'Website (small)',
-        value: 'website-small',
+        label: 'Splatter',
+        value: 'splatter',
         customization: {
             colors: true,
+            lockedColors: ['colorMode', 'invertColors'],
             logo: true,
+            logoColorOnly: true,
+            parameters: true,
+            lockedParams: [
+                'threshold', 'gamma', 'contrast', 'fillAmount',
+                'fillType', 'invertFill', 'directionalNeighbors', 'directionDensity',
+            ],
+            stateTypeLocked: true,
         },
-        canvasWidth: 400,
+        canvasWidth: 700,
         canvasHeight: 400,
         cellSize: 10,
         allowCropping: false,
         cropDirection: 'height',
-        foregroundColor: '#E0C3FC',
-        backgroundColor: '#1B1033',
+        elongateAxis: 'width',
+        elongateAmount: 6,
+        foregroundColor: '#FCFCFC',
+        backgroundColor: '#0E0030',
         invertColors: false,
-        animationEnabled: true,
-        animationDuration: 1200,
-        logoConfig: {
-            enabled: true,
-            x: 5,
-            y: 95,
-            size: 18,
-            color: '#E0C3FC',
-            useForeground: false,
-        },
-        fromStateType: 'pattern',
-        params: {
-            threshold: 0.35,
-            gamma: 1.5,
-            scale: 1,
-            frequency: 0.22,
-            contrast: 1.1,
-            seed: 0.5555,
-            directionalNeighbors: 20,
-            directionDensity: 35,
-            fillAmount: 70,
-            fillType: 'angular',
-            invertFill: false,
-        },
-        fromTextConfig: DEFAULT_TEXT_CONFIG,
-        toStateType: 'pattern',
-        toParams: {
-            threshold: 0.65,
-            gamma: 0.7,
-            scale: 1,
-            frequency: 0.05,
-            contrast: 2.0,
-            seed: 0.5555,
-            directionalNeighbors: 4,
-            directionDensity: 90,
-            fillAmount: 25,
-            fillType: 'square',
-            invertFill: true,
-        },
-        toTextConfig: DEFAULT_TEXT_CONFIG,
-    },
-    {
-        label: 'Website (large)',
-        value: 'website-large',
-        customization: {
-            parameters: true,
-            animation: true,
-        },
-        canvasWidth: 1920,
-        canvasHeight: 1080,
-        cellSize: 20,
-        allowCropping: false,
-        cropDirection: 'height',
-        foregroundColor: '#29ABE2',
-        backgroundColor: '#0A0A0A',
-        invertColors: false,
+        colorMode: 'tri',
+        multiColors: ['#FCFCFC', '#6366F1', '#E2FF00'],
+        colorProportions: [0.18, 0.62, 0.20],
         animationEnabled: true,
         animationDuration: 600,
         logoConfig: {
             enabled: true,
-            x: 3,
-            y: 97,
-            size: 10,
-            color: '#29ABE2',
-            useForeground: false,
+            x: 50,
+            y: 50,
+            size: 30,
+            color: '#FCFCFC',
+            colorSource: 'color1',
         },
-        fromStateType: 'text',
+        fromStateType: 'pattern',
         params: {
-            threshold: 0.5,
-            gamma: 1.0,
-            scale: 0.5,
-            frequency: 0.1,
-            contrast: 1.0,
-            seed: 0.1234,
-            directionalNeighbors: 8,
-            directionDensity: 50,
-            fillAmount: 50,
-            fillType: 'linear',
-            invertFill: false,
+            threshold: 0.31,
+            gamma: 0.4,
+            scale: 1,
+            frequency: 0.24,
+            contrast: 1.5,
+            seed: 0.6639,
+            directionalNeighbors: 0,
+            directionDensity: 0,
+            fillAmount: 49,
+            fillType: 'box',
+            invertFill: true,
         },
-        fromTextConfig: {
-            text: 'ICP',
-            charHeight: 30,
-            alignment: 'center',
-            verticalAlignment: 'center',
-            wordWrap: false,
-            invert: true,
-            fontResolution: 'high',
-        },
+        fromTextConfig: DEFAULT_TEXT_CONFIG,
         toStateType: 'pattern',
         toParams: {
-            threshold: 0.55,
-            gamma: 1.3,
-            scale: 0.5,
-            frequency: 0.12,
-            contrast: 1.6,
-            seed: 0.1234,
-            directionalNeighbors: 15,
-            directionDensity: 45,
-            fillAmount: 60,
+            threshold: 0.31,
+            gamma: 0.4,
+            scale: 1,
+            frequency: 0.22,
+            contrast: 1.5,
+            seed: 0.6639,
+            directionalNeighbors: 0,
+            directionDensity: 0,
+            fillAmount: 49,
             fillType: 'box',
-            invertFill: false,
+            invertFill: true,
         },
         toTextConfig: DEFAULT_TEXT_CONFIG,
     },
@@ -356,6 +333,9 @@ export function PresetsSelection({ state, actions, clearPresetRef }: PresetsSele
             background: preset.backgroundColor,
         });
         state.setInvertColors(preset.invertColors);
+        state.setColorMode(preset.colorMode ?? 'mono');
+        if (preset.multiColors) state.setMultiColors([...preset.multiColors]);
+        if (preset.colorProportions) state.setColorProportions([...preset.colorProportions]);
 
         // Animation
         state.setAnimationEnabled(preset.animationEnabled);
@@ -407,7 +387,7 @@ export function PresetsSelection({ state, actions, clearPresetRef }: PresetsSele
             panels.push(<ColorsPanel key="colors" state={state} lockedFields={lockedColorFieldsSet} />);
         }
         if (c.logo) {
-            panels.push(<LogoPanel key="logo" state={state} />);
+            panels.push(<LogoPanel key="logo" state={state} colorOnly={c.logoColorOnly} />);
         }
         if (c.animation) {
             panels.push(

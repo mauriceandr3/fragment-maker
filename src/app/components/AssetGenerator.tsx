@@ -1,6 +1,6 @@
 import { useRef, useMemo } from "react";
 import { ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
-import { getColorRgb } from "@/lib/colorUtils";
+import { resolveLogoColor } from "@/lib/resolveLogoColor";
 import { Button } from './ui/Button';
 import { useFragmentState } from "@/hooks/useFragmentState";
 import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
@@ -60,6 +60,7 @@ export function AssetGenerator() {
     multiColors: state.multiColors,
     colorProportions: state.colorProportions,
     seed: state.params.seed,
+    frequency: state.params.frequency,
   });
 
   const { onMouseEnter: animationMouseEnter, onMouseLeave: animationMouseLeave } =
@@ -69,11 +70,12 @@ export function AssetGenerator() {
       state.animationEnabled
     );
 
-  // Derive effective logo config — when useForeground is on, resolve color from foreground
+  // Derive effective logo config — resolve color from the selected source
   const effectiveLogoConfig = useMemo(() => {
-    if (!state.logoConfig.useForeground) return state.logoConfig;
-    return { ...state.logoConfig, color: getColorRgb(state.displayForeground) };
-  }, [state.logoConfig, state.displayForeground]);
+    if (state.logoConfig.colorSource === 'custom') return state.logoConfig;
+    const resolved = resolveLogoColor(state.logoConfig, state.colorMode, state.multiColors, state.displayForeground);
+    return { ...state.logoConfig, color: resolved };
+  }, [state.logoConfig, state.colorMode, state.multiColors, state.displayForeground]);
 
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">

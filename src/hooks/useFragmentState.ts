@@ -97,7 +97,7 @@ export function useFragmentState() {
   const [params, setParams] = useState<GeneratorParams>({
     threshold: initialUrlState.threshold ?? 0.5,
     gamma: initialUrlState.gamma ?? 1.0,
-    scale: initialUrlState.scale ?? 1,
+    scale: initialUrlState.scale ?? (typeof window !== 'undefined' && window.innerWidth < 1920 ? 0.5 : 1),
     frequency: initialUrlState.frequency ?? 0.1,
     contrast: initialUrlState.contrast ?? 1.0,
     seed: initialUrlState.seed ?? Math.round(Math.random() * 10000) / 10000,
