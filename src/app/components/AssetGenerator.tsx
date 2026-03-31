@@ -105,7 +105,7 @@ export function AssetGenerator() {
             {/* Sidebar A: Design Controls */}
             <div
               className={`bg-black/60 backdrop-blur-xl overflow-hidden transition-all duration-300 flex flex-col ${
-                state.animationEnabled && state.presetOrCustomMode === 'custom' && state.animationEnabled ? 'w-[750px]' : 'w-[380px]'
+                'w-[380px]'
               }`}
             >
               <div className="relative z-10 px-6 pt-5 pb-3 border-b border-white/10 bg-black" style={sidebarStyle}>
@@ -131,82 +131,22 @@ export function AssetGenerator() {
                         <TextOverlayPanel state={state} />
                         <AnimationPanel state={state} actions={actions} />
 
-                        {/* Parameters panels - side-by-side when animation enabled */}
+                        {/* Parameters panels - stacked when animation enabled */}
                         {state.animationEnabled && state.toParams ? (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-3">
-                              <StateTypeSelector
-                                value={state.fromStateType}
-                                onChange={state.setFromStateType}
-                              />
-                              {state.fromStateType === 'pattern' ? (
-                                <ParametersPanel
-                                  params={state.params}
-                                  setParams={state.setParams}
-                                  title="From"
-                                  onRandomize={actions.randomizeParams}
-                                />
-                              ) : (
-                                <TextConfigPanel
-                                  config={state.fromTextConfig}
-                                  setConfig={state.setFromTextConfig}
-                                  title="From"
-                                  cols={state.gridDimensions.baseCols}
-                                  rows={state.gridDimensions.baseRows}
-                                  patternEnabled={state.fromTextPatternEnabled}
-                                  onPatternEnabledChange={state.setFromTextPatternEnabled}
-                                  patternParams={state.fromTextPatternParams}
-                                  onPatternParamsChange={state.setFromTextPatternParams}
-                                  onRandomizePattern={actions.randomizeFromTextPatternParams}
-                                />
-                              )}
-                            </div>
-                            <div className="space-y-3">
-                              <StateTypeSelector
-                                value={state.toStateType}
-                                onChange={state.setToStateType}
-                              />
-                              {state.toStateType === 'pattern' ? (
-                                <ParametersPanel
-                                  params={state.toParams}
-                                  setParams={state.setToParams}
-                                  title="To"
-                                  onRandomize={actions.randomizeToParams}
-                                />
-                              ) : (
-                                <TextConfigPanel
-                                  config={state.toTextConfig}
-                                  setConfig={state.setToTextConfig}
-                                  title="To"
-                                  cols={state.gridDimensions.baseCols}
-                                  rows={state.gridDimensions.baseRows}
-                                  patternEnabled={state.toTextPatternEnabled}
-                                  onPatternEnabledChange={state.setToTextPatternEnabled}
-                                  patternParams={state.toTextPatternParams}
-                                  onPatternParamsChange={state.setToTextPatternParams}
-                                  onRandomizePattern={actions.randomizeToTextPatternParams}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <StateTypeSelector
-                              value={state.fromStateType}
-                              onChange={state.setFromStateType}
-                            />
+                          <div className="space-y-6">
                             {state.fromStateType === 'pattern' ? (
                               <ParametersPanel
                                 params={state.params}
                                 setParams={state.setParams}
-                                title="Parameters"
+                                title="From"
                                 onRandomize={actions.randomizeParams}
+                                headerExtra={<StateTypeSelector value={state.fromStateType} onChange={state.setFromStateType} />}
                               />
                             ) : (
                               <TextConfigPanel
                                 config={state.fromTextConfig}
                                 setConfig={state.setFromTextConfig}
-                                title="Text"
+                                title="From"
                                 cols={state.gridDimensions.baseCols}
                                 rows={state.gridDimensions.baseRows}
                                 patternEnabled={state.fromTextPatternEnabled}
@@ -214,9 +154,57 @@ export function AssetGenerator() {
                                 patternParams={state.fromTextPatternParams}
                                 onPatternParamsChange={state.setFromTextPatternParams}
                                 onRandomizePattern={actions.randomizeFromTextPatternParams}
+                                headerExtra={<StateTypeSelector value={state.fromStateType} onChange={state.setFromStateType} />}
+                              />
+                            )}
+                            {state.toStateType === 'pattern' ? (
+                              <ParametersPanel
+                                params={state.toParams}
+                                setParams={state.setToParams}
+                                title="To"
+                                onRandomize={actions.randomizeToParams}
+                                headerExtra={<StateTypeSelector value={state.toStateType} onChange={state.setToStateType} />}
+                              />
+                            ) : (
+                              <TextConfigPanel
+                                config={state.toTextConfig}
+                                setConfig={state.setToTextConfig}
+                                title="To"
+                                cols={state.gridDimensions.baseCols}
+                                rows={state.gridDimensions.baseRows}
+                                patternEnabled={state.toTextPatternEnabled}
+                                onPatternEnabledChange={state.setToTextPatternEnabled}
+                                patternParams={state.toTextPatternParams}
+                                onPatternParamsChange={state.setToTextPatternParams}
+                                onRandomizePattern={actions.randomizeToTextPatternParams}
+                                headerExtra={<StateTypeSelector value={state.toStateType} onChange={state.setToStateType} />}
                               />
                             )}
                           </div>
+                        ) : (
+                          state.fromStateType === 'pattern' ? (
+                            <ParametersPanel
+                              params={state.params}
+                              setParams={state.setParams}
+                              title="Parameters"
+                              onRandomize={actions.randomizeParams}
+                              headerExtra={<StateTypeSelector value={state.fromStateType} onChange={state.setFromStateType} />}
+                            />
+                          ) : (
+                            <TextConfigPanel
+                              config={state.fromTextConfig}
+                              setConfig={state.setFromTextConfig}
+                              title="Text"
+                              cols={state.gridDimensions.baseCols}
+                              rows={state.gridDimensions.baseRows}
+                              patternEnabled={state.fromTextPatternEnabled}
+                              onPatternEnabledChange={state.setFromTextPatternEnabled}
+                              patternParams={state.fromTextPatternParams}
+                              onPatternParamsChange={state.setFromTextPatternParams}
+                              onRandomizePattern={actions.randomizeFromTextPatternParams}
+                              headerExtra={<StateTypeSelector value={state.fromStateType} onChange={state.setFromStateType} />}
+                            />
+                          )
                         )}
                       </>
                     )}

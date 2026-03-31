@@ -13,20 +13,26 @@ interface ParametersPanelProps {
   setParams: ParamsSetter;
   title?: string;
   onRandomize?: () => void;
+  headerExtra?: React.ReactNode;
 }
 
-export function ParametersPanel({ params, setParams, title = "Parameters", onRandomize }: ParametersPanelProps) {
-  const randomizeButton = onRandomize ? (
-    <Button
-      variant="icon"
-      onClick={(e) => { e.stopPropagation(); onRandomize(); }}
-      title="Randomize"
-      icon={<Shuffle className="w-3.5 h-3.5" />}
-    />
-  ) : undefined;
+export function ParametersPanel({ params, setParams, title = "Parameters", onRandomize, headerExtra }: ParametersPanelProps) {
+  const rightElements = (
+    <div className="flex items-center gap-2">
+      {headerExtra}
+      {onRandomize && (
+        <Button
+          variant="icon"
+          onClick={(e) => { e.stopPropagation(); onRandomize(); }}
+          title="Randomize"
+          icon={<Shuffle className="w-3.5 h-3.5" />}
+        />
+      )}
+    </div>
+  );
 
   return (
-    <Section title={title} rightElement={randomizeButton}>
+    <Section title={title} rightElement={rightElements}>
       <Slider
         label={`Density: ${params.threshold.toFixed(2)}`}
         value={params.threshold} min={0} max={1} step={0.01}

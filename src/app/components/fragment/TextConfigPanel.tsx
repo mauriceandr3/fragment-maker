@@ -22,11 +22,12 @@ interface TextConfigPanelProps {
   patternParams?: GeneratorParams;
   onPatternParamsChange?: (params: GeneratorParams) => void;
   onRandomizePattern?: () => void;
+  headerExtra?: React.ReactNode;
 }
 
 const MAX_TEXT_LENGTH = 500;
 
-export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows, patternEnabled, onPatternEnabledChange, patternParams, onPatternParamsChange, onRandomizePattern }: TextConfigPanelProps) {
+export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows, patternEnabled, onPatternEnabledChange, patternParams, onPatternParamsChange, onRandomizePattern, headerExtra }: TextConfigPanelProps) {
   const handleTextChange = (text: string) => {
     const limitedText = text.slice(0, MAX_TEXT_LENGTH);
     setConfig({ ...config, text: limitedText });
@@ -47,7 +48,7 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows,
   }, [config, cols, rows]);
 
   return (
-    <Section title={title}>
+    <Section title={title} rightElement={headerExtra}>
 
       {/* Text Input */}
       <div>
