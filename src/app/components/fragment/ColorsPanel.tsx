@@ -13,8 +13,16 @@ const COLOR_MODE_OPTIONS: { label: string; value: ColorMode }[] = [
   { label: "Tri", value: "tri" },
 ];
 
+/** Fields that can be individually locked in the colors panel */
+export type LockableColorField = 'colorMode' | 'presets' | 'foreground' | 'background' | 'invertColors';
+
 interface ColorsPanelProps {
   state: FragmentState;
+  /**
+   * Fields to hide and lock. Locked fields are not shown.
+   * Default: empty/undefined (all fields visible).
+   */
+  lockedFields?: ReadonlySet<LockableColorField>;
 }
 
 function MonoPresets({ state }: { state: FragmentState }) {
@@ -123,51 +131,6 @@ function PresetButton({ name, colors, isActive, onClick }: {
   );
 }
 
-function MonoColorControls({ state }: { state: FragmentState }) {
-  const {
-    foregroundColor, setForegroundColor,
-    customPreset, setCustomPreset,
-    invertColors, setInvertColors,
-  } = state;
-
-  return (
-    <>
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm text-white/60">Foreground</label>
-          <Checkbox
-            label="Transparent"
-            size="sm"
-            checked={isTransparent(foregroundColor)}
-            onChange={(checked) => setForegroundColor(setColorAlpha(foregroundColor, checked ? 0 : 1))}
-          />
-        </div>
-        <div className={`${isTransparent(foregroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
-          <ColorInput
-            value={getColorRgb(foregroundColor)}
-            displayValue={foregroundColor}
-            onColorChange={(color) => {
-              setForegroundColor(color);
-              setCustomPreset({ ...customPreset, foreground: color });
-            }}
-            onTextChange={(text) => {
-              setForegroundColor(text);
-              setCustomPreset({ ...customPreset, foreground: getColorRgb(text) });
-            }}
-          />
-        </div>
-      </div>
-
-      <BackgroundColorControl state={state} />
-
-      <Checkbox
-        label="Invert Colors"
-        checked={invertColors}
-        onChange={setInvertColors}
-      />
-    </>
-  );
-}
 
 function MultiColorControls({ state }: { state: FragmentState }) {
   const {
@@ -267,10 +230,12 @@ function BackgroundColorControl({ state }: { state: FragmentState }) {
   );
 }
 
-export function ColorsPanel({ state }: ColorsPanelProps) {
+export function ColorsPanel({ state, lockedFields }: ColorsPanelProps) {
   const { colorMode, setColorMode, setMultiColors, setColorProportions,
     fromStateType, toStateType, animationEnabled } = state;
   const hasTextState = fromStateType === 'text' || (animationEnabled && toStateType === 'text');
+
+  const isVisible = (field: LockableColorField) => !lockedFields?.has(field);
 
   const handleColorModeChange = (mode: ColorMode) => {
     setColorMode(mode);
@@ -284,30 +249,83 @@ export function ColorsPanel({ state }: ColorsPanelProps) {
     }
   };
 
+  // Check if any custom color controls are visible
+  const hasCustomControls = colorMode === 'mono'
+    ? (isVisible('foreground') || isVisible('background') || isVisible('invertColors'))
+    : (isVisible('foreground') || isVisible('background'));
+
   return (
     <Section title="Colors" borderless>
       {/* Color Mode Toggle */}
-      <RadioSelector
-        options={COLOR_MODE_OPTIONS}
-        value={colorMode}
-        onChange={handleColorModeChange}
-      />
+      {isVisible('colorMode') && (
+        <RadioSelector
+          options={COLOR_MODE_OPTIONS}
+          value={colorMode}
+          onChange={handleColorModeChange}
+        />
+      )}
 
       {/* Presets */}
-      <div className="space-y-2">
-        <label className="block text-sm text-white/60 mb-3">Presets</label>
-        {colorMode === 'mono' && <MonoPresets state={state} />}
-        {colorMode === 'duo' && <MultiColorPresets state={state} presets={DUO_COLOR_PRESETS} />}
-        {colorMode === 'tri' && <MultiColorPresets state={state} presets={TRI_COLOR_PRESETS} />}
-      </div>
+      {isVisible('presets') && (
+        <div className="space-y-2">
+          <label className="block text-sm text-white/60 mb-3">Presets</label>
+          {colorMode === 'mono' && <MonoPresets state={state} />}
+          {colorMode === 'duo' && <MultiColorPresets state={state} presets={DUO_COLOR_PRESETS} />}
+          {colorMode === 'tri' && <MultiColorPresets state={state} presets={TRI_COLOR_PRESETS} />}
+        </div>
+      )}
 
-      <div className="border-t border-white/10 my-4"></div>
+      {hasCustomControls && (
+        <>
+          <div className="border-t border-white/10 my-4"></div>
 
-      {/* Color Controls */}
-      {colorMode === 'mono' ? (
-        <MonoColorControls state={state} />
-      ) : (
-        <MultiColorControls state={state} />
+          {/* Color Controls */}
+          {colorMode === 'mono' ? (
+            <>
+              {isVisible('foreground') && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm text-white/60">Foreground</label>
+                    <Checkbox
+                      label="Transparent"
+                      size="sm"
+                      checked={isTransparent(state.foregroundColor)}
+                      onChange={(checked) => state.setForegroundColor(setColorAlpha(state.foregroundColor, checked ? 0 : 1))}
+                    />
+                  </div>
+                  <div className={`${isTransparent(state.foregroundColor) ? 'opacity-30 pointer-events-none' : ''}`}>
+                    <ColorInput
+                      value={getColorRgb(state.foregroundColor)}
+                      displayValue={state.foregroundColor}
+                      onColorChange={(color) => {
+                        state.setForegroundColor(color);
+                        state.setCustomPreset({ ...state.customPreset, foreground: color });
+                      }}
+                      onTextChange={(text) => {
+                        state.setForegroundColor(text);
+                        state.setCustomPreset({ ...state.customPreset, foreground: getColorRgb(text) });
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isVisible('background') && <BackgroundColorControl state={state} />}
+
+              {isVisible('invertColors') && (
+                <Checkbox
+                  label="Invert Colors"
+                  checked={state.invertColors}
+                  onChange={state.setInvertColors}
+                />
+              )}
+            </>
+          ) : (
+            isVisible('foreground') || isVisible('background') ? (
+              <MultiColorControls state={state} />
+            ) : null
+          )}
+        </>
       )}
 
       {/* Text Color — pick which color to use for text when in multi-color mode */}

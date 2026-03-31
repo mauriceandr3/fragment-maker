@@ -7,7 +7,7 @@ import type { CropDirection, ElongateAxis } from '@/implementation-files/generat
 import { Section } from '../ui/Section';
 import { RadioSelector } from '../ui/RadioSelector';
 import { CanvasSettingsPanel } from './CanvasSettingsPanel';
-import { ColorsPanel } from './ColorsPanel';
+import { ColorsPanel, type LockableColorField } from './ColorsPanel';
 import { LogoPanel } from './LogoPanel';
 import { AnimationPanel } from './AnimationPanel';
 import { ParametersPanel, randomizeUnlockedParams, type LockableParamField } from './ParametersPanel';
@@ -36,6 +36,12 @@ interface PresetCustomization {
      * Listed fields are hidden; unlisted fields remain editable.
      */
     lockedParams?: LockableParamField[];
+    /**
+     * Lock specific color fields within the colors panel.
+     * Only relevant when `colors` is true.
+     * Listed fields are hidden; unlisted fields remain editable.
+     */
+    lockedColors?: LockableColorField[];
     /** When true, the Pattern/Text state type toggle is locked (hidden). Default: true (locked). */
     stateTypeLocked?: boolean;
 }
@@ -88,6 +94,7 @@ const PRESETS: PresetConfig[] = [
         value: 'twitter',
         customization: {
             colors: true,
+            lockedColors: ['colorMode', 'foreground', 'background'],
             parameters: true,
             lockedParams: [
                 'threshold', 'gamma', 'contrast', 'fillAmount',
@@ -315,10 +322,17 @@ const PRESETS: PresetConfig[] = [
 interface PresetsSelectionProps {
     state: FragmentState;
     actions: FragmentActions;
+    /** Ref that will be assigned a function to clear the active preset selection */
+    clearPresetRef?: React.RefObject<(() => void) | null>;
 }
 
-export function PresetsSelection({ state, actions }: PresetsSelectionProps) {
+export function PresetsSelection({ state, actions, clearPresetRef }: PresetsSelectionProps) {
     const [activePreset, setActivePreset] = useState<string | null>(null);
+
+    // Expose the clear function to the parent via ref
+    if (clearPresetRef) {
+        clearPresetRef.current = () => setActivePreset(null);
+    }
 
     const activePresetConfig = PRESETS.find(p => p.value === activePreset) ?? null;
 
@@ -369,10 +383,15 @@ export function PresetsSelection({ state, actions }: PresetsSelectionProps) {
         state.setToTextConfig(preset.toTextConfig);
     };
 
-    // Memoize the locked fields set so it's stable across renders
+    // Memoize the locked fields sets so they're stable across renders
     const lockedFieldsSet = useMemo(() => {
         if (!activePresetConfig?.customization.lockedParams) return undefined;
         return new Set(activePresetConfig.customization.lockedParams);
+    }, [activePresetConfig]);
+
+    const lockedColorFieldsSet = useMemo(() => {
+        if (!activePresetConfig?.customization.lockedColors) return undefined;
+        return new Set(activePresetConfig.customization.lockedColors);
     }, [activePresetConfig]);
 
     const hasCustomization = activePresetConfig && Object.values(activePresetConfig.customization).some(Boolean);
@@ -385,7 +404,7 @@ export function PresetsSelection({ state, actions }: PresetsSelectionProps) {
             panels.push(<CanvasSettingsPanel key="canvas" state={state} />);
         }
         if (c.colors) {
-            panels.push(<ColorsPanel key="colors" state={state} />);
+            panels.push(<ColorsPanel key="colors" state={state} lockedFields={lockedColorFieldsSet} />);
         }
         if (c.logo) {
             panels.push(<LogoPanel key="logo" state={state} />);

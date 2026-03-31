@@ -34,6 +34,7 @@ export function AssetGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const animationContainerRef = useRef<HTMLDivElement>(null);
+  const clearPresetRef = useRef<(() => void) | null>(null);
 
   const state = useFragmentState();
   const generation = useFragmentGeneration(state);
@@ -129,7 +130,7 @@ export function AssetGenerator() {
 
                 <div className='pt-4'>
                     {state.presetOrCustomMode === 'presets' ? (
-                      <PresetsSelection state={state} actions={actions} />
+                      <PresetsSelection state={state} actions={actions} clearPresetRef={clearPresetRef} />
                     ) : (
                       <>
                         <CanvasSettingsPanel state={state} />
@@ -221,7 +222,7 @@ export function AssetGenerator() {
                 {/* Reset - always accessible at bottom of sidebar A */}
                 <Button
                   variant="primary"
-                  onClick={actions.resetToDefaults}
+                  onClick={() => { clearPresetRef.current?.(); actions.resetToDefaults(); }}
                   fullWidth
                   icon={<RotateCcw className="w-3.5 h-3.5" />}
                 >
