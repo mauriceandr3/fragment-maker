@@ -300,6 +300,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         y: state.logoConfig.y,
         size: state.logoConfig.size,
         color: state.logoConfig.color,
+        useForeground: state.logoConfig.useForeground,
       };
     }
 
@@ -619,6 +620,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
             y: Math.round(clamp(data.logo.y, 0, 100, DEFAULT_LOGO_CONFIG.y)),
             size: Math.round(clamp(data.logo.size, 5, 50, 15)),
             color: typeof data.logo.color === 'string' && hexRegex.test(data.logo.color) ? data.logo.color : '#FCFCFC',
+            useForeground: typeof data.logo.useForeground === 'boolean' ? data.logo.useForeground : false,
           });
         } else {
           state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });

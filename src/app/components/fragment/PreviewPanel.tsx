@@ -1,15 +1,17 @@
 import { type RefObject, useEffect, type CSSProperties } from "react";
 import { Square, LayoutGrid, Type } from "lucide-react";
 import { CharPreviewPanel } from "./CharPreviewPanel";
-import { isTransparent } from "@/lib/colorUtils";
+import { isTransparent, getColorRgb } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { GridSkeleton, GridItem } from "./GridItem";
 import { getLogoSvg } from "@/lib/dfinityLogo";
 import type { LogoConfig, TextOverlayConfig, TextOverlayZOrder } from "./types";
 
-function LogoOverlay({ logoConfig }: { logoConfig: LogoConfig }) {
+function LogoOverlay({ logoConfig, foregroundColor }: { logoConfig: LogoConfig; foregroundColor: string }) {
   if (!logoConfig.enabled) return null;
+
+  const effectiveColor = logoConfig.useForeground ? getColorRgb(foregroundColor) : logoConfig.color;
 
   // x/y are 0–100%. At 0 the logo is flush to the left/top edge,
   // at 100 it's flush to the right/bottom edge.
@@ -25,7 +27,7 @@ function LogoOverlay({ logoConfig }: { logoConfig: LogoConfig }) {
   return (
     <div
       style={style}
-      dangerouslySetInnerHTML={{ __html: getLogoSvg(logoConfig.color) }}
+      dangerouslySetInnerHTML={{ __html: getLogoSvg(effectiveColor) }}
     />
   );
 }
@@ -193,7 +195,7 @@ export function PreviewPanel({
                   dangerouslySetInnerHTML={{ __html: diffSvg }}
                 />
                 <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-                <LogoOverlay logoConfig={state.logoConfig} />
+                <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} />
               </div>
             </div>
             {state.showEndState && generation.toStateSvg && (
@@ -212,7 +214,7 @@ export function PreviewPanel({
                     dangerouslySetInnerHTML={{ __html: generation.toStateSvg }}
                   />
                   <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-                  <LogoOverlay logoConfig={state.logoConfig} />
+                  <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} />
                 </div>
               </div>
             )}
@@ -226,7 +228,7 @@ export function PreviewPanel({
               style={{ imageRendering: 'pixelated' }}
             />
             <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-            <LogoOverlay logoConfig={state.logoConfig} />
+            <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} />
           </div>
         )
       )}

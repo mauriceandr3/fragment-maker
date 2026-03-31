@@ -29,8 +29,16 @@ These files should therefore only contain code relevant to the generator and ani
 
 - Main component: `src/app/components/AssetGenerator.tsx` - Contains the Fragment Generator UI with grid view and control panel
 
-## Testing
-- You have access to the Playwright MCP tool for end-to-end testing. Use it to "manually" test the UI yourself, to validate/verify fixes.
+## Browser Automation
+
+Use `agent-browser` for web automation, to e.g. test things yourself. Run `agent-browser --help` for all commands.
+
+Core workflow:
+
+1. `agent-browser open <url>` - Navigate to page
+2. `agent-browser snapshot -i` - Get interactive elements with refs (@e1, @e2)
+3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
+4. Re-snapshot after page changes
 
 ## Design Context
 

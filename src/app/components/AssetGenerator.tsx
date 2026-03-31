@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
+import { getColorRgb } from "@/lib/colorUtils";
 import { Button } from './ui/Button';
 import { useFragmentState } from "@/hooks/useFragmentState";
 import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
@@ -67,6 +68,12 @@ export function AssetGenerator() {
       state.animationEnabled
     );
 
+  // Derive effective logo config — when useForeground is on, resolve color from foreground
+  const effectiveLogoConfig = useMemo(() => {
+    if (!state.logoConfig.useForeground) return state.logoConfig;
+    return { ...state.logoConfig, color: getColorRgb(state.displayForeground) };
+  }, [state.logoConfig, state.displayForeground]);
+
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">
       <div className="flex-1 flex overflow-hidden">
@@ -105,7 +112,7 @@ export function AssetGenerator() {
             {/* Sidebar A: Design Controls */}
             <div
               className={`bg-black/60 backdrop-blur-xl overflow-hidden transition-all duration-300 flex flex-col ${
-                'w-[380px]'
+                'w-[440px]'
               }`}
             >
               <div className="relative z-10 px-6 pt-5 pb-3 border-b border-white/10 bg-black" style={sidebarStyle}>
@@ -122,7 +129,7 @@ export function AssetGenerator() {
 
                 <div className='pt-4'>
                     {state.presetOrCustomMode === 'presets' ? (
-                      <PresetsSelection state={state} />
+                      <PresetsSelection state={state} actions={actions} />
                     ) : (
                       <>
                         <CanvasSettingsPanel state={state} />
@@ -224,7 +231,7 @@ export function AssetGenerator() {
             </div>
 
             {/* Sidebar B: Export */}
-            <div className="w-[380px] bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden flex flex-col">
+            <div className="w-[310px] bg-black/60 backdrop-blur-xl border-l border-white/20 overflow-hidden flex flex-col">
               <div className="relative z-10 px-6 pt-5 pb-3 border-b border-white/10 bg-black" style={sidebarStyle}>
                 <h2 className="text-xs text-white/40 uppercase tracking-widest">Export</h2>
               </div>
@@ -249,7 +256,7 @@ export function AssetGenerator() {
                   allowCropping={state.allowCropping}
                   cropDirection={state.cropDirection}
                   fromStateType={state.fromStateType}
-                  logoConfig={state.logoConfig}
+                  logoConfig={effectiveLogoConfig}
                   animationEnabled={state.animationEnabled}
                 />
 
@@ -260,7 +267,7 @@ export function AssetGenerator() {
                   canvasHeight={state.canvasHeight}
                   animationDuration={state.debounced.animationDuration}
                   animationEnabled={state.animationEnabled}
-                  logoConfig={state.logoConfig}
+                  logoConfig={effectiveLogoConfig}
                   textOverlayConfig={state.textOverlayConfig}
                 />
 

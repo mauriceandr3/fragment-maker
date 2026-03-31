@@ -13,6 +13,9 @@ interface LogoPanelProps {
 export function LogoPanel({ state }: LogoPanelProps) {
   const { logoConfig, setLogoConfig, foregroundColor } = state;
 
+  // Derive the effective logo color: when useForeground is on, always track foregroundColor
+  const effectiveColor = logoConfig.useForeground ? getColorRgb(foregroundColor) : logoConfig.color;
+
   const update = (patch: Partial<typeof logoConfig>) => {
     setLogoConfig({ ...logoConfig, ...patch });
   };
@@ -32,7 +35,7 @@ export function LogoPanel({ state }: LogoPanelProps) {
           <div className="flex justify-center py-2">
             <div
               className="w-32 opacity-80"
-              dangerouslySetInnerHTML={{ __html: getLogoSvg(logoConfig.color) }}
+              dangerouslySetInnerHTML={{ __html: getLogoSvg(effectiveColor) }}
             />
           </div>
 
@@ -68,19 +71,23 @@ export function LogoPanel({ state }: LogoPanelProps) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm text-white/60">Color</label>
-              <button
-                onClick={() => update({ color: getColorRgb(foregroundColor) })}
-                className="text-xs text-white/40 hover:text-white/80 transition-colors"
-              >
-                Use foreground
-              </button>
+              <Checkbox
+                label="Use foreground"
+                checked={logoConfig.useForeground}
+                onChange={(checked) => update({
+                  useForeground: checked,
+                  ...(checked ? { color: getColorRgb(foregroundColor) } : {}),
+                })}
+              />
             </div>
-            <ColorInput
-              value={getColorRgb(logoConfig.color)}
-              displayValue={logoConfig.color}
-              onColorChange={(color) => update({ color })}
-              onTextChange={(color) => update({ color })}
-            />
+            {!logoConfig.useForeground && (
+              <ColorInput
+                value={getColorRgb(logoConfig.color)}
+                displayValue={logoConfig.color}
+                onColorChange={(color) => update({ color })}
+                onTextChange={(color) => update({ color })}
+              />
+            )}
           </div>
         </>
       )}

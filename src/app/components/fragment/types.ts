@@ -51,6 +51,7 @@ export interface LogoConfig {
   y: number;        // vertical position 0–100% (0 = top edge, 100 = bottom edge)
   size: number;     // percentage of canvas width (5–50)
   color: string;    // hex color, e.g. '#C2A3FF'
+  useForeground: boolean; // when true, logo color tracks the foreground color
 }
 
 export const DEFAULT_LOGO_CONFIG: LogoConfig = {
@@ -59,6 +60,7 @@ export const DEFAULT_LOGO_CONFIG: LogoConfig = {
   y: 97,
   size: 15,
   color: '#FCFCFC',
+  useForeground: false,
 };
 
 export const DEBOUNCE_DELAY = 100;
