@@ -1,6 +1,8 @@
 import React from "react";
 import { type FillType, type ElongateAxis } from "@/implementation-files/generateFragmentSvg";
-import { DEFAULT_LOGO_CONFIG, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
+import { DEFAULT_LOGO_OVERLAY_CONFIG, DEFAULT_LOGO_ENTRY, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
+import type { LogoEntry, LogoColorSource } from "@/app/components/fragment/types";
+import { LOGO_IDS, type LogoId } from "@/lib/logoRegistry";
 import { isValidFontWeight, type TextOverlayConfig, type TextOverlayEntry } from "@/implementation-files/textOverlay";
 import { vectorizeAllEntries } from "@/lib/textVectorizer";
 import { serializeFonts, type FontData, type FontResolution } from "@/implementation-files/generateTextGrid";
@@ -130,7 +132,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     state.setFromTextPatternEnabled(false);
     state.setToTextPatternEnabled(false);
     state.setShowEndState(false);
-    state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
+    state.setLogoConfig({ ...DEFAULT_LOGO_OVERLAY_CONFIG });
     state.setTextOverlayConfig({ ...DEFAULT_TEXT_OVERLAY_CONFIG });
     clearUrlParams();
   };
@@ -293,14 +295,17 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     }
 
     // Include logo config when enabled (absent = logo disabled for backward compat)
-    if (state.logoConfig.enabled) {
+    if (state.logoConfig.enabled && state.logoConfig.entries.length > 0) {
       exportData.logo = {
         enabled: true,
-        x: state.logoConfig.x,
-        y: state.logoConfig.y,
-        size: state.logoConfig.size,
-        color: state.logoConfig.color,
-        colorSource: state.logoConfig.colorSource,
+        entries: state.logoConfig.entries.map(e => ({
+          logoId: e.logoId,
+          x: e.x,
+          y: e.y,
+          size: e.size,
+          color: e.color,
+          colorSource: e.colorSource,
+        })),
       };
     }
 
@@ -611,26 +616,55 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           state.setToTextPatternEnabled(false);
         }
 
-        // Import logo config (v2.3.0+)
-        // Missing logo section defaults to disabled for backward compatibility
+        // Import logo config (v2.3.0+ single-entry, v3.0.0+ multi-entry)
         if (data.logo && typeof data.logo === 'object') {
+          const logoData = data.logo as Record<string, unknown>;
           const validSources = ['custom', 'color1', 'color2', 'color3'];
-          let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
-          if (typeof data.logo.colorSource === 'string' && validSources.includes(data.logo.colorSource)) {
-            colorSource = data.logo.colorSource as typeof colorSource;
-          } else if ((data.logo as Record<string, unknown>).useForeground === true) {
-            colorSource = 'color1'; // migrate old useForeground setting
+
+          // New multi-entry format (v3.0.0+)
+          if (Array.isArray(logoData.entries)) {
+            const entries: LogoEntry[] = (logoData.entries as Record<string, unknown>[]).slice(0, 3).map((e) => {
+              let colorSource: LogoColorSource = 'custom';
+              if (typeof e.colorSource === 'string' && validSources.includes(e.colorSource)) {
+                colorSource = e.colorSource as LogoColorSource;
+              }
+              return {
+                id: crypto.randomUUID(),
+                logoId: (typeof e.logoId === 'string' && LOGO_IDS.includes(e.logoId as LogoId)) ? e.logoId as LogoId : 'icp',
+                x: Math.round(clamp(e.x, 0, 100, DEFAULT_LOGO_ENTRY.x)),
+                y: Math.round(clamp(e.y, 0, 100, DEFAULT_LOGO_ENTRY.y)),
+                size: Math.round(clamp(e.size, 5, 50, 15)),
+                color: typeof e.color === 'string' && hexRegex.test(e.color) ? e.color : '#FCFCFC',
+                colorSource,
+              };
+            });
+            state.setLogoConfig({
+              enabled: typeof logoData.enabled === 'boolean' ? logoData.enabled : false,
+              entries,
+            });
+          } else {
+            // Legacy single-entry format (v2.3.0)
+            let colorSource: LogoColorSource = 'custom';
+            if (typeof logoData.colorSource === 'string' && validSources.includes(logoData.colorSource)) {
+              colorSource = logoData.colorSource as LogoColorSource;
+            } else if (logoData.useForeground === true) {
+              colorSource = 'color1';
+            }
+            state.setLogoConfig({
+              enabled: typeof logoData.enabled === 'boolean' ? logoData.enabled : false,
+              entries: [{
+                id: crypto.randomUUID(),
+                logoId: 'icp',
+                x: Math.round(clamp(logoData.x, 0, 100, DEFAULT_LOGO_ENTRY.x)),
+                y: Math.round(clamp(logoData.y, 0, 100, DEFAULT_LOGO_ENTRY.y)),
+                size: Math.round(clamp(logoData.size, 5, 50, 15)),
+                color: typeof logoData.color === 'string' && hexRegex.test(logoData.color) ? logoData.color : '#FCFCFC',
+                colorSource,
+              }],
+            });
           }
-          state.setLogoConfig({
-            enabled: typeof data.logo.enabled === 'boolean' ? data.logo.enabled : false,
-            x: Math.round(clamp(data.logo.x, 0, 100, DEFAULT_LOGO_CONFIG.x)),
-            y: Math.round(clamp(data.logo.y, 0, 100, DEFAULT_LOGO_CONFIG.y)),
-            size: Math.round(clamp(data.logo.size, 5, 50, 15)),
-            color: typeof data.logo.color === 'string' && hexRegex.test(data.logo.color) ? data.logo.color : '#FCFCFC',
-            colorSource,
-          });
         } else {
-          state.setLogoConfig({ ...DEFAULT_LOGO_CONFIG });
+          state.setLogoConfig({ ...DEFAULT_LOGO_OVERLAY_CONFIG });
         }
 
         // Import text overlay config (v2.4.0+)

@@ -6,8 +6,8 @@ import {
   calculateDistanceMap,
   groupIntoWaves,
 } from '@/lib/animationUtils';
-import { getLogoSvgDataUrl, LOGO_ASPECT_RATIO } from '@/lib/dfinityLogo';
-import type { LogoConfig, TextOverlayConfig } from '@/app/components/fragment/types';
+import { getLogoSvgDataUrlById, LOGO_DEFINITIONS } from '@/lib/logoRegistry';
+import type { LogoOverlayConfig, TextOverlayConfig } from '@/app/components/fragment/types';
 
 type ExportStatus = 'idle' | 'preparing' | 'recording' | 'finalizing' | 'error';
 
@@ -28,7 +28,7 @@ interface ExportOptions {
   endHoldMs: number;
   resolutionScale: number; // 1 | 2 | 3 | 4
   fps: 30 | 60;
-  logoConfig?: LogoConfig;
+  logoConfig?: LogoOverlayConfig;
   textOverlayConfig?: TextOverlayConfig;
 }
 
@@ -297,23 +297,27 @@ export function useVideoExport() {
         }
       }
 
-      // Pre-load logo image if enabled
-      let logoImg: HTMLImageElement | null = null;
-      let logoX = 0, logoY = 0, logoW = 0, logoH = 0;
+      // Pre-load logo images if enabled
+      const logoImages: { img: HTMLImageElement; x: number; y: number; w: number; h: number }[] = [];
 
-      if (opts.logoConfig?.enabled) {
-        logoW = (opts.logoConfig.size / 100) * encW;
-        logoH = logoW / LOGO_ASPECT_RATIO;
-        logoX = (opts.logoConfig.x / 100) * (encW - logoW);
-        logoY = (opts.logoConfig.y / 100) * (encH - logoH);
+      if (opts.logoConfig?.enabled && opts.logoConfig.entries.length > 0) {
+        for (const entry of opts.logoConfig.entries) {
+          const def = LOGO_DEFINITIONS[entry.logoId];
+          if (!def) continue;
+          const logoW = (entry.size / 100) * encW;
+          const logoH = logoW / def.aspectRatio;
+          const logoX = (entry.x / 100) * (encW - logoW);
+          const logoY = (entry.y / 100) * (encH - logoH);
 
-        logoImg = new Image();
-        const logoDataUrl = getLogoSvgDataUrl(opts.logoConfig.color);
-        await new Promise<void>((resolve, reject) => {
-          logoImg!.onload = () => resolve();
-          logoImg!.onerror = () => reject(new Error('Failed to load logo image'));
-          logoImg!.src = logoDataUrl;
-        });
+          const img = new Image();
+          const logoDataUrl = getLogoSvgDataUrlById(entry.logoId, def.supportsColorChange ? entry.color : undefined);
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error('Failed to load logo image'));
+            img.src = logoDataUrl;
+          });
+          logoImages.push({ img, x: logoX, y: logoY, w: logoW, h: logoH });
+        }
       }
 
       // Frame schedule
@@ -375,8 +379,8 @@ export function useVideoExport() {
             }
             ctx.drawImage(img, 0, 0, encW, encH);
             drawTextOverlay(ctx, opts.textOverlayConfig, 'above', encW, encH);
-            if (logoImg) {
-              ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+            for (const logo of logoImages) {
+              ctx.drawImage(logo.img, logo.x, logo.y, logo.w, logo.h);
             }
             URL.revokeObjectURL(blobUrl);
             resolve();

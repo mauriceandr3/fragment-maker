@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { FragmentState } from '@/hooks/useFragmentState';
 import type { FragmentActions } from '@/hooks/useFragmentActions';
-import type { GeneratorParams, StateType, LogoConfig } from './types';
+import type { GeneratorParams, StateType, LogoOverlayConfig } from './types';
 import type { TextConfig } from '@/implementation-files/generateTextGrid';
 import type { CropDirection, ElongateAxis, ColorMode } from '@/implementation-files/generateFragmentSvg';
 import { Section } from '../ui/Section';
@@ -72,7 +72,7 @@ interface PresetConfig {
     animationEnabled: boolean;
     animationDuration: number;
     // Logo
-    logoConfig: LogoConfig;
+    logoConfig: LogoOverlayConfig;
     // From state
     fromStateType: StateType;
     params: GeneratorParams;
@@ -121,11 +121,7 @@ const PRESETS: PresetConfig[] = [
         animationDuration: 600,
         logoConfig: {
             enabled: true,
-            x: 50,
-            y: 50,
-            size: 30,
-            color: '#00F9E1',
-            colorSource: 'color1',
+            entries: [{ id: 'preset-stark', logoId: 'icp', x: 50, y: 50, size: 30, color: '#00F9E1', colorSource: 'color1' }],
         },
         fromStateType: 'pattern',
         params: {
@@ -188,11 +184,7 @@ const PRESETS: PresetConfig[] = [
         animationDuration: 600,
         logoConfig: {
             enabled: true,
-            x: 50,
-            y: 50,
-            size: 30,
-            color: '#FCFCFC',
-            colorSource: 'color1',
+            entries: [{ id: 'preset-neon-grad', logoId: 'icp', x: 50, y: 50, size: 30, color: '#FCFCFC', colorSource: 'color1' }],
         },
         fromStateType: 'pattern',
         params: {
@@ -255,11 +247,7 @@ const PRESETS: PresetConfig[] = [
         animationDuration: 600,
         logoConfig: {
             enabled: true,
-            x: 21,
-            y: 50,
-            size: 30,
-            color: '#00F9E1',
-            colorSource: 'color2',
+            entries: [{ id: 'preset-brutalist', logoId: 'icp', x: 21, y: 50, size: 30, color: '#00F9E1', colorSource: 'color2' }],
         },
         fromStateType: 'pattern',
         params: {
@@ -317,11 +305,7 @@ const PRESETS: PresetConfig[] = [
         animationDuration: 600,
         logoConfig: {
             enabled: true,
-            x: 50,
-            y: 50,
-            size: 30,
-            color: '#C2A3FF',
-            colorSource: 'color1',
+            entries: [{ id: 'preset-minimal', logoId: 'icp', x: 50, y: 50, size: 30, color: '#C2A3FF', colorSource: 'color1' }],
         },
         fromStateType: 'pattern',
         params: {
@@ -386,11 +370,7 @@ const PRESETS: PresetConfig[] = [
         animationDuration: 600,
         logoConfig: {
             enabled: true,
-            x: 50,
-            y: 50,
-            size: 30,
-            color: '#FCFCFC',
-            colorSource: 'color1',
+            entries: [{ id: 'preset-iridescent', logoId: 'icp', x: 50, y: 50, size: 30, color: '#FCFCFC', colorSource: 'color1' }],
         },
         fromStateType: 'pattern',
         params: {

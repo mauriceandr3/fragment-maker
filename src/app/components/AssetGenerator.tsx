@@ -1,6 +1,6 @@
 import { useRef, useMemo } from "react";
 import { ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
-import { resolveLogoColor } from "@/lib/resolveLogoColor";
+import { resolveLogoEntryColor } from "@/lib/resolveLogoColor";
 import { Button } from './ui/Button';
 import { useFragmentState } from "@/hooks/useFragmentState";
 import { useFragmentGeneration } from "@/hooks/useFragmentGeneration";
@@ -70,11 +70,17 @@ export function AssetGenerator() {
       state.animationEnabled
     );
 
-  // Derive effective logo config — resolve color from the selected source
+  // Derive effective logo config — resolve color for each entry from its selected source
   const effectiveLogoConfig = useMemo(() => {
-    if (state.logoConfig.colorSource === 'custom') return state.logoConfig;
-    const resolved = resolveLogoColor(state.logoConfig, state.colorMode, state.multiColors, state.displayForeground);
-    return { ...state.logoConfig, color: resolved };
+    if (!state.logoConfig.enabled || state.logoConfig.entries.length === 0) return state.logoConfig;
+    return {
+      ...state.logoConfig,
+      entries: state.logoConfig.entries.map(entry => {
+        const resolved = resolveLogoEntryColor(entry, state.colorMode, state.multiColors, state.displayForeground);
+        if (resolved === null) return entry; // fixed-color logo
+        return { ...entry, color: resolved };
+      }),
+    };
   }, [state.logoConfig, state.colorMode, state.multiColors, state.displayForeground]);
 
   return (

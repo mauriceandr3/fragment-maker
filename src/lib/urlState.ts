@@ -1,8 +1,9 @@
 import { type FillType, type ElongateAxis, type ColorMode } from '../implementation-files/generateFragmentSvg';
 import type { TextConfig } from '../implementation-files/generateTextGrid';
 import { RESOLUTION_MIN_HEIGHT } from '../implementation-files/generateTextGrid';
-import type { LogoConfig } from '../app/components/fragment/types';
-import { DEFAULT_LOGO_CONFIG } from '../app/components/fragment/types';
+import type { LogoOverlayConfig } from '../app/components/fragment/types';
+import { DEFAULT_LOGO_OVERLAY_CONFIG, DEFAULT_LOGO_ENTRY } from '../app/components/fragment/types';
+import { LOGO_IDS, type LogoId } from '../lib/logoRegistry';
 import type { TextOverlayConfig } from '../implementation-files/textOverlay';
 import { DEFAULT_TEXT_OVERLAY_CONFIG, isValidFontWeight } from '../implementation-files/textOverlay';
 import {
@@ -69,7 +70,7 @@ export interface UrlSerializableState {
   // Show end state preview alongside the main animation preview
   showEndState: boolean;
   // Logo overlay configuration
-  logoConfig: LogoConfig;
+  logoConfig: LogoOverlayConfig;
   // Text overlay configuration
   textOverlayConfig: TextOverlayConfig;
   // Pattern overlay on text states
@@ -138,13 +139,8 @@ const PARAM_KEYS = {
   fromFontResolution: 'ffr',
   toFontResolution: 'tfr',
   showEndState: 'se',
-  // Logo overlay
+  // Logo overlay (multi-entry)
   logoEnabled: 'le',
-  logoX: 'lx',
-  logoY: 'ly',
-  logoSize: 'ls',
-  logoColor: 'lc',
-  logoColorSource: 'lcs',
   presetOrCustomMode: 'pcm',
   // Text overlay
   textOverlayEnabled: 'txoe',
@@ -220,7 +216,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   fromTextConfig: DEFAULT_TEXT_CONFIG,
   toTextConfig: DEFAULT_TEXT_CONFIG,
   showEndState: false,
-  logoConfig: DEFAULT_LOGO_CONFIG,
+  logoConfig: DEFAULT_LOGO_OVERLAY_CONFIG,
   textOverlayConfig: DEFAULT_TEXT_OVERLAY_CONFIG,
   fromTextPatternEnabled: false,
   fromTextPatternParams: null,
@@ -337,14 +333,19 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     params.set(PARAM_KEYS.fromTpIf, tp.invertFill ? '1' : '0');
   }
 
-  // Logo (only when enabled, to keep URLs short)
-  if (state.logoConfig.enabled) {
+  // Logo (multi-entry, only when enabled)
+  if (state.logoConfig.enabled && state.logoConfig.entries.length > 0) {
     params.set(PARAM_KEYS.logoEnabled, '1');
-    addIfChanged(PARAM_KEYS.logoX, String(state.logoConfig.x), String(DEFAULTS.logoConfig.x));
-    addIfChanged(PARAM_KEYS.logoY, String(state.logoConfig.y), String(DEFAULTS.logoConfig.y));
-    addIfChanged(PARAM_KEYS.logoSize, String(state.logoConfig.size), String(DEFAULTS.logoConfig.size));
-    addIfChanged(PARAM_KEYS.logoColor, state.logoConfig.color.replace('#', ''), DEFAULTS.logoConfig.color.replace('#', ''));
-    addIfChanged(PARAM_KEYS.logoColorSource, state.logoConfig.colorSource, 'custom');
+    for (let i = 0; i < state.logoConfig.entries.length; i++) {
+      const e = state.logoConfig.entries[i];
+      const prefix = `lo${i}`;
+      params.set(`${prefix}t`, e.logoId);
+      params.set(`${prefix}x`, String(e.x));
+      params.set(`${prefix}y`, String(e.y));
+      params.set(`${prefix}s`, String(e.size));
+      params.set(`${prefix}c`, e.color.replace('#', ''));
+      if (e.colorSource !== 'custom') params.set(`${prefix}cs`, e.colorSource);
+    }
   }
 
   // Text overlay (only when enabled, to keep URLs short)
@@ -608,29 +609,64 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     };
   }
 
-  // Logo overlay
+  // Logo overlay (multi-entry)
   const le = parseBool(sp.get(PARAM_KEYS.logoEnabled));
   if (le) {
-    const lx = clampNum(sp.get(PARAM_KEYS.logoX), 0, 100);
-    const ly = clampNum(sp.get(PARAM_KEYS.logoY), 0, 100);
-    const ls = clampNum(sp.get(PARAM_KEYS.logoSize), 5, 50);
-    const lc = sp.get(PARAM_KEYS.logoColor);
-    const lcs = sp.get(PARAM_KEYS.logoColorSource);
-    const luf = sp.get('luf'); // backward compat: old URLs used 'luf' for useForeground
-    let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
-    if (lcs && ['custom', 'color1', 'color2', 'color3'].includes(lcs)) {
-      colorSource = lcs as typeof colorSource;
-    } else if (luf === '1') {
-      colorSource = 'color1'; // migrate old useForeground=true to color1
+    const entries: LogoOverlayConfig['entries'] = [];
+
+    // Try new multi-entry format first (lo0t, lo0x, ...)
+    for (let i = 0; i < 3; i++) {
+      const prefix = `lo${i}`;
+      const logoType = sp.get(`${prefix}t`);
+      const x = sp.get(`${prefix}x`);
+      if (logoType === null && x === null) break;
+
+      const logoId: LogoId = (logoType && LOGO_IDS.includes(logoType as LogoId))
+        ? logoType as LogoId : 'icp';
+      const lcs = sp.get(`${prefix}cs`);
+      let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
+      if (lcs && ['custom', 'color1', 'color2', 'color3'].includes(lcs)) {
+        colorSource = lcs as typeof colorSource;
+      }
+      const co = sp.get(`${prefix}c`);
+
+      entries.push({
+        id: crypto.randomUUID(),
+        logoId,
+        x: clampNum(x, 0, 100) ?? DEFAULT_LOGO_ENTRY.x,
+        y: clampNum(sp.get(`${prefix}y`), 0, 100) ?? DEFAULT_LOGO_ENTRY.y,
+        size: clampNum(sp.get(`${prefix}s`), 5, 50) ?? DEFAULT_LOGO_ENTRY.size,
+        color: (co && HEX_COLOR_REGEX.test(co)) ? '#' + co.toUpperCase() : '#FCFCFC',
+        colorSource,
+      });
     }
-    result.logoConfig = {
-      enabled: true,
-      x: lx ?? DEFAULT_LOGO_CONFIG.x,
-      y: ly ?? DEFAULT_LOGO_CONFIG.y,
-      size: ls ?? 15,
-      color: (lc && HEX_COLOR_REGEX.test(lc)) ? '#' + lc.toUpperCase() : '#FCFCFC',
-      colorSource,
-    };
+
+    // Backward compat: old single-logo URLs used lx, ly, ls, lc, lcs
+    if (entries.length === 0) {
+      const lx = clampNum(sp.get('lx'), 0, 100);
+      const ly = clampNum(sp.get('ly'), 0, 100);
+      const ls = clampNum(sp.get('ls'), 5, 50);
+      const lc = sp.get('lc');
+      const lcs = sp.get('lcs');
+      const luf = sp.get('luf');
+      let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
+      if (lcs && ['custom', 'color1', 'color2', 'color3'].includes(lcs)) {
+        colorSource = lcs as typeof colorSource;
+      } else if (luf === '1') {
+        colorSource = 'color1';
+      }
+      entries.push({
+        id: crypto.randomUUID(),
+        logoId: 'icp',
+        x: lx ?? DEFAULT_LOGO_ENTRY.x,
+        y: ly ?? DEFAULT_LOGO_ENTRY.y,
+        size: ls ?? 15,
+        color: (lc && HEX_COLOR_REGEX.test(lc)) ? '#' + lc.toUpperCase() : '#FCFCFC',
+        colorSource,
+      });
+    }
+
+    result.logoConfig = { enabled: true, entries };
   }
 
   // Text overlay

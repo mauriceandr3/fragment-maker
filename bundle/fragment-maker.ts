@@ -539,18 +539,25 @@ export function generateTextGrid(
   };
 }
 
-/** viewBox aspect ratio (176 wide x 32 tall) */
-export const LOGO_ASPECT_RATIO = 176 / 32;
+export type LogoId = 'icp' | 'dfinity' | 'caffeine';
 
-export interface LogoOverlayConfig {
-  enabled: boolean;
-  x: number;        // horizontal position 0–100% (0 = left edge, 100 = right edge)
-  y: number;        // vertical position 0–100% (0 = top edge, 100 = bottom edge)
-  size: number;     // percentage of canvas width (5-50)
-  color: string;    // hex color, e.g. '#FCFCFC'
+export interface LogoDefinition {
+  id: LogoId;
+  label: string;
+  viewBox: string;
+  aspectRatio: number;
+  supportsColorChange: boolean;
+  /** Path `d` strings — only set for recolorable logos. */
+  paths?: string[];
+  /** Raw SVG inner content (with fill attrs) — only set for fixed-color logos. */
+  rawSvgContent?: string;
 }
 
-const LOGO_PATHS = [
+// ---------------------------------------------------------------------------
+// ICP (Internet Computer Protocol) — current logo, recolorable
+// ---------------------------------------------------------------------------
+
+const ICP_PATHS = [
   'M67.7647 16C67.7647 7.17765 60.3694 1.90735e-06 51.2941 1.90735e-06C47.5106 1.90735e-06 43.3906 1.94 39.0259 5.76471C36.9624 7.57294 35.1729 9.50706 33.8294 11.0624C29.1118 5.80706 22.7847 1.90735e-06 16.4706 1.90735e-06C8.83883 1.90735e-06 2.18353 5.28471 0.451766 12.2871C0.454119 12.2812 0.456472 12.2729 0.458825 12.2647C0.456472 12.2729 0.454119 12.28 0.451766 12.2871C0.15122 13.5018 -0.000481508 14.7486 1.14808e-06 16C1.14808e-06 24.8224 7.27765 32 16.3529 32C20.1365 32 24.3741 30.06 28.7388 26.2353C30.8024 24.4271 32.5918 22.4929 33.9353 20.9376C38.6529 26.1929 44.9812 32 51.2953 32C58.9271 32 65.5824 26.7153 67.3141 19.7141C67.6094 18.5212 67.7659 17.2776 67.7659 16.0012L67.7647 16ZM35.0953 11.0459C36.6376 9.30588 38.1671 7.76941 39.6471 6.47294C43.8353 2.80236 47.7541 0.941178 51.2941 0.941178C59.8576 0.941178 66.8235 7.69647 66.8235 16C66.8235 17.1647 66.6835 18.3282 66.4059 19.46C66.3612 19.5906 65.7906 21.1529 64.1647 22.6718C62.0529 24.6447 59.1906 25.6459 55.6565 25.6471C59.4576 23.9953 62.1165 20.2847 62.1165 16C62.1165 10.1753 57.2612 5.43765 51.2941 5.43765C48.9682 5.43765 46.1212 6.9 42.8282 9.78588C41.3471 11.0847 39.8471 12.6118 38.2635 14.4365L37.6424 15.1494L34.46 11.7459L35.0953 11.0471V11.0459ZM29.4659 16.1576C28.2094 17.6494 26.3976 19.6824 24.3153 21.5071C20.4353 24.9082 17.9129 25.6212 16.4706 25.6212C11.0282 25.6212 6.58941 21.3047 6.58941 16C6.58941 10.6953 11.0235 6.41177 16.4706 6.37883C16.6682 6.37883 16.9071 6.39883 17.1965 6.45059C20.0035 7.52706 22.5106 9.24471 24.0247 10.6306C25.2424 11.7459 27.4482 14.0282 29.4647 16.1565L29.4659 16.1576ZM32.6694 20.9541C31.1259 22.6941 29.5976 24.2306 28.1176 25.5271C23.9882 29.1459 19.92 31.0588 16.3529 31.0588C12.2176 31.0588 8.34 29.4882 5.43177 26.6365C2.5353 23.7965 0.941178 20.0188 0.941178 16C0.941178 14.8353 1.08235 13.6706 1.35882 12.54C1.40588 12.4047 1.97647 10.8447 3.6 9.32824C5.71177 7.3553 8.57412 6.35412 12.1082 6.35294C8.30706 8.00471 5.64824 11.7153 5.64824 16C5.64824 21.8247 10.5035 26.5624 16.4706 26.5624C18.7965 26.5624 21.6435 25.1 24.9365 22.2141C26.4177 20.9153 27.9176 19.3882 29.5012 17.5635L30.1212 16.8494C30.1212 16.8494 33.2565 20.2024 33.2906 20.24L32.6682 20.9541H32.6694ZM38.2988 15.8424C39.5553 14.3506 41.3671 12.3176 43.4494 10.4929C47.3294 7.09177 49.8518 6.37883 51.2941 6.37883C56.7365 6.37883 61.1753 10.6953 61.1753 16C61.1753 21.3047 56.7412 25.5882 51.2941 25.6212C51.0965 25.6212 50.8576 25.6012 50.5671 25.5494C50.5694 25.5494 50.5706 25.5506 50.5729 25.5518C47.7635 24.4753 45.2541 22.7565 43.7388 21.3694C42.5212 20.2541 40.3153 17.9718 38.2976 15.8435L38.2988 15.8424ZM67.3071 19.7306C67.3094 19.7247 67.3106 19.7176 67.3129 19.7129C67.3118 19.7176 67.3094 19.7247 67.3071 19.7306Z',
   'M75.1235 14.0254V0.36055H78.8054V14.0254H75.1235Z',
   'M89.0005 14.0254L84.2588 5.91151V14.0254H80.6938V0.36055H84.857L89.1159 7.78055V0.36055H92.7007V14.0254H89.0005Z',
@@ -570,40 +577,167 @@ const LOGO_PATHS = [
   'M164.522 31.3293V17.6645H170.284C173.059 17.6645 174.871 19.5153 174.871 22.0585C174.871 23.9093 173.849 25.2773 172.346 25.874L174.928 31.3278H171.016L168.857 26.375H168.105V31.3278H164.52L164.522 31.3293ZM169.61 23.6011C170.689 23.6011 171.248 22.9846 171.248 22.1177C171.248 21.2507 170.689 20.6525 169.61 20.6525H168.107V23.6011H169.61Z',
 ];
 
-/** Returns a standalone SVG string of the logo with the given fill color. */
-export function getLogoSvg(color: string): string {
-  const paths = LOGO_PATHS.map(d => `<path d="${d}" fill="${color}"/>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 32" fill="none">${paths}</svg>`;
-}
+// ---------------------------------------------------------------------------
+// DFINITY — organization logo, recolorable
+// ---------------------------------------------------------------------------
 
-/** Returns a data: URL of the logo SVG (for use with Image / canvas). */
-export function getLogoSvgDataUrl(color: string): string {
-  const svg = getLogoSvg(color);
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+const DFINITY_PATHS = [
+  'M562.505 132.814C562.505 59.5807 501.118 0 425.785 0C394.379 0 360.179 16.1037 323.948 47.852C306.819 62.8619 291.966 78.9168 280.813 91.8271C241.653 48.2036 189.133 0 136.72 0C73.3699 0 18.1252 43.8676 3.75005 101.993C3.76958 101.944 3.78911 101.876 3.80864 101.808C3.78911 101.876 3.76958 101.935 3.75005 101.993C1.25526 112.077 -0.00399693 122.426 9.53002e-06 132.814C9.53002e-06 206.047 60.4108 265.628 135.744 265.628C167.15 265.628 202.326 249.524 238.557 217.776C255.686 202.766 270.54 186.711 281.692 173.801C320.853 217.424 373.383 265.628 425.795 265.628C489.145 265.628 544.39 221.76 558.765 163.644C561.216 153.742 562.515 143.419 562.515 132.824L562.505 132.814ZM291.321 91.6903C304.124 77.2468 316.819 64.4928 329.105 53.731C363.871 23.2619 396.4 7.81258 425.785 7.81258C496.87 7.81258 554.693 63.8873 554.693 132.814C554.693 142.482 553.531 152.14 551.226 161.535C550.855 162.619 546.119 175.588 532.622 188.195C515.093 204.572 491.333 212.883 461.997 212.893C493.55 199.182 515.62 168.381 515.62 132.814C515.62 84.4637 475.317 45.1372 425.785 45.1372C406.479 45.1372 382.845 57.2759 355.511 81.2312C343.216 92.0126 330.765 104.689 317.62 119.835L312.464 125.753L286.048 97.5009L291.321 91.7001V91.6903ZM244.592 134.122C234.162 146.505 219.123 163.38 201.838 178.527C169.631 206.76 148.693 212.678 136.72 212.678C91.5439 212.678 54.6978 176.847 54.6978 132.814C54.6978 88.7802 91.5048 53.2232 136.72 52.9497C138.361 52.9497 140.343 53.1157 142.746 53.5454C166.047 62.4811 186.857 76.739 199.426 88.243C209.533 97.5009 227.844 116.446 244.582 134.113L244.592 134.122ZM271.184 173.937C258.372 188.381 245.686 201.135 233.401 211.897C199.123 241.936 165.353 257.815 135.744 257.815C101.417 257.815 69.2292 244.778 45.0883 221.106C21.0451 197.531 7.81258 166.173 7.81258 132.814C7.81258 123.146 8.98447 113.478 11.2794 104.093C11.67 102.97 16.4064 90.0204 29.8831 77.4324C47.4126 61.0553 71.1726 52.7446 100.509 52.7349C68.9557 66.446 46.8852 97.247 46.8852 132.814C46.8852 181.164 87.1884 220.49 136.72 220.49C156.027 220.49 179.66 208.352 206.994 184.396C219.289 173.615 231.741 160.939 244.885 145.792L250.032 139.865C250.032 139.865 276.057 167.697 276.341 168.009L271.174 173.937H271.184ZM317.913 131.505C328.343 119.122 343.382 102.247 360.668 87.1005C392.875 58.8678 413.813 52.9497 425.785 52.9497C470.962 52.9497 507.808 88.7802 507.808 132.814C507.808 176.847 471.001 212.404 425.785 212.678C424.145 212.678 422.162 212.512 419.75 212.082C419.77 212.082 419.779 212.092 419.799 212.102C396.478 203.166 375.648 188.898 363.07 177.385C352.962 168.127 334.652 149.181 317.903 131.515L317.913 131.505ZM558.707 163.781C558.726 163.732 558.736 163.673 558.755 163.634C558.746 163.673 558.726 163.732 558.707 163.781Z',
+  'M655.361 93.3031H634.644C631.191 93.3031 628.922 95.5721 628.922 99.025V166.504C628.922 169.957 631.191 172.226 634.644 172.226H655.361C679.137 172.226 695.809 156.047 695.809 132.765C695.809 109.581 679.137 93.3031 655.361 93.3031ZM680.617 132.765C680.617 148.352 670.159 159.204 655.263 159.204H644.115V106.325H655.263C670.159 106.325 680.617 117.177 680.617 132.765Z',
+  'M810.545 93.303H770.098C766.645 93.303 764.376 95.572 764.376 99.0249V166.504C764.376 169.957 766.645 172.226 770.098 172.226H773.748C777.201 172.226 779.47 169.957 779.47 166.504V139.966H805.81C809.263 139.966 811.631 137.598 811.631 134.146V132.764C811.631 129.312 809.362 127.043 805.81 127.043H779.47V106.325H810.545C813.998 106.325 816.267 104.056 816.267 100.603V99.0249C816.169 95.572 813.998 93.303 810.545 93.303Z',
+  'M905.942 93.303H902.292C898.839 93.303 896.57 95.572 896.57 99.0249V166.504C896.57 169.957 898.839 172.226 902.292 172.226H905.942C909.395 172.226 911.664 169.957 911.664 166.504V99.0249C911.664 95.572 909.395 93.303 905.942 93.303Z',
+  'M1050.27 93.303H1046.62C1043.17 93.303 1040.9 95.572 1040.9 99.0249V144.011L1005.68 96.4599C1004.1 94.3882 1002.13 93.4016 999.366 93.4016H997.788C994.335 93.4016 992.066 95.6707 992.066 99.1235V166.603C992.066 170.055 994.335 172.324 997.788 172.324H1001.44C1004.89 172.324 1007.16 170.055 1007.16 166.603V121.419L1042.48 169.266C1044.06 171.338 1046.03 172.324 1048.79 172.324H1050.27C1053.82 172.324 1056.09 170.055 1056.09 166.603V99.1235C1056.09 95.572 1053.82 93.303 1050.27 93.303Z',
+  'M1145.77 93.303H1142.12C1138.66 93.303 1136.39 95.572 1136.39 99.0249V166.504C1136.39 169.957 1138.66 172.226 1142.12 172.226H1145.77C1149.22 172.226 1151.49 169.957 1151.49 166.504V99.0249C1151.49 95.572 1149.22 93.303 1145.77 93.303Z',
+  'M1290.89 93.303H1237.61C1234.16 93.303 1231.89 95.572 1231.89 99.0249V100.603C1231.89 104.056 1234.16 106.325 1237.61 106.325H1256.75V166.504C1256.75 169.957 1259.02 172.226 1262.47 172.226H1266.03C1269.48 172.226 1271.75 169.957 1271.75 166.504V106.325H1290.89C1294.34 106.325 1296.61 104.056 1296.61 100.603V99.0249C1296.51 95.572 1294.34 93.303 1290.89 93.303Z',
+  'M1433.54 95.6707C1432.75 94.1909 1431.07 93.303 1428.8 93.303H1424.17C1421.31 93.303 1419.24 94.4868 1417.95 96.7559L1399.41 126.352L1381.06 96.8545C1379.77 94.4868 1377.7 93.303 1374.84 93.303H1370.11C1367.94 93.303 1366.16 94.1909 1365.37 95.6707C1364.88 96.5585 1364.38 98.433 1366.06 100.899L1391.91 139.966V166.504C1391.91 169.957 1394.18 172.226 1397.63 172.226H1401.18C1404.73 172.226 1407 169.957 1407 166.504V139.966L1432.75 100.899C1434.53 98.3343 1434.03 96.5585 1433.54 95.6707Z',
+];
+
+// ---------------------------------------------------------------------------
+// Caffeine — multi-colored logo, NOT recolorable
+// ---------------------------------------------------------------------------
+
+const CAFFEINE_RAW_SVG = `<path d="M0 94.9967C0 61.7652 27.1094 38.9395 64.6245 38.9395C96.625 38.9395 117.421 56.6821 123.127 74.4088L94.9946 86.4291C91.3182 75.224 80.321 65.6334 64.4167 65.6334C45.6671 65.6334 31.7927 76.6467 31.7927 94.9808C31.7927 113.123 45.6511 124.328 64.4167 124.328C80.321 124.328 91.3182 114.753 94.9946 103.325L123.127 115.76C117.213 133.295 96.625 150.83 64.6245 150.83C27.1094 150.846 0 128.021 0 94.9967Z" fill="white"/><path d="M177.735 150.846C151.233 150.846 132.275 138.826 132.275 117.615C132.275 96.6112 150.833 86.2213 176.104 83.7757L218.91 79.9075V79.3001C218.91 71.148 211.973 64.6264 194.646 64.6264C179.972 64.6264 168.752 70.7484 165.491 79.0923L136.144 71.148C142.873 51.7749 166.514 38.9395 196.069 38.9395C230.323 38.9395 250.495 52.5901 250.495 79.5079V99.0728V148.608H221.963V136.78C212.181 145.348 196.692 150.846 177.735 150.846ZM218.91 107.433V101.726L180.788 105.594C169.583 106.617 163.876 109.271 163.876 116.4C163.876 123.337 171.005 126.998 183.649 126.998C200.368 126.998 218.91 119.868 218.91 107.433Z" fill="white"/><path d="M267.805 39.5454C267.805 12.8355 286.554 0 318.363 0C328.353 0 338.743 1.42261 345.265 3.86822L340.981 29.3474C334.251 27.5091 327.938 26.4861 320.393 26.4861C306.535 26.4861 300.013 30.5622 300.013 40.1368V41.1598H339.558V68.0616H300.013V148.591H267.805V39.5454Z" fill="white"/><path d="M353.211 39.5454C353.211 12.8355 371.961 0 403.769 0C413.76 0 424.149 1.42261 430.671 3.86822L426.387 29.3474C419.658 27.5091 413.344 26.4861 405.799 26.4861C391.941 26.4861 385.419 30.5622 385.419 40.1368V41.1598H424.965V68.0616H385.419V148.591H353.211V68.0776H328.963V41.1758H353.227V39.5454H353.211Z" fill="white"/><path d="M490.421 124.948C504.695 124.948 516.108 118.426 520.791 108.02L549.531 118.41C541.779 137.368 518.745 150.827 490.613 150.827C452.491 150.827 425.797 128.193 425.797 94.7694C425.797 62.9764 452.507 38.9199 490.421 38.9199C528.943 38.9199 551.369 63.7917 551.369 94.3698V103.337H457.606C461.266 117.004 473.702 124.948 490.421 124.948ZM489.398 64.2072C475.124 64.2072 462.896 70.7289 458.405 83.3725H518.538C517.115 74.4053 506.518 64.2072 489.398 64.2072Z" fill="white"/><path d="M565.482 30.1591V2.23438H598.714V30.1591H565.482ZM598.314 41.1724V148.604H565.69V41.1724H598.314Z" fill="white"/><path d="M616.506 148.608V41.1773H649.114V54.2205C657.474 45.4611 670.932 38.9395 688.259 38.9395C716.184 38.9395 735.141 57.6892 735.141 87.4521V148.608H702.517V97.0268C702.517 78.8845 693.758 67.8712 677.038 67.8712C659.296 67.8712 649.114 78.6767 649.114 97.2186V148.592H616.506V148.608Z" fill="white"/><path d="M810.093 124.948C824.367 124.948 835.78 118.426 840.463 108.02L869.203 118.41C861.451 137.368 838.417 150.827 810.285 150.827C772.163 150.827 745.469 128.193 745.469 94.7694C745.469 62.9764 772.178 38.9199 810.093 38.9199C848.615 38.9199 871.041 63.7917 871.041 94.3698V103.337H777.277C780.938 117.004 793.374 124.948 810.093 124.948ZM809.07 64.2072C794.796 64.2072 782.568 70.7289 778.077 83.3725H838.226C836.803 74.4053 826.205 64.2072 809.07 64.2072Z" fill="white"/><path d="M898.266 146.947V122.906H921.491V146.947H898.266Z" fill="#DDF730"/><path d="M946.859 117.193C946.859 99.0505 961.533 87.4459 989.042 84.3769L1036.12 79.086V76.4326C1036.12 62.3664 1024.5 54.0225 1004.32 54.0225C986.389 54.0225 970.916 62.5741 966.216 74.8182L950.935 67.881C954.196 59.1215 960.718 51.9925 970.692 46.4938C980.682 40.9952 992.095 38.3418 1004.72 38.3418C1035.89 38.3418 1053.83 52.2003 1053.83 76.6564V124.753C1053.83 128.622 1055.25 131.275 1057.9 132.49C1059.12 133.097 1060.75 133.513 1062.79 133.513C1065.03 133.513 1067.89 133.097 1070.95 132.282V146.956C1067.08 147.563 1063.61 147.979 1060.35 147.979C1055.66 147.771 1051.38 146.956 1047.91 145.325C1042 142.48 1038.74 137.589 1037.73 130.86L1037.52 129.837C1027.95 142.065 1010.01 149.194 989.633 149.194C963.771 149.178 946.859 136.742 946.859 117.193ZM1022.86 125.952C1031.62 120.454 1036.12 113.117 1036.12 104.357V93.7597L991.695 98.8587C972.338 101.097 964.794 106.403 964.794 116.985C964.794 127.583 974.784 134.104 991.072 134.104C1003.51 134.104 1014.11 131.451 1022.86 125.952Z" fill="#DDF730"/><path d="M1084.04 21.8418V0.646484H1104V21.8418H1084.04ZM1103.18 40.3837V146.952H1084.85V40.3837H1103.18Z" fill="#DDF730"/>`;
+
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
+
+export const LOGO_DEFINITIONS: Record<LogoId, LogoDefinition> = {
+  icp: {
+    id: 'icp',
+    label: 'ICP',
+    viewBox: '0 0 176 32',
+    aspectRatio: 176 / 32,
+    supportsColorChange: true,
+    paths: ICP_PATHS,
+  },
+  dfinity: {
+    id: 'dfinity',
+    label: 'DFINITY',
+    viewBox: '0 0 1434 265.63',
+    aspectRatio: 1434 / 265.63,
+    supportsColorChange: true,
+    paths: DFINITY_PATHS,
+  },
+  caffeine: {
+    id: 'caffeine',
+    label: 'caffeine.ai',
+    viewBox: '0 0 1104 150.85',
+    aspectRatio: 1104 / 150.85,
+    supportsColorChange: false,
+    rawSvgContent: CAFFEINE_RAW_SVG,
+  },
+};
+
+export const LOGO_IDS: LogoId[] = ['icp', 'dfinity', 'caffeine'];
+
+/** Get the logo definition for a given ID. */
+export function getLogoDefinition(id: LogoId): LogoDefinition {
+  return LOGO_DEFINITIONS[id];
 }
 
 /**
- * Generates an embedded `<svg>` element string for the logo overlay,
+ * Returns a standalone SVG string for the given logo.
+ * For recolorable logos, applies the given fill color.
+ * For fixed-color logos, returns the original SVG with its embedded colors.
+ */
+export function getLogoSvgById(id: LogoId, color?: string): string {
+  const def = LOGO_DEFINITIONS[id];
+  if (def.supportsColorChange && def.paths) {
+    const fillColor = color ?? '#FCFCFC';
+    const paths = def.paths.map(d => `<path d="${d}" fill="${fillColor}"/>`).join('');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${def.viewBox}" fill="none">${paths}</svg>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${def.viewBox}" fill="none">${def.rawSvgContent}</svg>`;
+}
+
+/** Returns a data: URL of the logo SVG (for use with Image / canvas). */
+export function getLogoSvgDataUrlById(id: LogoId, color?: string): string {
+  const svg = getLogoSvgById(id, color);
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+// Re-export for backward compat & convenience
+
+/** @deprecated Use LOGO_DEFINITIONS[id].aspectRatio instead. */
+export const LOGO_ASPECT_RATIO = 176 / 32;
+
+/** Config for a single logo entry in the SVG overlay. */
+export interface LogoOverlayEntryConfig {
+  logoId: LogoId;
+  x: number;        // horizontal position 0–100%
+  y: number;        // vertical position 0–100%
+  size: number;     // percentage of canvas width (5-50)
+  color: string;    // hex color (only used for recolorable logos)
+}
+
+/** Config for the full logo overlay (multiple entries). */
+export interface LogoOverlayConfig {
+  enabled: boolean;
+  entries: LogoOverlayEntryConfig[];
+}
+
+/** @deprecated Single-entry config kept for backward compat with old export format. */
+export interface LegacyLogoOverlayConfig {
+  enabled: boolean;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+}
+
+/**
+ * Generates embedded `<svg>` element strings for all logo overlay entries,
  * positioned within a parent SVG's coordinate system.
  *
- * Returns empty string if logo is not enabled.
+ * Returns empty string if disabled or no entries.
  */
 export function generateLogoOverlaySvg(
   config: LogoOverlayConfig,
   canvasWidth: number,
   canvasHeight: number,
 ): string {
+  if (!config.enabled || config.entries.length === 0) return '';
+
+  return config.entries.map(entry => {
+    const def = LOGO_DEFINITIONS[entry.logoId];
+    if (!def) return '';
+
+    const logoWidth = (entry.size / 100) * canvasWidth;
+    const logoHeight = logoWidth / def.aspectRatio;
+
+    const x = (entry.x / 100) * (canvasWidth - logoWidth);
+    const y = (entry.y / 100) * (canvasHeight - logoHeight);
+
+    if (def.supportsColorChange && def.paths) {
+      const paths = def.paths.map(d => `<path d="${d}" fill="${entry.color}"/>`).join('');
+      return `<svg x="${x}" y="${y}" width="${logoWidth}" height="${logoHeight}" viewBox="${def.viewBox}" fill="none">${paths}</svg>`;
+    }
+    // Fixed-color logo
+    return `<svg x="${x}" y="${y}" width="${logoWidth}" height="${logoHeight}" viewBox="${def.viewBox}" fill="none">${def.rawSvgContent}</svg>`;
+  }).join('');
+}
+
+/**
+ * Generate logo overlay from legacy single-entry config.
+ * Used for backward compat with old export format.
+ */
+export function generateLegacyLogoOverlaySvg(
+  config: LegacyLogoOverlayConfig,
+  canvasWidth: number,
+  canvasHeight: number,
+): string {
   if (!config.enabled) return '';
-
-  const logoWidth = (config.size / 100) * canvasWidth;
-  const logoHeight = logoWidth / LOGO_ASPECT_RATIO;
-
-  // x/y are 0–100 percentages. At 0 the logo is flush-left/top, at 100 flush-right/bottom.
-  const x = (config.x / 100) * (canvasWidth - logoWidth);
-  const y = (config.y / 100) * (canvasHeight - logoHeight);
-
-  const paths = LOGO_PATHS.map(d => `<path d="${d}" fill="${config.color}"/>`).join('');
-  return `<svg x="${x}" y="${y}" width="${logoWidth}" height="${logoHeight}" viewBox="0 0 176 32" fill="none">${paths}</svg>`;
+  return generateLogoOverlaySvg({
+    enabled: true,
+    entries: [{
+      logoId: 'icp',
+      x: config.x,
+      y: config.y,
+      size: config.size,
+      color: config.color,
+    }],
+  }, canvasWidth, canvasHeight);
 }
 
 export type TextOverlayAlignment = 'left' | 'center' | 'right';
@@ -687,7 +821,7 @@ export function generateTextOverlaySvg(
 
 // Types
 
-export type FillType = 'linear' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
+export type FillType = 'linear' | 'linearHorizontal' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
 
 export type SeedableParam =
   | 'threshold'
@@ -825,8 +959,8 @@ export interface FragmentExport {
   fromTextConfig?: TextConfig;
   /** Text configuration for the "To" state (v2.2.0+). */
   toTextConfig?: TextConfig;
-  /** Logo overlay configuration (v2.3.0+). Present only when logo is enabled. */
-  logo?: LogoOverlayConfig;
+  /** Logo overlay configuration. v2.3.0 = single-entry, v3.0.0+ = multi-entry with `entries`. */
+  logo?: LogoOverlayConfig | LegacyLogoOverlayConfig;
   /** Text overlay configuration (v2.4.0+). Present only when text overlay is enabled. */
   textOverlay?: TextOverlayConfig;
   /** Pattern overlay config for "From" text state (v2.6.0+). Present when fromStateType='text' and pattern overlay is enabled. */
@@ -888,6 +1022,9 @@ function calculateFillThreshold(
   switch (fillType) {
     case 'linear':
       return (y / rows) * 100;
+
+    case 'linearHorizontal':
+      return (x / cols) * 100;
 
     case 'radial': {
       const dx = x - centerX;
@@ -1037,6 +1174,7 @@ export function assignCellColors(
   seed: number,
   colorMode: ColorMode,
   proportions: number[],
+  frequency: number = 1,
 ): number[][] | null {
   if (colorMode === 'mono') return null;
 
@@ -1051,9 +1189,13 @@ export function assignCellColors(
     }
   }
 
+  // Derive a shuffle seed that incorporates frequency so color distribution
+  // changes when frequency changes, even if the grid pattern is identical.
+  const shuffleSeed = seed + Math.round(frequency * 10000);
+
   // Fisher-Yates shuffle using seeded random
   for (let i = filledCells.length - 1; i > 0; i--) {
-    const r = seededRandom(seed, i, 9999);
+    const r = seededRandom(shuffleSeed, i, 9999);
     const j = Math.floor(r * (i + 1));
     [filledCells[i], filledCells[j]] = [filledCells[j], filledCells[i]];
   }
@@ -1200,7 +1342,7 @@ export function generateCombinedTextPatternGrid(
   const colorMode = patternConfig.colorMode ?? 'mono';
   const proportions = patternConfig.colorProportions ?? [1];
   const entityColorAssignments = assignCellColors(
-    entityGrid, patternConfig.seed, colorMode, proportions,
+    entityGrid, patternConfig.seed, colorMode, proportions, patternConfig.frequency,
   );
   const textColor = patternConfig.textColor ?? patternConfig.foregroundColor;
   const patternColors = patternConfig.colors ?? [patternConfig.foregroundColor];
@@ -1443,6 +1585,7 @@ function renderConfigToSvg(params: RenderParams): string {
     grid, config.seed,
     colorMode,
     config.colorProportions ?? [1],
+    config.frequency,
   );
 
   return gridToSvg(
@@ -1528,9 +1671,16 @@ function buildDiffSvg(
       if (rectWidth <= 0 || rectHeight <= 0) continue;
 
       if (inA && inB) {
-        // Shared cell: use "to" state color (instant adopt)
-        const fill = getCellColor(colorOpts?.colorAssignmentsB ?? null, colorOpts?.colors, foregroundColor, x, y);
-        svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}"/>`;
+        const fillA = getCellColor(colorOpts?.colorAssignmentsA ?? null, colorOpts?.colors, foregroundColor, x, y);
+        const fillB = getCellColor(colorOpts?.colorAssignmentsB ?? null, colorOpts?.colors, foregroundColor, x, y);
+        if (fillA === fillB) {
+          // Same color in both states — static, no animation needed
+          svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fillA}"/>`;
+        } else {
+          // Different colors — animate from A to B via fade out/in
+          svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fillB}" data-g="b" style="opacity:0"/>`;
+          svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fillA}" data-g="a"/>`;
+        }
       } else if (inA) {
         const fill = getCellColor(colorOpts?.colorAssignmentsA ?? null, colorOpts?.colors, foregroundColor, x, y);
         svg += `<rect x="${x * cw}" y="${y * ch}" width="${rectWidth}" height="${rectHeight}" fill="${fill}" data-g="a"/>`;
@@ -1778,7 +1928,6 @@ export function buildCompositeDiffSvg(opts: CompositeDiffOptions): string {
   svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="${backgroundColor}"/>`;
 
   // --- 1. Shared cells (behind everything) ---
-  // Use to-side color: text color if it's a to-text cell, else to-entity color
   for (let by = 0; by < baseRows; by++) {
     for (let bx = 0; bx < baseCols; bx++) {
       if (!isFromCell(bx, by) || !isToCell(bx, by)) continue;
@@ -1786,16 +1935,31 @@ export function buildCompositeDiffSvg(opts: CompositeDiffOptions): string {
       const rh = Math.min(cellSize, height - by * cellSize);
       if (rw <= 0 || rh <= 0) continue;
 
-      // To-side text takes priority for color
-      let fill: string;
-      if (to.textGrid?.[by]?.[bx]) {
-        fill = toTFill;
+      // Resolve from-side and to-side colors
+      let fillFrom: string;
+      if (from.textGrid?.[by]?.[bx]) {
+        fillFrom = fromTFill;
       } else {
         const ex = Math.floor(bx / stretchX);
         const ey = Math.floor(by / stretchY);
-        fill = toEntityFill(ex, ey);
+        fillFrom = fromEntityFill(ex, ey);
       }
-      svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fill}"/>`;
+      let fillTo: string;
+      if (to.textGrid?.[by]?.[bx]) {
+        fillTo = toTFill;
+      } else {
+        const ex = Math.floor(bx / stretchX);
+        const ey = Math.floor(by / stretchY);
+        fillTo = toEntityFill(ex, ey);
+      }
+
+      if (fillFrom === fillTo) {
+        svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fillFrom}"/>`;
+      } else {
+        // Different colors — animate from A to B via fade out/in
+        svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fillTo}" data-g="b" style="opacity:0"/>`;
+        svg += `<rect x="${bx * cellSize}" y="${by * cellSize}" width="${rw}" height="${rh}" fill="${fillFrom}" data-g="a"/>`;
+      }
     }
   }
 
@@ -1900,8 +2064,8 @@ export function generateFragmentDiffSvg(options: GenerateFragmentDiffSvgOptions)
 
   const colorMode = rest.colorMode ?? 'mono';
   const proportions = rest.colorProportions ?? [1];
-  const colorAssignmentsA = assignCellColors(gridA, configA.seed, colorMode, proportions);
-  const colorAssignmentsB = assignCellColors(gridB, configB.seed, colorMode, proportions);
+  const colorAssignmentsA = assignCellColors(gridA, configA.seed, colorMode, proportions, configA.frequency);
+  const colorAssignmentsB = assignCellColors(gridB, configB.seed, colorMode, proportions, configB.frequency);
 
   return buildDiffSvg(gridA, gridB, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor, {
     colorAssignmentsA,
@@ -1994,8 +2158,8 @@ export function generateFragmentDiffFromConfigs(options: GenerateFragmentDiffFro
   // Multi-color: compute color assignments for both grids
   const colorMode = fromConfig.colorMode ?? 'mono';
   const proportions = fromConfig.colorProportions ?? [1];
-  const colorAssignmentsA = assignCellColors(gridFrom, fromConfig.seed, colorMode, proportions);
-  const colorAssignmentsB = assignCellColors(gridTo, toConfig.seed, colorMode, proportions);
+  const colorAssignmentsA = assignCellColors(gridFrom, fromConfig.seed, colorMode, proportions, fromConfig.frequency);
+  const colorAssignmentsB = assignCellColors(gridTo, toConfig.seed, colorMode, proportions, toConfig.frequency);
 
   return buildDiffSvg(gridFrom, gridTo, cols, rows, cellWidth, cellHeight, width, height, foregroundColor, backgroundColor, {
     colorAssignmentsA,
@@ -2011,12 +2175,19 @@ function injectOverlays(
   svg: string,
   width: number,
   height: number,
-  logo?: LogoOverlayConfig,
+  logo?: LogoOverlayConfig | LegacyLogoOverlayConfig,
   textOverlay?: TextOverlayConfig,
 ): string {
   const behindSvg = generateTextOverlaySvg(textOverlay, width, height, 'behind');
   const aboveSvg = generateTextOverlaySvg(textOverlay, width, height, 'above');
-  const logoSvg = logo?.enabled ? generateLogoOverlaySvg(logo, width, height) : '';
+  let logoSvg = '';
+  if (logo?.enabled) {
+    if ('entries' in logo) {
+      logoSvg = generateLogoOverlaySvg(logo, width, height);
+    } else {
+      logoSvg = generateLegacyLogoOverlaySvg(logo, width, height);
+    }
+  }
 
   if (!behindSvg && !aboveSvg && !logoSvg) return svg;
 
@@ -2165,7 +2336,7 @@ export function generateDiffSvgFromExport(
     if (patternOverlayConfig) {
       const overlayDims = computeDimensions(patternOverlayConfig);
       side.entityGrid = gridFromConfig(patternOverlayConfig, overlayDims);
-      side.entityColorAssignments = assignCellColors(side.entityGrid, patternOverlayConfig.seed, colorMode, colorProportions);
+      side.entityColorAssignments = assignCellColors(side.entityGrid, patternOverlayConfig.seed, colorMode, colorProportions, patternOverlayConfig.frequency);
       side.colors = config.colors;
     }
     return side;
@@ -2179,7 +2350,7 @@ export function generateDiffSvgFromExport(
     const entityGrid = gridFromConfig(resolved, computeDimensions(resolved));
     return {
       entityGrid,
-      entityColorAssignments: assignCellColors(entityGrid, resolved.seed, colorMode, colorProportions),
+      entityColorAssignments: assignCellColors(entityGrid, resolved.seed, colorMode, colorProportions, resolved.frequency),
       colors: config.colors,
     };
   };
