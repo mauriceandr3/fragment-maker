@@ -2,12 +2,12 @@ import { getColorRgb } from './colorUtils';
 import type { LogoEntry } from '@/app/components/fragment/types';
 import { LOGO_DEFINITIONS } from '@/lib/logoRegistry';
 
-type ColorMode = 'mono' | 'duo' | 'tri';
+type ColorMode = 'mono' | 'duo' | 'tri' | 'quad';
 
 /**
  * Resolve the effective logo color for a logo entry based on its colorSource.
  * - 'custom': use entry.color
- * - 'color1'/'color2'/'color3': use the corresponding primary color
+ * - 'color1'/'color2'/'color3'/'color4': use the corresponding primary color
  *   (in mono mode, color1 = foregroundColor)
  *
  * Returns null for fixed-color logos (they use their embedded colors).

@@ -219,7 +219,7 @@ function LogoPreview({ entry, colorMode, multiColors, foregroundColor }: {
   multiColors: string[];
   foregroundColor: string;
 }) {
-  const effectiveColor = resolveLogoEntryColor(entry, colorMode as 'mono' | 'duo' | 'tri', multiColors, foregroundColor);
+  const effectiveColor = resolveLogoEntryColor(entry, colorMode as 'mono' | 'duo' | 'tri' | 'quad', multiColors, foregroundColor);
   const svgHtml = getLogoSvgById(entry.logoId, effectiveColor ?? undefined);
 
   return (
@@ -244,7 +244,7 @@ function ColorPicker({ entry, colorMode, multiColors, foregroundColor, hideCusto
   if (colorMode === 'mono') {
     primaryColors.push({ source: 'color1', color: getColorRgb(foregroundColor), label: 'Foreground' });
   } else {
-    const count = colorMode === 'tri' ? 3 : 2;
+    const count = colorMode === 'quad' ? 4 : colorMode === 'tri' ? 3 : 2;
     for (let i = 0; i < count; i++) {
       primaryColors.push({
         source: `color${i + 1}` as LogoColorSource,

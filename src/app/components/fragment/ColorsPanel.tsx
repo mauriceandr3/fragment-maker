@@ -1,6 +1,6 @@
-import { getColorRgb, isTransparent, setColorAlpha, COLOR_PRESETS, DUO_COLOR_PRESETS, TRI_COLOR_PRESETS, type MultiColorPreset } from "@/lib/colorUtils";
+import { getColorRgb, isTransparent, setColorAlpha, COLOR_PRESETS, DUO_COLOR_PRESETS, TRI_COLOR_PRESETS, QUAD_COLOR_PRESETS, type MultiColorPreset } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
-import type { ColorMode } from "@/implementation-files/generateFragmentSvg";
+import { COLOR_MODE_COUNT, type ColorMode } from "@/implementation-files/generateFragmentSvg";
 import { Section } from '../ui/Section';
 import { Checkbox } from '../ui/Checkbox';
 import { ColorInput } from '../ui/ColorInput';
@@ -11,6 +11,7 @@ const COLOR_MODE_OPTIONS: { label: string; value: ColorMode }[] = [
   { label: "Mono", value: "mono" },
   { label: "Duo", value: "duo" },
   { label: "Tri", value: "tri" },
+  { label: "Quad", value: "quad" },
 ];
 
 /** Fields that can be individually locked in the colors panel */
@@ -139,7 +140,7 @@ function MultiColorControls({ state }: { state: FragmentState }) {
     colorProportions, setColorProportions,
   } = state;
 
-  const colorCount = colorMode === 'tri' ? 3 : 2;
+  const colorCount = COLOR_MODE_COUNT[colorMode];
 
   const updateColor = (index: number, color: string) => {
     const newColors = [...multiColors];
@@ -175,7 +176,7 @@ function MultiColorControls({ state }: { state: FragmentState }) {
 function TextColorSelector({ state }: { state: FragmentState }) {
   const { multiColors, colorMode, textColor, setTextColor } = state;
 
-  const colorCount = colorMode === 'tri' ? 3 : 2;
+  const colorCount = COLOR_MODE_COUNT[colorMode];
   const options = multiColors.slice(0, colorCount);
 
   return (
@@ -239,13 +240,18 @@ export function ColorsPanel({ state, lockedFields }: ColorsPanelProps) {
 
   const handleColorModeChange = (mode: ColorMode) => {
     setColorMode(mode);
+    const count = COLOR_MODE_COUNT[mode];
     // Set default colors/proportions when switching modes
     if (mode === 'duo') {
       setMultiColors(prev => prev.length >= 2 ? prev.slice(0, 2) : ['#FCFCFC', '#C2A3FF']);
       setColorProportions(prev => prev.length === 2 ? prev : [0.5, 0.5]);
     } else if (mode === 'tri') {
-      setMultiColors(prev => prev.length >= 3 ? prev : [...prev.slice(0, 2), '#6CFF80']);
+      setMultiColors(prev => prev.length >= 3 ? prev.slice(0, 3) : [...prev.slice(0, 2), '#6CFF80']);
       setColorProportions(prev => prev.length === 3 ? prev : [0.33, 0.34, 0.33]);
+    } else if (mode === 'quad') {
+      const defaults = ['#FCFCFC', '#C2A3FF', '#6CFF80', '#00F9E1'];
+      setMultiColors(prev => prev.length >= count ? prev.slice(0, count) : [...prev.slice(0, Math.min(prev.length, count)), ...defaults.slice(prev.length, count)]);
+      setColorProportions(prev => prev.length === count ? prev : [0.25, 0.25, 0.25, 0.25]);
     }
   };
 
@@ -272,6 +278,7 @@ export function ColorsPanel({ state, lockedFields }: ColorsPanelProps) {
           {colorMode === 'mono' && <MonoPresets state={state} />}
           {colorMode === 'duo' && <MultiColorPresets state={state} presets={DUO_COLOR_PRESETS} />}
           {colorMode === 'tri' && <MultiColorPresets state={state} presets={TRI_COLOR_PRESETS} />}
+          {colorMode === 'quad' && <MultiColorPresets state={state} presets={QUAD_COLOR_PRESETS} />}
         </div>
       )}
 

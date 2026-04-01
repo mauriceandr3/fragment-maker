@@ -15,7 +15,7 @@ function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { 
   return (
     <>
       {logoConfig.entries.map(entry => {
-        const effectiveColor = resolveLogoEntryColor(entry, colorMode as 'mono' | 'duo' | 'tri', multiColors, foregroundColor);
+        const effectiveColor = resolveLogoEntryColor(entry, colorMode as 'mono' | 'duo' | 'tri' | 'quad', multiColors, foregroundColor);
 
         const style: CSSProperties = {
           position: 'absolute',

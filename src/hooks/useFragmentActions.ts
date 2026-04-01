@@ -432,7 +432,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         setCustomPreset({ background: getColorRgb(newBackground), foreground: getColorRgb(newForeground) });
 
         // Multi-color
-        const validColorModes = ['mono', 'duo', 'tri'] as const;
+        const validColorModes = ['mono', 'duo', 'tri', 'quad'] as const;
         const newColorMode = validColorModes.includes(config.colorMode) ? config.colorMode : 'mono';
         setColorMode(newColorMode);
         if (newColorMode !== 'mono' && Array.isArray(config.colors)) {
@@ -619,7 +619,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
         // Import logo config (v2.3.0+ single-entry, v3.0.0+ multi-entry)
         if (data.logo && typeof data.logo === 'object') {
           const logoData = data.logo as Record<string, unknown>;
-          const validSources = ['custom', 'color1', 'color2', 'color3'];
+          const validSources = ['custom', 'color1', 'color2', 'color3', 'color4'];
 
           // New multi-entry format (v3.0.0+)
           if (Array.isArray(logoData.entries)) {

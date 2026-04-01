@@ -497,7 +497,7 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
 
   // Multi-color
   const cm = sp.get(PARAM_KEYS.colorMode);
-  if (cm === 'duo' || cm === 'tri') {
+  if (cm === 'duo' || cm === 'tri' || cm === 'quad') {
     result.colorMode = cm;
     const mc = sp.get(PARAM_KEYS.multiColors);
     if (mc) {
@@ -625,7 +625,7 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
         ? logoType as LogoId : 'icp';
       const lcs = sp.get(`${prefix}cs`);
       let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
-      if (lcs && ['custom', 'color1', 'color2', 'color3'].includes(lcs)) {
+      if (lcs && ['custom', 'color1', 'color2', 'color3', 'color4'].includes(lcs)) {
         colorSource = lcs as typeof colorSource;
       }
       const co = sp.get(`${prefix}c`);
@@ -650,7 +650,7 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       const lcs = sp.get('lcs');
       const luf = sp.get('luf');
       let colorSource: import('@/app/components/fragment/types').LogoColorSource = 'custom';
-      if (lcs && ['custom', 'color1', 'color2', 'color3'].includes(lcs)) {
+      if (lcs && ['custom', 'color1', 'color2', 'color3', 'color4'].includes(lcs)) {
         colorSource = lcs as typeof colorSource;
       } else if (luf === '1') {
         colorSource = 'color1';

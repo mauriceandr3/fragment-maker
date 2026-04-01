@@ -46,7 +46,7 @@ export interface GeneratorParams {
 }
 
 /** Which primary color the logo tracks, or 'custom' for a user-chosen color. */
-export type LogoColorSource = 'custom' | 'color1' | 'color2' | 'color3';
+export type LogoColorSource = 'custom' | 'color1' | 'color2' | 'color3' | 'color4';
 
 export type { LogoId } from '@/lib/logoRegistry';
 

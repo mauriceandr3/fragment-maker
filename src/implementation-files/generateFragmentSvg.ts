@@ -42,7 +42,15 @@ export type SeedableParam =
 
 export type CropDirection = 'width' | 'height';
 export type ElongateAxis = 'none' | 'width' | 'height';
-export type ColorMode = 'mono' | 'duo' | 'tri';
+export type ColorMode = 'mono' | 'duo' | 'tri' | 'quad';
+
+/** Number of foreground colors for each color mode. */
+export const COLOR_MODE_COUNT: Record<ColorMode, number> = {
+  mono: 1,
+  duo: 2,
+  tri: 3,
+  quad: 4,
+};
 
 export interface FragmentConfig {
   /** Density threshold for noise (0-1) */
@@ -85,9 +93,9 @@ export interface FragmentConfig {
   elongateAxis?: ElongateAxis;
   /** Multiplier for cell stretch (e.g. 4 with width axis = cells are 4x wide) */
   elongateAmount?: number;
-  /** Color mode: mono (single foreground), duo (2 colors), tri (3 colors). Defaults to 'mono'. */
+  /** Color mode: mono (single foreground), duo (2 colors), tri (3 colors), quad (4 colors). Defaults to 'mono'. */
   colorMode?: ColorMode;
-  /** Array of foreground colors (1-3 hex strings). Used when colorMode is 'duo' or 'tri'. */
+  /** Array of foreground colors (1-4 hex strings). Used when colorMode is 'duo', 'tri', or 'quad'. */
   colors?: string[];
   /** Proportions for each color (0-1 values summing to 1). Length matches colors array. */
   colorProportions?: number[];

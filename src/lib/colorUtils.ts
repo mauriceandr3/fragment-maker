@@ -55,3 +55,12 @@ export const TRI_COLOR_PRESETS: MultiColorPreset[] = [
   { name: "Cyber Punk", background: "#0A0A0A", colors: ["#FF00F7", "#00F9E1", "#FFD700"], proportions: [0.4, 0.3, 0.3] },
   { name: "Deep Ocean", background: "#000011", colors: ["#4466FF", "#00F9E1", "#FCFCFC"], proportions: [0.4, 0.35, 0.25] },
 ];
+
+export const QUAD_COLOR_PRESETS: MultiColorPreset[] = [
+  { name: "ICP Spectrum", background: "#0E0030", colors: ["#FCFCFC", "#6366F1", "#E2FF00", "#00F9E1"], proportions: [0.3, 0.3, 0.2, 0.2] },
+  { name: "Neon Quartet", background: "#000000", colors: ["#00F9E1", "#FF00F7", "#FFD700", "#FCFCFC"], proportions: [0.25, 0.25, 0.25, 0.25] },
+  { name: "Sunset Coast", background: "#0A0A1A", colors: ["#FF6B6B", "#FFD93D", "#6BCB77", "#4466FF"], proportions: [0.25, 0.25, 0.25, 0.25] },
+  { name: "Pastel Dream", background: "#000000", colors: ["#BBE9FF", "#C2A3FF", "#FFB3D9", "#FCFCFC"], proportions: [0.25, 0.25, 0.25, 0.25] },
+  { name: "Electric Mix", background: "#0A0A0A", colors: ["#FF00F7", "#00F9E1", "#FFD700", "#6366F1"], proportions: [0.25, 0.25, 0.25, 0.25] },
+  { name: "Deep Reef", background: "#000011", colors: ["#4466FF", "#00F9E1", "#FF6B6B", "#FCFCFC"], proportions: [0.3, 0.25, 0.2, 0.25] },
+];
