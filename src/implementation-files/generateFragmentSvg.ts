@@ -22,7 +22,7 @@
  */
 
 import { parseFonts, generateTextGrid, type SerializedFontData, type TextConfig } from './generateTextGrid';
-import { type LogoOverlayConfig, generateLogoOverlaySvg } from './logoOverlay';
+import { type LogoOverlayConfig, type LegacyLogoOverlayConfig, generateLogoOverlaySvg, generateLegacyLogoOverlaySvg } from './logoOverlay';
 import { type TextOverlayConfig, generateTextOverlaySvg } from './textOverlay';
 
 // ============================================================================
@@ -167,8 +167,8 @@ export interface FragmentExport {
   fromTextConfig?: TextConfig;
   /** Text configuration for the "To" state (v2.2.0+). */
   toTextConfig?: TextConfig;
-  /** Logo overlay configuration (v2.3.0+). Present only when logo is enabled. */
-  logo?: LogoOverlayConfig;
+  /** Logo overlay configuration. v2.3.0 = single-entry, v3.0.0+ = multi-entry with `entries`. */
+  logo?: LogoOverlayConfig | LegacyLogoOverlayConfig;
   /** Text overlay configuration (v2.4.0+). Present only when text overlay is enabled. */
   textOverlay?: TextOverlayConfig;
   /** Pattern overlay config for "From" text state (v2.6.0+). Present when fromStateType='text' and pattern overlay is enabled. */
@@ -1403,12 +1403,19 @@ function injectOverlays(
   svg: string,
   width: number,
   height: number,
-  logo?: LogoOverlayConfig,
+  logo?: LogoOverlayConfig | LegacyLogoOverlayConfig,
   textOverlay?: TextOverlayConfig,
 ): string {
   const behindSvg = generateTextOverlaySvg(textOverlay, width, height, 'behind');
   const aboveSvg = generateTextOverlaySvg(textOverlay, width, height, 'above');
-  const logoSvg = logo?.enabled ? generateLogoOverlaySvg(logo, width, height) : '';
+  let logoSvg = '';
+  if (logo?.enabled) {
+    if ('entries' in logo) {
+      logoSvg = generateLogoOverlaySvg(logo, width, height);
+    } else {
+      logoSvg = generateLegacyLogoOverlaySvg(logo, width, height);
+    }
+  }
 
   if (!behindSvg && !aboveSvg && !logoSvg) return svg;
 

@@ -5,31 +5,36 @@ import { isTransparent } from "@/lib/colorUtils";
 import type { FragmentState } from "@/hooks/useFragmentState";
 import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { GridSkeleton, GridItem } from "./GridItem";
-import { getLogoSvg } from "@/lib/dfinityLogo";
-import { resolveLogoColor } from "@/lib/resolveLogoColor";
-import type { LogoConfig, TextOverlayConfig, TextOverlayZOrder } from "./types";
+import { getLogoSvgById } from "@/lib/logoRegistry";
+import { resolveLogoEntryColor } from "@/lib/resolveLogoColor";
+import type { LogoOverlayConfig, TextOverlayConfig, TextOverlayZOrder } from "./types";
 
-function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { logoConfig: LogoConfig; foregroundColor: string; colorMode: string; multiColors: string[] }) {
-  if (!logoConfig.enabled) return null;
-
-  const effectiveColor = resolveLogoColor(logoConfig, colorMode as 'mono' | 'duo' | 'tri', multiColors, foregroundColor);
-
-  // x/y are 0–100%. At 0 the logo is flush to the left/top edge,
-  // at 100 it's flush to the right/bottom edge.
-  const style: CSSProperties = {
-    position: 'absolute',
-    width: `${logoConfig.size}%`,
-    left: `${logoConfig.x}%`,
-    top: `${logoConfig.y}%`,
-    transform: `translate(-${logoConfig.x}%, -${logoConfig.y}%)`,
-    pointerEvents: 'none',
-  };
+function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { logoConfig: LogoOverlayConfig; foregroundColor: string; colorMode: string; multiColors: string[] }) {
+  if (!logoConfig.enabled || logoConfig.entries.length === 0) return null;
 
   return (
-    <div
-      style={style}
-      dangerouslySetInnerHTML={{ __html: getLogoSvg(effectiveColor) }}
-    />
+    <>
+      {logoConfig.entries.map(entry => {
+        const effectiveColor = resolveLogoEntryColor(entry, colorMode as 'mono' | 'duo' | 'tri', multiColors, foregroundColor);
+
+        const style: CSSProperties = {
+          position: 'absolute',
+          width: `${entry.size}%`,
+          left: `${entry.x}%`,
+          top: `${entry.y}%`,
+          transform: `translate(-${entry.x}%, -${entry.y}%)`,
+          pointerEvents: 'none',
+        };
+
+        return (
+          <div
+            key={entry.id}
+            style={style}
+            dangerouslySetInnerHTML={{ __html: getLogoSvgById(entry.logoId, effectiveColor ?? undefined) }}
+          />
+        );
+      })}
+    </>
   );
 }
 

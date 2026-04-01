@@ -24,6 +24,7 @@ const outDir = join(root, 'bundle');
 // Read source files
 const files = {
   generateTextGrid: readFileSync(join(implDir, 'generateTextGrid.ts'), 'utf-8'),
+  logoRegistry: readFileSync(join(libDir, 'logoRegistry.ts'), 'utf-8'),
   logoOverlay: readFileSync(join(implDir, 'logoOverlay.ts'), 'utf-8'),
   textOverlay: readFileSync(join(implDir, 'textOverlay.ts'), 'utf-8'),
   generateFragmentSvg: readFileSync(join(implDir, 'generateFragmentSvg.ts'), 'utf-8'),
@@ -38,10 +39,10 @@ const files = {
  * Handles both single-line and multi-line imports.
  */
 function stripLocalImports(source) {
-  // Match single-line: import ... from '../...' or import ... from './'
+  // Match single-line: import ... from '../...' or import ... from './' or import ... from '@/...'
   // Match multi-line:  import {\n  ...\n} from '../...'
   return source.replace(
-    /import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|[\w]+)\s+from\s+['"]\.\.?\/[^'"]*['"];?\s*\n?/gs,
+    /import\s+(?:\{[^}]*\}|\*\s+as\s+\w+|[\w]+)\s+from\s+['"](?:\.\.?\/|@\/)[^'"]*['"];?\s*\n?/gs,
     ''
   );
 }
@@ -97,6 +98,22 @@ function stripReactImports(source) {
 }
 
 /**
+ * Strip pure re-export lines (e.g. `export { foo, bar };` or `export { type Foo, bar };`)
+ * These cause duplicate export errors in the single-file bundle since the original
+ * exports are already present from the source module.
+ */
+function stripReExports(source) {
+  return source
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim();
+      // Match: export { ... }; (with optional type keyword inside)
+      return !(/^export\s*\{[^}]*\}\s*;?\s*$/.test(trimmed) && !trimmed.includes('from'));
+    })
+    .join('\n');
+}
+
+/**
  * Strip section separator comments (the ===... lines).
  */
 function stripSectionSeparators(source) {
@@ -118,6 +135,7 @@ function processFile(source) {
   let result = stripLocalImports(source);
   result = stripFileHeader(result);
   result = stripReactImports(result);
+  result = stripReExports(result);
   result = stripSectionSeparators(result);
   return result.trim();
 }
@@ -127,6 +145,7 @@ const reactImports = collectReactImports(Object.values(files));
 
 const sections = [
   processFile(files.generateTextGrid),
+  processFile(files.logoRegistry),
   processFile(files.logoOverlay),
   processFile(files.textOverlay),
   processFile(files.generateFragmentSvg),

@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import JSZip from 'jszip';
 import { generateFragmentSvgDirect } from '@/lib/generateFragmentSvgGrid';
-import { generateLogoOverlaySvg } from '@/implementation-files/logoOverlay';
-import type { GeneratorParams, LogoConfig, StateType } from '@/app/components/fragment/types';
+import { generateLogoOverlaySvg, type LogoOverlayConfig } from '@/implementation-files/logoOverlay';
+import type { GeneratorParams, StateType } from '@/app/components/fragment/types';
 import type { CropDirection } from '@/implementation-files/generateFragmentSvg';
 
 type BatchExportStatus = 'idle' | 'generating' | 'zipping' | 'error';
@@ -28,10 +28,10 @@ export interface BatchExportOptions {
   allowCropping: boolean;
   cropDirection: CropDirection;
   fromStateType: StateType;
-  logoConfig: LogoConfig;
+  logoConfig: LogoOverlayConfig;
 }
 
-function injectLogo(svg: string, logoConfig: LogoConfig, width: number, height: number): string {
+function injectLogo(svg: string, logoConfig: LogoOverlayConfig, width: number, height: number): string {
   if (!logoConfig.enabled) return svg;
   const logoSvg = generateLogoOverlaySvg(logoConfig, width, height);
   if (!logoSvg) return svg;

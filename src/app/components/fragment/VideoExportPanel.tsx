@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Film, X } from 'lucide-react';
 import type { useVideoExport } from '@/hooks/useVideoExport';
-import type { LogoConfig, TextOverlayConfig } from './types';
+import type { LogoOverlayConfig, TextOverlayConfig } from './types';
 import { Section } from '../ui/Section';
 import { Button } from '../ui/Button';
 import { RadioSelector } from '../ui/RadioSelector';
@@ -15,7 +15,7 @@ interface VideoExportPanelProps {
   canvasHeight: number;
   animationDuration: number;
   animationEnabled: boolean;
-  logoConfig: LogoConfig;
+  logoConfig: LogoOverlayConfig;
   textOverlayConfig: TextOverlayConfig;
 }
 

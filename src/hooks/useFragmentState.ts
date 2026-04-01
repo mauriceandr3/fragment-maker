@@ -7,7 +7,7 @@ import {
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
-import { type GeneratorParams, type StateType, type LogoConfig, DEFAULT_LOGO_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
+import { type GeneratorParams, type StateType, type LogoOverlayConfig, DEFAULT_LOGO_OVERLAY_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
 import type { CropDirection, ElongateAxis, ColorMode } from "@/implementation-files/generateFragmentSvg";
 import { getCellDimensions } from "@/implementation-files/generateFragmentSvg";
@@ -165,8 +165,8 @@ export function useFragmentState() {
   );
 
   // Logo overlay configuration
-  const [logoConfig, setLogoConfig] = useState<LogoConfig>(
-    initialUrlState.logoConfig ?? { ...DEFAULT_LOGO_CONFIG }
+  const [logoConfig, setLogoConfig] = useState<LogoOverlayConfig>(
+    initialUrlState.logoConfig ?? { ...DEFAULT_LOGO_OVERLAY_CONFIG }
   );
 
   // Text overlay configuration
@@ -194,7 +194,7 @@ export function useFragmentState() {
   const [debouncedFromTextConfig, setDebouncedFromTextConfig] = useState<TextConfig>(fromTextConfig);
   const [debouncedToTextConfig, setDebouncedToTextConfig] = useState<TextConfig>(toTextConfig);
   const [debouncedShowEndState, setDebouncedShowEndState] = useState(showEndState);
-  const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoConfig>(logoConfig);
+  const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoOverlayConfig>(logoConfig);
   const [debouncedPresetOrCustomMode, setDebouncedPresetOrCustomMode] = useState<'presets' | 'custom'>(presetOrCustomMode);
   const [debouncedTextOverlayConfig, setDebouncedTextOverlayConfig] = useState<TextOverlayConfig>(textOverlayConfig);
   const [debouncedColorMode, setDebouncedColorMode] = useState<ColorMode>(colorMode);
