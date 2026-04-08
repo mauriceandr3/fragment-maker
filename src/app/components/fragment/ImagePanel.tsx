@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Upload, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { useRef, useState, useCallback } from 'react';
+import { Upload, Trash2, ChevronUp, ChevronDown, Scissors, Undo2, Loader2 } from 'lucide-react';
 import type { FragmentState } from '@/hooks/useFragmentState';
 import type { ImageOverlayConfig, ImageFit, OverlayLayer } from './types';
 import { DEFAULT_IMAGE_OVERLAY_CONFIG } from './types';
@@ -7,7 +7,7 @@ import { Section } from '../ui/Section';
 import { Checkbox } from '../ui/Checkbox';
 import { Slider } from '../ui/Slider';
 import { ButtonGroup } from '../ui/ButtonGroup';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage, removeImageBackground } from '@/lib/imageUtils';
 
 interface ImagePanelProps {
   state: FragmentState;
@@ -16,6 +16,13 @@ interface ImagePanelProps {
 export function ImagePanel({ state }: ImagePanelProps) {
   const { imageOverlayConfig, setImageOverlayConfig, canvasWidth, canvasHeight } = state;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
+
+  // Track whether the current image has had its background removed
+  // and store the original so the user can restore it
+  const [originalImageData, setOriginalImageData] = useState<string | null>(() => {
+    try { return localStorage.getItem('fm:image-data-original'); } catch { return null; }
+  });
 
   const updateConfig = (patch: Partial<ImageOverlayConfig>) => {
     setImageOverlayConfig({ ...imageOverlayConfig, ...patch });
@@ -25,8 +32,8 @@ export function ImagePanel({ state }: ImagePanelProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/png')) {
-      alert('Only PNG files are supported.');
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file.');
       e.target.value = '';
       return;
     }
@@ -40,6 +47,9 @@ export function ImagePanel({ state }: ImagePanelProps) {
         originalWidth,
         originalHeight,
       });
+      // Clear any stored original from a previous background removal
+      setOriginalImageData(null);
+      try { localStorage.removeItem('fm:image-data-original'); } catch { /* ignore */ }
     } catch {
       alert('Failed to load image.');
     }
@@ -49,7 +59,37 @@ export function ImagePanel({ state }: ImagePanelProps) {
 
   const deleteImage = () => {
     setImageOverlayConfig({ ...DEFAULT_IMAGE_OVERLAY_CONFIG });
+    setOriginalImageData(null);
+    try { localStorage.removeItem('fm:image-data-original'); } catch { /* ignore */ }
   };
+
+  const handleRemoveBackground = useCallback(async () => {
+    if (!imageOverlayConfig.data || isRemovingBg) return;
+    setIsRemovingBg(true);
+    try {
+      // Save original before processing
+      setOriginalImageData(imageOverlayConfig.data);
+      try { localStorage.setItem('fm:image-data-original', imageOverlayConfig.data); } catch { /* ignore */ }
+
+      const resultDataUrl = await removeImageBackground(imageOverlayConfig.data);
+      setImageOverlayConfig({ ...imageOverlayConfig, data: resultDataUrl });
+    } catch (err) {
+      console.error('Background removal failed:', err);
+      alert('Background removal failed. Please try again.');
+      // Restore original backup since we didn't succeed
+      setOriginalImageData(null);
+      try { localStorage.removeItem('fm:image-data-original'); } catch { /* ignore */ }
+    } finally {
+      setIsRemovingBg(false);
+    }
+  }, [imageOverlayConfig, isRemovingBg, setImageOverlayConfig]);
+
+  const handleRestoreOriginal = useCallback(() => {
+    if (!originalImageData) return;
+    setImageOverlayConfig({ ...imageOverlayConfig, data: originalImageData });
+    setOriginalImageData(null);
+    try { localStorage.removeItem('fm:image-data-original'); } catch { /* ignore */ }
+  }, [originalImageData, imageOverlayConfig, setImageOverlayConfig]);
 
   const hasImage = imageOverlayConfig.data !== '';
 
@@ -70,16 +110,51 @@ export function ImagePanel({ state }: ImagePanelProps) {
                 <img
                   src={imageOverlayConfig.data}
                   alt="Uploaded"
-                  className="w-full h-40 object-contain"
+                  className={`w-full h-40 object-contain transition-opacity ${isRemovingBg ? 'opacity-30' : ''}`}
                 />
+                {isRemovingBg && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-white/70 animate-spin" />
+                  </div>
+                )}
               </div>
-              <button
-                onClick={deleteImage}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed border-white/20 text-white/50 hover:text-red-400 hover:border-red-400/40 transition-colors text-sm"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete image
-              </button>
+              <div className="flex gap-2">
+                {originalImageData ? (
+                  <button
+                    onClick={handleRestoreOriginal}
+                    disabled={isRemovingBg}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed border-white/20 text-white/50 hover:text-white/80 hover:border-white/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                    Restore original
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRemoveBackground}
+                    disabled={isRemovingBg}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed border-white/20 text-white/50 hover:text-white/80 hover:border-white/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {isRemovingBg ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Removing…
+                      </>
+                    ) : (
+                      <>
+                        <Scissors className="w-4 h-4" />
+                        Remove background
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={deleteImage}
+                  disabled={isRemovingBg}
+                  className="flex items-center justify-center p-2 rounded-lg border border-dashed border-white/20 text-white/50 hover:text-red-400 hover:border-red-400/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ) : (
             <button
@@ -87,14 +162,14 @@ export function ImagePanel({ state }: ImagePanelProps) {
               className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 text-white/50 hover:text-white/80 hover:border-white/40 transition-colors"
             >
               <Upload className="w-5 h-5" />
-              <span className="text-sm">Upload PNG image</span>
+              <span className="text-sm">Upload image</span>
             </button>
           )}
 
           <input
             ref={fileInputRef}
             type="file"
-            accept=".png,image/png"
+            accept="image/*"
             onChange={handleFileUpload}
             className="hidden"
           />

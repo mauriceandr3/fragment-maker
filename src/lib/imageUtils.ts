@@ -61,6 +61,42 @@ export async function compressImage(
   return { dataUrl, originalWidth: naturalWidth, originalHeight: naturalHeight };
 }
 
+/**
+ * Remove the background from an image using @imgly/background-removal.
+ * Runs entirely in a Web Worker so the main thread stays responsive.
+ * The ONNX model (~40MB) is downloaded on first use and cached by the browser.
+ * Returns a PNG data URL of the foreground cutout.
+ */
+export async function removeImageBackground(dataUrl: string): Promise<string> {
+  const response = await fetch(dataUrl);
+  const inputBlob = await response.blob();
+
+  const worker = new Worker(
+    new URL('./removeBackground.worker.ts', import.meta.url),
+    { type: 'module' },
+  );
+
+  return new Promise<string>((resolve, reject) => {
+    worker.onmessage = (e: MessageEvent<{ buffer?: ArrayBuffer; error?: string }>) => {
+      worker.terminate();
+      if (e.data.error) {
+        reject(new Error(e.data.error));
+      } else {
+        const blob = new Blob([e.data.buffer!], { type: 'image/png' });
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read result blob'));
+        reader.readAsDataURL(blob);
+      }
+    };
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(new Error(e.message || 'Worker error'));
+    };
+    worker.postMessage(inputBlob);
+  });
+}
+
 export type ImageExportFormat = 'png' | 'webp' | 'avif';
 
 const MIME_TYPES: Record<ImageExportFormat, string> = {
