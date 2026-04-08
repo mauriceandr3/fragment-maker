@@ -7,7 +7,7 @@ import {
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
 import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
-import { type GeneratorParams, type StateType, type LogoOverlayConfig, DEFAULT_LOGO_OVERLAY_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
+import { type GeneratorParams, type StateType, type LogoOverlayConfig, DEFAULT_LOGO_OVERLAY_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG, type ImageOverlayConfig, DEFAULT_IMAGE_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
 import type { CropDirection, ElongateAxis, ColorMode } from "@/implementation-files/generateFragmentSvg";
 import { getCellDimensions } from "@/implementation-files/generateFragmentSvg";
@@ -174,6 +174,28 @@ export function useFragmentState() {
     initialUrlState.textOverlayConfig ?? { ...DEFAULT_TEXT_OVERLAY_CONFIG }
   );
 
+  // Image overlay configuration: settings come from URL, image data from localStorage
+  const [imageOverlayConfig, setImageOverlayConfig] = useState<ImageOverlayConfig>(() => {
+    const settings = initialUrlState.imageOverlaySettings;
+    const storedData = (() => {
+      try { return localStorage.getItem('fm:image-data') ?? ''; } catch { return ''; }
+    })();
+    const storedMeta = (() => {
+      try {
+        const raw = localStorage.getItem('fm:image-meta');
+        if (!raw) return { originalWidth: 0, originalHeight: 0 };
+        return JSON.parse(raw) as { originalWidth: number; originalHeight: number };
+      } catch { return { originalWidth: 0, originalHeight: 0 }; }
+    })();
+    if (settings && storedData) {
+      return { ...settings, data: storedData, ...storedMeta };
+    }
+    if (settings) {
+      return { ...DEFAULT_IMAGE_OVERLAY_CONFIG, ...settings, data: '', originalWidth: 0, originalHeight: 0 };
+    }
+    return { ...DEFAULT_IMAGE_OVERLAY_CONFIG };
+  });
+
   // --- Debounced state ---
   const [debouncedParams, setDebouncedParams] = useState(params);
   const [debouncedForeground, setDebouncedForeground] = useState(foregroundColor);
@@ -205,6 +227,7 @@ export function useFragmentState() {
   const [debouncedFromTextPatternParams, setDebouncedFromTextPatternParams] = useState<GeneratorParams>(fromTextPatternParams);
   const [debouncedToTextPatternEnabled, setDebouncedToTextPatternEnabled] = useState(toTextPatternEnabled);
   const [debouncedToTextPatternParams, setDebouncedToTextPatternParams] = useState<GeneratorParams>(toTextPatternParams);
+  const [debouncedImageOverlayConfig, setDebouncedImageOverlayConfig] = useState<ImageOverlayConfig>(imageOverlayConfig);
 
   // Debounce effects
   useEffect(() => {
@@ -342,6 +365,11 @@ export function useFragmentState() {
     return () => clearTimeout(timer);
   }, [fromTextPatternEnabled, fromTextPatternParams, toTextPatternEnabled, toTextPatternParams]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedImageOverlayConfig(imageOverlayConfig), DEBOUNCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [imageOverlayConfig]);
+
   // --- URL sync ---
   useEffect(() => {
     const state: UrlSerializableState = {
@@ -385,6 +413,14 @@ export function useFragmentState() {
       fromTextPatternParams: debouncedFromTextPatternParams,
       toTextPatternEnabled: debouncedToTextPatternEnabled,
       toTextPatternParams: debouncedToTextPatternParams,
+      imageOverlaySettings: debouncedImageOverlayConfig.enabled ? {
+        enabled: debouncedImageOverlayConfig.enabled,
+        fit: debouncedImageOverlayConfig.fit,
+        size: debouncedImageOverlayConfig.size,
+        x: debouncedImageOverlayConfig.x,
+        y: debouncedImageOverlayConfig.y,
+        overlayLayerOrder: debouncedImageOverlayConfig.overlayLayerOrder,
+      } : undefined,
     };
     updateUrlFromState(state);
   }, [
@@ -418,7 +454,26 @@ export function useFragmentState() {
     debouncedFromTextPatternParams,
     debouncedToTextPatternEnabled,
     debouncedToTextPatternParams,
+    debouncedImageOverlayConfig,
   ]);
+
+  // --- localStorage sync for image data ---
+  useEffect(() => {
+    try {
+      if (imageOverlayConfig.data) {
+        localStorage.setItem('fm:image-data', imageOverlayConfig.data);
+        localStorage.setItem('fm:image-meta', JSON.stringify({
+          originalWidth: imageOverlayConfig.originalWidth,
+          originalHeight: imageOverlayConfig.originalHeight,
+        }));
+      } else {
+        localStorage.removeItem('fm:image-data');
+        localStorage.removeItem('fm:image-meta');
+      }
+    } catch {
+      // localStorage quota exceeded or unavailable — silently ignore
+    }
+  }, [imageOverlayConfig.data, imageOverlayConfig.originalWidth, imageOverlayConfig.originalHeight]);
 
   // --- Derived values ---
   const gridDimensions = useMemo(() => {
@@ -503,6 +558,7 @@ export function useFragmentState() {
     toTextPatternParams, setToTextPatternParams,
     logoConfig, setLogoConfig,
     textOverlayConfig, setTextOverlayConfig,
+    imageOverlayConfig, setImageOverlayConfig,
     presetOrCustomMode, setPresetOrCustomMode,
     // Debounced values
     debounced: {
@@ -535,6 +591,7 @@ export function useFragmentState() {
       showEndState: debouncedShowEndState,
       logoConfig: debouncedLogoConfig,
       textOverlayConfig: debouncedTextOverlayConfig,
+      imageOverlayConfig: debouncedImageOverlayConfig,
       presetOrCustomMode: debouncedPresetOrCustomMode,
     },
 

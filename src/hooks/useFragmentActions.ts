@@ -1,6 +1,6 @@
 import React from "react";
 import { type FillType, type ElongateAxis } from "@/implementation-files/generateFragmentSvg";
-import { DEFAULT_LOGO_OVERLAY_CONFIG, DEFAULT_LOGO_ENTRY, DEFAULT_TEXT_OVERLAY_CONFIG } from "@/app/components/fragment/types";
+import { DEFAULT_LOGO_OVERLAY_CONFIG, DEFAULT_LOGO_ENTRY, DEFAULT_TEXT_OVERLAY_CONFIG, DEFAULT_IMAGE_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { LogoEntry, LogoColorSource } from "@/app/components/fragment/types";
 import { LOGO_IDS, type LogoId } from "@/lib/logoRegistry";
 import { isValidFontWeight, type TextOverlayConfig, type TextOverlayEntry } from "@/implementation-files/textOverlay";
@@ -134,6 +134,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     state.setShowEndState(false);
     state.setLogoConfig({ ...DEFAULT_LOGO_OVERLAY_CONFIG });
     state.setTextOverlayConfig({ ...DEFAULT_TEXT_OVERLAY_CONFIG });
+    state.setImageOverlayConfig({ ...DEFAULT_IMAGE_OVERLAY_CONFIG });
     clearUrlParams();
   };
 
@@ -196,7 +197,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     // State type fields only included when value is 'text' (absent = 'pattern' for backward compat)
     // Text config fields only included when respective state type is 'text'
     const exportData: Record<string, unknown> = {
-      version: '2.6.0',
+      version: '3.1.0',
       exportedAt: new Date().toISOString(),
       config: {
         threshold: params.threshold,
@@ -309,6 +310,22 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
       };
     }
 
+    // Include image overlay config when enabled (v3.1.0+)
+    // Image data is exported separately via "Export Image" — not bundled in the JSON
+    if (state.imageOverlayConfig.enabled) {
+      exportData.imageOverlay = {
+        enabled: true,
+        data: '', // set this to your image path/URL after importing
+        originalWidth: state.imageOverlayConfig.originalWidth,
+        originalHeight: state.imageOverlayConfig.originalHeight,
+        fit: state.imageOverlayConfig.fit,
+        size: state.imageOverlayConfig.size,
+        x: state.imageOverlayConfig.x,
+        y: state.imageOverlayConfig.y,
+        overlayLayerOrder: state.imageOverlayConfig.overlayLayerOrder,
+      };
+    }
+
     // Include text overlay config when enabled (v2.4.0+)
     // Vectorize entries so the exported JSON contains pre-computed SVG paths
     if (state.textOverlayConfig.enabled && state.textOverlayConfig.entries.length > 0) {
@@ -365,8 +382,8 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           return;
         }
 
-        if (!data.version.startsWith('2.')) {
-          alert(`Unsupported settings version: ${data.version}. Expected version 2.x.x.`);
+        if (!data.version.startsWith('2.') && !data.version.startsWith('3.')) {
+          alert(`Unsupported settings version: ${data.version}. Expected version 2.x.x or 3.x.x.`);
           return;
         }
 
@@ -695,6 +712,57 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
           state.setTextOverlayConfig(importedConfig);
         } else {
           state.setTextOverlayConfig({ ...DEFAULT_TEXT_OVERLAY_CONFIG });
+        }
+
+        // Import image overlay config (v3.1.0+)
+        if (data.imageOverlay && typeof data.imageOverlay === 'object') {
+          const img = data.imageOverlay as Record<string, unknown>;
+          const validFits = ['contain', 'cover'];
+          // Parse layer order, with backward compat for old format without 'cells'
+          type Layer = 'cells' | 'image' | 'text' | 'logo';
+          const validLayers: Layer[] = ['cells', 'image', 'text', 'logo'];
+          let overlayLayerOrder: Layer[];
+          if (
+            Array.isArray(img.overlayLayerOrder) &&
+            (img.overlayLayerOrder as unknown[]).every(l => validLayers.includes(l as Layer))
+          ) {
+            const parsed = img.overlayLayerOrder as Layer[];
+            if (parsed.includes('cells')) {
+              overlayLayerOrder = parsed;
+            } else {
+              // Old format without 'cells' — derive from old placement field
+              const rawPlacement = img.placement as string | undefined;
+              if (rawPlacement === 'behind' || !rawPlacement) {
+                overlayLayerOrder = ['image', 'cells', ...parsed.filter(l => l !== 'image')];
+              } else {
+                overlayLayerOrder = ['cells', ...parsed];
+              }
+            }
+          } else {
+            // No valid layer order — derive from old placement field
+            const rawPlacement = img.placement as string | undefined;
+            if (rawPlacement === 'behind') {
+              overlayLayerOrder = ['image', 'cells', 'text', 'logo'];
+            } else if (rawPlacement === 'above-all') {
+              overlayLayerOrder = ['cells', 'text', 'logo', 'image'];
+            } else {
+              overlayLayerOrder = ['cells', 'image', 'text', 'logo'];
+            }
+          }
+          const safeOrder = overlayLayerOrder.length === 4 ? overlayLayerOrder : ['cells', 'image', 'text', 'logo'] as Layer[];
+          state.setImageOverlayConfig({
+            enabled: typeof img.enabled === 'boolean' ? img.enabled : false,
+            data: typeof img.data === 'string' ? img.data : '',
+            originalWidth: typeof img.originalWidth === 'number' ? img.originalWidth : 0,
+            originalHeight: typeof img.originalHeight === 'number' ? img.originalHeight : 0,
+            fit: validFits.includes(img.fit as string) ? (img.fit as 'contain' | 'cover') : 'contain',
+            size: clamp(img.size, 5, 200, 100),
+            x: clamp(img.x, 0, 100, 50),
+            y: clamp(img.y, 0, 100, 50),
+            overlayLayerOrder: safeOrder,
+          });
+        } else {
+          state.setImageOverlayConfig({ ...DEFAULT_IMAGE_OVERLAY_CONFIG });
         }
 
       } catch {

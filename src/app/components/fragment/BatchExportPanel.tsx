@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Package, X } from 'lucide-react';
 import type { useBatchExport, BatchExportOptions } from '@/hooks/useBatchExport';
-import type { GeneratorParams, LogoOverlayConfig, StateType } from './types';
+import type { GeneratorParams, LogoOverlayConfig, StateType, ImageOverlayConfig } from './types';
 import type { CropDirection } from '@/implementation-files/generateFragmentSvg';
 import { Section } from '../ui/Section';
 import { Button } from '../ui/Button';
@@ -21,6 +21,7 @@ interface BatchExportPanelProps {
   cropDirection: CropDirection;
   fromStateType: StateType;
   logoConfig: LogoOverlayConfig;
+  imageOverlayConfig: ImageOverlayConfig;
   animationEnabled: boolean;
 }
 
@@ -36,6 +37,7 @@ export function BatchExportPanel({
   cropDirection,
   fromStateType,
   logoConfig,
+  imageOverlayConfig,
   animationEnabled,
 }: BatchExportPanelProps) {
   const [count, setCount] = useState(20);
@@ -80,6 +82,7 @@ export function BatchExportPanel({
       cropDirection,
       fromStateType,
       logoConfig,
+      imageOverlayConfig,
     };
     batchExport.startExport(opts);
   };

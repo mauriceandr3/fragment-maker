@@ -75,15 +75,43 @@ The high-level API (`generateSvgFromExport`, `generateDiffSvgFromExport`) accept
 
 ### Static SVG
 
-Works for both pattern and text configs — no conditional logic needed.
+Works for both pattern and text configs — no conditional logic needed. The SVG stretches to fill its container by default (`preserveAspectRatio="none"`). Style the container with CSS to control size.
+
+#### React
+
+```tsx
+import { useMemo } from 'react';
+import { generateSvgFromExport, type FragmentExport } from './fragment-maker';
+
+function Fragment({ config }: { config: FragmentExport }) {
+  const svg = useMemo(() => generateSvgFromExport(config), [config]);
+
+  return (
+    <div
+      className="[&>svg]:w-full [&>svg]:h-full [&>svg]:block"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+```
+
+#### Vanilla JS
 
 ```typescript
 import { generateSvgFromExport, type FragmentExport } from './fragment-maker';
 
-const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
+const config: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
 
-document.getElementById('hero').innerHTML = generateSvgFromExport(fragmentExport);
+document.getElementById('hero').innerHTML = generateSvgFromExport(config);
 ```
+
+### Stretching vs. Fixed Cell Sizes
+
+By default, the SVG stretches to fill its container (`preserveAspectRatio="none"`) — the pattern stays visually consistent at any size. Just use CSS to control the container.
+
+**Alternative: pixel-exact cells with `useFragmentSize`** — If you need each cell to render at its exact configured pixel size (e.g. for print or sharp 1:1 rendering), use the `useFragmentSize` hook. This recalculates the SVG dimensions to snap to cell boundaries as the container resizes. See [Fixed Cell Sizes](#fixed-cell-sizes-with-usefragmentsize) below.
+
+> **Image overlay warning:** If your config includes an image overlay and your container has a different aspect ratio than the configured canvas (`canvasWidth` / `canvasHeight`), the image will appear distorted. To avoid this, match the container's aspect ratio to the config.
 
 ### Per-item Variation
 
@@ -92,9 +120,7 @@ document.getElementById('hero').innerHTML = generateSvgFromExport(fragmentExport
 Pass a `seed` string to vary pattern configs deterministically per item. Same string = same SVG, every time.
 
 ```typescript
-document.getElementById('thumbnail').innerHTML = generateSvgFromExport(fragmentExport, {
-  seed: article.title,
-});
+generateSvgFromExport(config, { seed: article.title });
 ```
 
 You can change which parameter varies by setting `seedParam` in your config. Available: `threshold`, `gamma`, `frequency` (default), `contrast`, `directionalNeighbors`, `directionDensity`, `fillAmount`
@@ -104,9 +130,7 @@ You can change which parameter varies by setting `seedParam` in your config. Ava
 Pass a `text` string to override the rendered text at runtime:
 
 ```typescript
-document.getElementById('greeting').innerHTML = generateSvgFromExport(fragmentExport, {
-  text: user.name,
-});
+generateSvgFromExport(config, { text: user.name });
 ```
 
 ### Hover Animation
@@ -128,16 +152,17 @@ Animate between two states on hover. The "from" state morphs into the "to" state
 import { useRef, useMemo } from 'react';
 import { generateDiffSvgFromExport, useFragmentReveal, type FragmentExport } from './fragment-maker';
 
-const fragmentExport: FragmentExport = await fetch('/fragment-config.json').then(r => r.json());
-
-function FragmentCard() {
+function FragmentCard({ config }: { config: FragmentExport }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const svg = useMemo(() => generateDiffSvgFromExport(fragmentExport), []);
+  const svg = useMemo(
+    () => generateDiffSvgFromExport(config),
+    [config]
+  );
 
   const { onMouseEnter, onMouseLeave } = useFragmentReveal(
     containerRef,
-    fragmentExport.animation?.duration ?? 600
+    config.animation?.duration ?? 600
   );
 
   return (
@@ -145,6 +170,7 @@ function FragmentCard() {
       ref={containerRef}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      className="[&>svg]:w-full [&>svg]:h-full [&>svg]:block"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
@@ -156,21 +182,20 @@ function FragmentCard() {
 Pass `fromSeed`/`toSeed` to give each item a unique animated pair (pattern states), and/or `fromText`/`toText` to override text at runtime (text states):
 
 ```tsx
-// Pattern seeding — each title gets a unique pattern pair
-function BlogPostCard({ title }: { title: string }) {
+function BlogPostCard({ config, title }: { config: FragmentExport; title: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const svg = useMemo(
-    () => generateDiffSvgFromExport(fragmentExport, {
+    () => generateDiffSvgFromExport(config, {
       fromSeed: title,
       toSeed: title + '-hover',
     }),
-    [title]
+    [config, title]
   );
 
   const { onMouseEnter, onMouseLeave } = useFragmentReveal(
     containerRef,
-    fragmentExport.animation?.duration ?? 600
+    config.animation?.duration ?? 600
   );
 
   return (
@@ -178,35 +203,7 @@ function BlogPostCard({ title }: { title: string }) {
       ref={containerRef}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
-}
-```
-
-```tsx
-// Text override — animate from a seeded pattern to the first letter of the title
-function ArticleCard({ title }: { title: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const svg = useMemo(
-    () => generateDiffSvgFromExport(fragmentExport, {
-      fromSeed: title,
-      toText: title.charAt(0),
-    }),
-    [title]
-  );
-
-  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
-    containerRef,
-    fragmentExport.animation?.duration ?? 600
-  );
-
-  return (
-    <div
-      ref={containerRef}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      className="[&>svg]:w-full [&>svg]:h-full [&>svg]:block"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
@@ -218,7 +215,7 @@ function ArticleCard({ title }: { title: string }) {
 ```js
 import { generateDiffSvgFromExport } from './fragment-maker';
 
-container.innerHTML = generateDiffSvgFromExport(fragmentExport);
+container.innerHTML = generateDiffSvgFromExport(config);
 
 const svgEl = container.querySelector('svg');
 const aRects = svgEl.querySelectorAll('rect[data-g="a"]');
@@ -241,30 +238,30 @@ When animation is enabled, the **Export Video** button appears in the control pa
 
 **Browser requirement:** Chrome 94+ or Edge 94+. The button is hidden on unsupported browsers (Firefox, Safari). No install, no ffmpeg — encoding runs entirely in the browser using the [WebCodecs API](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API).
 
-### Responsive Container Sizing
+### Fixed Cell Sizes with `useFragmentSize`
 
-Use `useFragmentSize` to regenerate the SVG when the container resizes. It snaps dimensions UP to cell boundaries so the SVG fully covers the container — use `overflow-hidden` on the container to clip the small excess at edges.
+If you need pixel-exact cell rendering rather than CSS-based stretching, use `useFragmentSize`. This hook observes the container and snaps dimensions UP to cell boundaries, so the SVG fully covers the container — use `overflow-hidden` to clip the small excess at edges.
 
-Pass the config's `elongateAxis` and `elongateAmount` as the third argument so the hook accounts for elongated cells:
+This approach regenerates a new SVG pattern when the container resizes, so the pattern will look different at different sizes. For most use cases, `stretch: true` (above) is simpler and keeps the pattern stable.
 
 ```tsx
 import { useRef, useMemo } from 'react';
 import { generateSvgFromExport, useFragmentSize, type FragmentExport } from './fragment-maker';
 
-function ResponsiveFragment({ seed }: { seed: string }) {
+function ResponsiveFragment({ config, seed }: { config: FragmentExport; seed: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const size = useFragmentSize(containerRef, fragmentExport.config.cellSize, {
-    elongateAxis: fragmentExport.config.elongateAxis,
-    elongateAmount: fragmentExport.config.elongateAmount,
+  const size = useFragmentSize(containerRef, config.config.cellSize, {
+    elongateAxis: config.config.elongateAxis,
+    elongateAmount: config.config.elongateAmount,
   });
 
   const responsiveExport = useMemo(() => {
     if (!size) return null;
     return {
-      ...fragmentExport,
-      config: { ...fragmentExport.config, canvasWidth: size.width, canvasHeight: size.height },
+      ...config,
+      config: { ...config.config, canvasWidth: size.width, canvasHeight: size.height },
     };
-  }, [size]);
+  }, [config, size]);
 
   const svg = useMemo(() => {
     if (!responsiveExport) return '';
@@ -274,54 +271,6 @@ function ResponsiveFragment({ seed }: { seed: string }) {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden' }}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
-}
-```
-
-For animated + responsive, combine `useFragmentSize` with `useFragmentReveal`:
-
-```tsx
-import { generateDiffSvgFromExport, useFragmentReveal, useFragmentSize } from './fragment-maker';
-
-function ResponsiveAnimatedCard({ title }: { title: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const size = useFragmentSize(containerRef, fragmentExport.config.cellSize, {
-    elongateAxis: fragmentExport.config.elongateAxis,
-    elongateAmount: fragmentExport.config.elongateAmount,
-  });
-
-  const responsiveExport = useMemo(() => {
-    if (!size) return null;
-    return {
-      ...fragmentExport,
-      config: { ...fragmentExport.config, canvasWidth: size.width, canvasHeight: size.height },
-      ...(fragmentExport.toConfig && {
-        toConfig: { ...fragmentExport.toConfig, canvasWidth: size.width, canvasHeight: size.height },
-      }),
-    };
-  }, [size]);
-
-  const svg = useMemo(() => {
-    if (!responsiveExport) return '';
-    return generateDiffSvgFromExport(responsiveExport, {
-      fromSeed: title,
-      toSeed: title + '-hover',
-    });
-  }, [responsiveExport, title]);
-
-  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
-    containerRef,
-    fragmentExport.animation?.duration ?? 600
-  );
-
-  return (
-    <div
-      ref={containerRef}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
       style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden' }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
@@ -344,6 +293,67 @@ Alternatively, use the `text` / `fromText` / `toText` options to override text a
 generateSvgFromExport(exportData, { text: 'Hello' });
 generateDiffSvgFromExport(exportData, { fromText: 'Hello', toText: 'World' });
 ```
+
+### Image Overlay
+
+When you export a config that includes an image overlay, the tool downloads **two files**:
+
+- `fragment-settings.json` — full configuration, with `imageOverlay.data` set to `""` (empty)
+- `fragment-image.png` — the compressed overlay image, sized for your configured canvas dimensions
+
+Host `fragment-image.png` in your project and set `imageOverlay.data` to the image URL **before** calling any generation function. The image is embedded as an SVG `<image>` element, so the browser fetches it when the SVG renders — no extra preloading needed for inline SVGs.
+
+#### Setup helper
+
+```typescript
+import type { FragmentExport } from './fragment-maker';
+
+function loadConfig(config: FragmentExport, imagePath?: string): FragmentExport {
+  if (imagePath && config.imageOverlay) {
+    return { ...config, imageOverlay: { ...config.imageOverlay, data: imagePath } };
+  }
+  return config;
+}
+```
+
+#### Static SVG with image
+
+```tsx
+function Fragment({ config }: { config: FragmentExport }) {
+  const ready = useMemo(() => loadConfig(config, '/assets/fragment-image.png'), [config]);
+  const svg = useMemo(() => generateSvgFromExport(ready), [ready]);
+  return <div dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+```
+
+#### Animated SVG with image
+
+No changes needed to your existing animation code — just set the image URL on the config before generating:
+
+```tsx
+function AnimatedFragment({ config }: { config: FragmentExport }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const ready = useMemo(() => loadConfig(config, '/assets/fragment-image.png'), [config]);
+  const svg = useMemo(() => generateDiffSvgFromExport(ready), [ready]);
+  const { onMouseEnter, onMouseLeave } = useFragmentReveal(
+    containerRef,
+    ready.animation?.duration ?? 600
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+```
+
+The `data` field accepts any valid image source: a relative path (`/assets/img.png`), an absolute URL (`https://cdn.example.com/img.png`), or a base64 data URL.
+
+> **Compression:** The exported PNG is already downscaled to at most 2× your configured canvas dimensions. If your implementation renders the fragment at a smaller size, the image appears at higher-than-necessary resolution — this is fine and expected.
 
 ## Project Structure
 

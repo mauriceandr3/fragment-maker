@@ -860,6 +860,110 @@ export function generateTextOverlaySvg(
   }).join('');
 }
 
+export type ImageFit = 'contain' | 'cover';
+export type OverlayLayer = 'cells' | 'image' | 'text' | 'logo';
+
+export interface ImageOverlayConfig {
+  enabled: boolean;
+  /** Base64-encoded PNG data URL */
+  data: string;
+  /** Original image width (before compression) */
+  originalWidth: number;
+  /** Original image height (before compression) */
+  originalHeight: number;
+  fit: ImageFit;
+  /** Size as percentage of canvas (default 100) */
+  size: number;
+  /** Horizontal position 0-100% */
+  x: number;
+  /** Vertical position 0-100% */
+  y: number;
+  /** Bottom-to-top render order — 'cells' is the fragment grid */
+  overlayLayerOrder: OverlayLayer[];
+}
+
+/** Helper: determine if image is behind cells based on layer order */
+export function isImageBehindCells(layerOrder: OverlayLayer[]): boolean {
+  const cellsIdx = layerOrder.indexOf('cells');
+  const imageIdx = layerOrder.indexOf('image');
+  return imageIdx < cellsIdx;
+}
+
+/**
+ * Compute the position and dimensions for the image overlay.
+ * Returns the x, y, width, height in canvas pixels.
+ */
+export function computeImageLayout(
+  config: ImageOverlayConfig,
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number; width: number; height: number } {
+  const imgAspect = config.originalWidth / config.originalHeight;
+  const canvasAspect = canvasWidth / canvasHeight;
+
+  // Base dimensions: fit the image to the canvas at 100% size
+  let baseWidth: number;
+  let baseHeight: number;
+
+  if (config.fit === 'contain') {
+    // Contain: largest axis fits within canvas
+    if (imgAspect > canvasAspect) {
+      // Image is wider than canvas — fit width
+      baseWidth = canvasWidth;
+      baseHeight = canvasWidth / imgAspect;
+    } else {
+      // Image is taller than canvas — fit height
+      baseHeight = canvasHeight;
+      baseWidth = canvasHeight * imgAspect;
+    }
+  } else {
+    // Cover: smallest axis fills canvas (crops excess)
+    if (imgAspect > canvasAspect) {
+      // Image is wider — fit height, overflow width
+      baseHeight = canvasHeight;
+      baseWidth = canvasHeight * imgAspect;
+    } else {
+      // Image is taller — fit width, overflow height
+      baseWidth = canvasWidth;
+      baseHeight = canvasWidth / imgAspect;
+    }
+  }
+
+  // Apply size scaling
+  const scale = config.size / 100;
+  const width = baseWidth * scale;
+  const height = baseHeight * scale;
+
+  // Position: x/y are 0-100% where 50% centers the image on the canvas.
+  // x=0% puts the image center at the left edge (half off-canvas left),
+  // x=100% puts the image center at the right edge (half off-canvas right).
+  // This allows the image to travel fully off-canvas in any direction.
+  const centerX = (config.x / 100) * canvasWidth;
+  const centerY = (config.y / 100) * canvasHeight;
+  const x = centerX - width / 2;
+  const y = centerY - height / 2;
+
+  return { x, y, width, height };
+}
+
+/**
+ * Generate SVG markup for the image overlay.
+ * Returns an empty string if the config is disabled or has no data.
+ */
+export function generateImageOverlaySvg(
+  config: ImageOverlayConfig | undefined,
+  canvasWidth: number,
+  canvasHeight: number,
+): string {
+  if (!config?.enabled || !config.data || !config.originalWidth || !config.originalHeight) {
+    return '';
+  }
+
+  const { x, y, width, height } = computeImageLayout(config, canvasWidth, canvasHeight);
+
+  return `<image href="${config.data}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="none"/>`;
+}
+
 // Types
 
 export type FillType = 'linear' | 'linearHorizontal' | 'radial' | 'angular' | 'diamond' | 'square' | 'box';
@@ -1016,6 +1120,8 @@ export interface FragmentExport {
   fromTextPatternConfig?: FragmentConfig;
   /** Pattern overlay config for "To" text state (v2.6.0+). Present when toStateType='text' and pattern overlay is enabled. */
   toTextPatternConfig?: FragmentConfig;
+  /** Image overlay configuration (v3.1.0+). Present when an image overlay is enabled. */
+  imageOverlay?: ImageOverlayConfig;
 }
 
 // Constants
@@ -2226,6 +2332,7 @@ function injectOverlays(
   height: number,
   logo?: LogoOverlayConfig | LegacyLogoOverlayConfig,
   textOverlay?: TextOverlayConfig,
+  imageOverlay?: ImageOverlayConfig,
 ): string {
   const behindSvg = generateTextOverlaySvg(textOverlay, width, height, 'behind');
   const aboveSvg = generateTextOverlaySvg(textOverlay, width, height, 'above');
@@ -2238,21 +2345,32 @@ function injectOverlays(
     }
   }
 
-  if (!behindSvg && !aboveSvg && !logoSvg) return svg;
+  const imageSvg = generateImageOverlaySvg(imageOverlay, width, height);
+  const layerOrder = imageOverlay?.overlayLayerOrder ?? ['cells', 'image', 'text', 'logo'];
+  const imageBehind = isImageBehindCells(layerOrder);
+
+  if (!behindSvg && !aboveSvg && !logoSvg && !imageSvg) return svg;
 
   let result = svg;
 
-  // "behind" text goes right after the background rect (first <rect.../>)
-  if (behindSvg) {
+  // "behind" content goes right after the background rect (first <rect.../>)
+  const behindContent = (imageBehind ? imageSvg : '') + behindSvg;
+  if (behindContent) {
     const bgRectEnd = result.indexOf('/>');
     if (bgRectEnd !== -1) {
       const insertPos = bgRectEnd + 2;
-      result = result.slice(0, insertPos) + behindSvg + result.slice(insertPos);
+      result = result.slice(0, insertPos) + behindContent + result.slice(insertPos);
     }
   }
 
-  // "above" text and logo go before closing </svg>
-  const suffix = aboveSvg + logoSvg;
+  // "above" layers go before closing </svg>, in layerOrder (skip 'cells')
+  const aboveCellsChunks = layerOrder.map(layer => {
+    if (layer === 'image' && !imageBehind) return imageSvg;
+    if (layer === 'text') return aboveSvg;
+    if (layer === 'logo') return logoSvg;
+    return '';
+  });
+  const suffix = aboveCellsChunks.join('');
   if (suffix) {
     result = result.replace('</svg>', `${suffix}</svg>`);
   }
@@ -2270,6 +2388,8 @@ function injectOverlays(
  * @param exportData - The full JSON export from Fragment Maker
  * @param options.seed - Optional seed string for per-item variation (pattern states only)
  * @param options.text - Optional text override (text states only). Replaces textConfig.text at render time.
+ * @param options.stretch - If true (default), adds preserveAspectRatio="none" so the SVG stretches to fill
+ *   its container even when aspect ratios differ. Set to false to preserve the SVG's native aspect ratio.
  * @returns SVG string
  *
  * @example
@@ -2280,9 +2400,9 @@ function injectOverlays(
  */
 export function generateSvgFromExport(
   exportData: FragmentExport,
-  options?: { seed?: string; text?: string }
+  options?: { seed?: string; text?: string; stretch?: boolean }
 ): string {
-  const { config, fromStateType, fromTextConfig, fonts, logo, textOverlay } = exportData;
+  const { config, fromStateType, fromTextConfig, fonts, logo, textOverlay, imageOverlay } = exportData;
   const dims = computeDimensions(config);
 
   let svg: string;
@@ -2308,7 +2428,9 @@ export function generateSvgFromExport(
     svg = generateFragmentSvg({ config, seed: options?.seed });
   }
 
-  return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
+  let result = injectOverlays(svg, dims.width, dims.height, logo, textOverlay, imageOverlay);
+  if (options?.stretch !== false) result = result.replace('<svg ', '<svg preserveAspectRatio="none" ');
+  return result;
 }
 
 /**
@@ -2335,9 +2457,9 @@ export function generateSvgFromExport(
  */
 export function generateDiffSvgFromExport(
   exportData: FragmentExport,
-  options?: { fromSeed?: string; toSeed?: string; fromText?: string; toText?: string }
+  options?: { fromSeed?: string; toSeed?: string; fromText?: string; toText?: string; stretch?: boolean }
 ): string {
-  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo, textOverlay } = exportData;
+  const { config, toConfig, fonts, fromStateType, toStateType, fromTextConfig, toTextConfig, logo, textOverlay, imageOverlay } = exportData;
 
   if (!toConfig && !(toStateType === 'text' && toTextConfig)) return '';
 
@@ -2353,7 +2475,9 @@ export function generateDiffSvgFromExport(
       fromSeed: options?.fromSeed,
       toSeed: options?.toSeed,
     });
-    return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
+    let result = injectOverlays(svg, dims.width, dims.height, logo, textOverlay, imageOverlay);
+    if (options?.stretch !== false) result = result.replace('<svg ', '<svg preserveAspectRatio="none" ');
+    return result;
   }
 
   // At least one state is text — use composite diff (preserves entity bars).
@@ -2427,7 +2551,9 @@ export function generateDiffSvgFromExport(
     foregroundColor: config.foregroundColor, backgroundColor: config.backgroundColor,
   });
 
-  return injectOverlays(svg, dims.width, dims.height, logo, textOverlay);
+  let result = injectOverlays(svg, dims.width, dims.height, logo, textOverlay, imageOverlay);
+  if (options?.stretch !== false) result = result.replace('<svg ', '<svg preserveAspectRatio="none" ');
+  return result;
 }
 
 export interface CellPosition {

@@ -7,7 +7,8 @@ import {
   groupIntoWaves,
 } from '@/lib/animationUtils';
 import { getLogoSvgDataUrlById, LOGO_DEFINITIONS } from '@/lib/logoRegistry';
-import type { LogoOverlayConfig, TextOverlayConfig } from '@/app/components/fragment/types';
+import type { LogoOverlayConfig, TextOverlayConfig, ImageOverlayConfig } from '@/app/components/fragment/types';
+import { computeImageLayout, isImageBehindCells } from '@/implementation-files/imageOverlay';
 
 type ExportStatus = 'idle' | 'preparing' | 'recording' | 'finalizing' | 'error';
 
@@ -30,6 +31,7 @@ interface ExportOptions {
   fps: 30 | 60;
   logoConfig?: LogoOverlayConfig;
   textOverlayConfig?: TextOverlayConfig;
+  imageOverlayConfig?: ImageOverlayConfig;
 }
 
 export const isVideoExportSupported = typeof VideoEncoder !== 'undefined';
@@ -275,12 +277,45 @@ export function useVideoExport() {
 
       const { aCellsOrdered, bCellsOrdered, aMaxWave, bMaxWave } = waveData;
 
-      // If there are "behind" text entries, remove the SVG background rect
-      // so we can draw: background color → behind text → SVG (transparent bg) → above text → logo
+      // Pre-load image overlay if enabled (must happen before needsManualBackground check)
+      let imageOverlayImg: HTMLImageElement | null = null;
+      let imageOverlayLayout: { x: number; y: number; width: number; height: number } | null = null;
+      const layerOrder = opts.imageOverlayConfig?.overlayLayerOrder ?? ['cells', 'image', 'text', 'logo'];
+      const imageBehind = isImageBehindCells(layerOrder);
+
+      if (opts.imageOverlayConfig?.enabled && opts.imageOverlayConfig.data && opts.imageOverlayConfig.originalWidth) {
+        imageOverlayLayout = computeImageLayout(opts.imageOverlayConfig, opts.canvasWidth, opts.canvasHeight);
+        // Scale layout to encoded dimensions
+        const scaleX = encW / opts.canvasWidth;
+        const scaleY = encH / opts.canvasHeight;
+        imageOverlayLayout = {
+          x: imageOverlayLayout.x * scaleX,
+          y: imageOverlayLayout.y * scaleY,
+          width: imageOverlayLayout.width * scaleX,
+          height: imageOverlayLayout.height * scaleY,
+        };
+        imageOverlayImg = new Image();
+        await new Promise<void>((resolve, reject) => {
+          imageOverlayImg!.onload = () => resolve();
+          imageOverlayImg!.onerror = () => reject(new Error('Failed to load image overlay'));
+          imageOverlayImg!.src = opts.imageOverlayConfig!.data;
+        });
+      }
+
+      const drawImageOverlay = () => {
+        if (imageOverlayImg && imageOverlayLayout) {
+          ctx.drawImage(imageOverlayImg, imageOverlayLayout.x, imageOverlayLayout.y, imageOverlayLayout.width, imageOverlayLayout.height);
+        }
+      };
+
+      // If there are "behind" text entries OR the image is placed behind cells,
+      // remove the SVG background rect so we can manually draw:
+      //   background color → image (if behind) → behind text → SVG (transparent bg) → above text → logo
       const hasBehindText = opts.textOverlayConfig?.enabled &&
         opts.textOverlayConfig.entries.some(e => e.zOrder === 'behind' && e.content.trim());
+      const needsManualBackground = hasBehindText || imageBehind;
       let svgBgColor = '';
-      if (hasBehindText) {
+      if (needsManualBackground) {
         const firstRect = svg.querySelector('rect');
         const viewBox = svg.getAttribute('viewBox')?.split(' ') || [];
         const vbW = viewBox[2] || '';
@@ -372,15 +407,23 @@ export function useVideoExport() {
         await new Promise<void>((resolve, reject) => {
           img.onload = () => {
             ctx.clearRect(0, 0, encW, encH);
-            if (hasBehindText) {
+            if (needsManualBackground) {
               ctx.fillStyle = svgBgColor;
               ctx.fillRect(0, 0, encW, encH);
-              drawTextOverlay(ctx, opts.textOverlayConfig, 'behind', encW, encH);
+              if (imageBehind) drawImageOverlay();
+              if (hasBehindText) drawTextOverlay(ctx, opts.textOverlayConfig, 'behind', encW, encH);
             }
             ctx.drawImage(img, 0, 0, encW, encH);
-            drawTextOverlay(ctx, opts.textOverlayConfig, 'above', encW, encH);
-            for (const logo of logoImages) {
-              ctx.drawImage(logo.img, logo.x, logo.y, logo.w, logo.h);
+            for (const layer of layerOrder) {
+              if (layer === 'image' && !imageBehind) {
+                drawImageOverlay();
+              } else if (layer === 'text') {
+                drawTextOverlay(ctx, opts.textOverlayConfig, 'above', encW, encH);
+              } else if (layer === 'logo') {
+                for (const logo of logoImages) {
+                  ctx.drawImage(logo.img, logo.x, logo.y, logo.w, logo.h);
+                }
+              }
             }
             URL.revokeObjectURL(blobUrl);
             resolve();

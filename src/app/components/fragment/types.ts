@@ -101,6 +101,50 @@ export const DEFAULT_LOGO_CONFIG: LogoConfig = {
   colorSource: 'custom',
 };
 
+/** Image fit mode: 'contain' fits inside canvas, 'cover' fills canvas (cropping excess). */
+export type ImageFit = 'contain' | 'cover';
+
+/** Layer types in the overlay layer order. 'cells' represents the fragment grid. */
+export type OverlayLayer = 'cells' | 'image' | 'text' | 'logo';
+
+/** Image overlay configuration. */
+export interface ImageOverlayConfig {
+  enabled: boolean;
+  /** Base64-encoded PNG data URL */
+  data: string;
+  /** Original image dimensions (before compression) */
+  originalWidth: number;
+  originalHeight: number;
+  fit: ImageFit;
+  /** Size as percentage of canvas (default 100 = fit/fill to canvas) */
+  size: number;
+  /** Horizontal position 0-100% */
+  x: number;
+  /** Vertical position 0-100% */
+  y: number;
+  /** Bottom-to-top render order — 'cells' is the fragment grid; image above/below cells is determined by position relative to 'cells' */
+  overlayLayerOrder: OverlayLayer[];
+}
+
+export const DEFAULT_IMAGE_OVERLAY_CONFIG: ImageOverlayConfig = {
+  enabled: false,
+  data: '',
+  originalWidth: 0,
+  originalHeight: 0,
+  fit: 'contain',
+  size: 100,
+  x: 50,
+  y: 50,
+  overlayLayerOrder: ['cells', 'image', 'text', 'logo'],
+};
+
+/** Helper: determine if image is behind cells based on layer order */
+export function isImageBehindCells(layerOrder: OverlayLayer[]): boolean {
+  const cellsIdx = layerOrder.indexOf('cells');
+  const imageIdx = layerOrder.indexOf('image');
+  return imageIdx < cellsIdx;
+}
+
 export const DEBOUNCE_DELAY = 100;
 export const TOOLTIP_DELAY = 200;
 export const TOUCH_LONG_PRESS_DELAY = 500;

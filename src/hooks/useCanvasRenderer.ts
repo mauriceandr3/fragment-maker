@@ -1,6 +1,7 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { isTransparent } from "@/lib/colorUtils";
 import { assignCellColors, type ColorMode } from "@/implementation-files/generateFragmentSvg";
+import { computeImageLayout, isImageBehindCells, type ImageOverlayConfig } from "@/implementation-files/imageOverlay";
 
 export function useCanvasRenderer(options: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -21,6 +22,7 @@ export function useCanvasRenderer(options: {
   colorProportions: number[];
   seed: number;
   frequency: number;
+  imageOverlayConfig?: ImageOverlayConfig;
 }) {
   const {
     canvasRef, grid, gridDimensions,
@@ -28,7 +30,31 @@ export function useCanvasRenderer(options: {
     scale, cellSize, canvasWidth, canvasHeight,
     allowCropping, cropDirection, viewMode, animationEnabled,
     colorMode, multiColors, colorProportions, seed, frequency,
+    imageOverlayConfig,
   } = options;
+
+  // Pre-load the image overlay as an HTMLImageElement
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const imageDataRef = useRef<string>('');
+  const [imageLoaded, setImageLoaded] = useState(0);
+
+  useEffect(() => {
+    const cfg = imageOverlayConfig;
+    if (!cfg?.enabled || !cfg.data || !isImageBehindCells(cfg.overlayLayerOrder)) {
+      imageRef.current = null;
+      imageDataRef.current = '';
+      return;
+    }
+    // Only reload if data changed
+    if (cfg.data === imageDataRef.current && imageRef.current) return;
+    imageDataRef.current = cfg.data;
+    const img = new Image();
+    img.onload = () => {
+      imageRef.current = img;
+      setImageLoaded(c => c + 1); // trigger canvas re-render
+    };
+    img.src = cfg.data;
+  }, [imageOverlayConfig]);
 
   useEffect(() => {
     if (animationEnabled && viewMode === 'single') return;
@@ -78,6 +104,16 @@ export function useCanvasRenderer(options: {
       ctx.fillRect(0, 0, scaledCanvasWidth, scaledCanvasHeight);
     }
 
+    // Draw image overlay between background and cells when placement is 'behind'
+    if (imageOverlayConfig?.enabled && imageOverlayConfig.data && isImageBehindCells(imageOverlayConfig.overlayLayerOrder) && imageRef.current) {
+      const layout = computeImageLayout(imageOverlayConfig, canvasWidth, canvasHeight);
+      ctx.drawImage(
+        imageRef.current,
+        layout.x * scale, layout.y * scale,
+        layout.width * scale, layout.height * scale,
+      );
+    }
+
     for (let y = 0; y < Math.min(rows, grid.length); y++) {
       const cellY = Math.round(y * fractionalCellHeight);
       const nextCellY = Math.round((y + 1) * fractionalCellHeight);
@@ -107,5 +143,6 @@ export function useCanvasRenderer(options: {
         }
       }
     }
-  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed, frequency]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed, frequency, imageOverlayConfig, imageLoaded]);
 }

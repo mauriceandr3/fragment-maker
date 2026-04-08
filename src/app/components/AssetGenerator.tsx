@@ -16,11 +16,11 @@ import { ColorsPanel } from "./fragment/ColorsPanel";
 import { ParametersPanel } from "./fragment/ParametersPanel";
 import { TextConfigPanel } from "./fragment/TextConfigPanel";
 import { StateTypeSelector } from "./fragment/StateTypeSelector";
-import { ExportSvgPanel, ConfigPanel } from "./fragment/ActionButtons";
+import { ExportSvgPanel, ExportPngPanel, ExportImagePanel, ConfigPanel } from "./fragment/ActionButtons";
 import { VideoExportPanel } from "./fragment/VideoExportPanel";
-import { BatchExportPanel } from "./fragment/BatchExportPanel";
 import { LogoPanel } from "./fragment/LogoPanel";
 import { TextOverlayPanel } from "./fragment/TextOverlayPanel";
+import { ImagePanel } from "./fragment/ImagePanel";
 import { RadioSelector } from './ui/RadioSelector';
 import { PresetsSelection } from './fragment/PresetsSelection';
 
@@ -40,7 +40,8 @@ export function AssetGenerator() {
   const generation = useFragmentGeneration(state);
   const actions = useFragmentActions(state, generation);
   const videoExport = useVideoExport();
-  const batchExport = useBatchExport();
+  const svgBatchExport = useBatchExport();
+  const pngBatchExport = useBatchExport();
 
   useCanvasRenderer({
     canvasRef,
@@ -61,6 +62,7 @@ export function AssetGenerator() {
     colorProportions: state.colorProportions,
     seed: state.params.seed,
     frequency: state.params.frequency,
+    imageOverlayConfig: state.imageOverlayConfig,
   });
 
   const { onMouseEnter: animationMouseEnter, onMouseLeave: animationMouseLeave } =
@@ -145,6 +147,7 @@ export function AssetGenerator() {
                         <ColorsPanel state={state} />
                         <LogoPanel state={state} />
                         <TextOverlayPanel state={state} />
+                        <ImagePanel state={state} />
                         <AnimationPanel state={state} actions={actions} />
 
                         {/* Parameters panels - stacked when animation enabled */}
@@ -250,23 +253,39 @@ export function AssetGenerator() {
               >
                 <ExportSvgPanel
                   actions={actions}
+                  batchExport={svgBatchExport}
                   allowCropping={state.allowCropping}
                   validCellSizes={state.validCellSizes}
-                />
-
-                <BatchExportPanel
-                  batchExport={batchExport}
+                  animationEnabled={state.animationEnabled}
+                  logoConfig={effectiveLogoConfig}
+                  textOverlayConfig={state.textOverlayConfig}
+                  imageOverlayConfig={state.imageOverlayConfig}
                   params={state.params}
                   foregroundColor={state.displayForeground}
                   backgroundColor={state.displayBackground}
                   cellSize={state.cellSize}
                   canvasWidth={state.canvasWidth}
                   canvasHeight={state.canvasHeight}
+                  cropDirection={state.cropDirection}
+                  fromStateType={state.fromStateType}
+                />
+
+                <ExportPngPanel
+                  batchExport={pngBatchExport}
                   allowCropping={state.allowCropping}
+                  validCellSizes={state.validCellSizes}
+                  animationEnabled={state.animationEnabled}
+                  textOverlayConfig={state.textOverlayConfig}
+                  params={state.params}
+                  foregroundColor={state.displayForeground}
+                  backgroundColor={state.displayBackground}
+                  cellSize={state.cellSize}
+                  canvasWidth={state.canvasWidth}
+                  canvasHeight={state.canvasHeight}
                   cropDirection={state.cropDirection}
                   fromStateType={state.fromStateType}
                   logoConfig={effectiveLogoConfig}
-                  animationEnabled={state.animationEnabled}
+                  imageOverlayConfig={state.imageOverlayConfig}
                 />
 
                 <VideoExportPanel
@@ -278,6 +297,13 @@ export function AssetGenerator() {
                   animationEnabled={state.animationEnabled}
                   logoConfig={effectiveLogoConfig}
                   textOverlayConfig={state.textOverlayConfig}
+                  imageOverlayConfig={state.imageOverlayConfig}
+                />
+
+                <ExportImagePanel
+                  imageOverlayConfig={state.imageOverlayConfig}
+                  canvasWidth={state.canvasWidth}
+                  canvasHeight={state.canvasHeight}
                 />
 
                 <ConfigPanel

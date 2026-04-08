@@ -10,3 +10,5 @@ AI
 
 # codemogger db
 .codemogger/
+
+.vscode/

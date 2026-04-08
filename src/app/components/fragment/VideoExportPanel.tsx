@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Film, X } from 'lucide-react';
 import type { useVideoExport } from '@/hooks/useVideoExport';
-import type { LogoOverlayConfig, TextOverlayConfig } from './types';
+import type { LogoOverlayConfig, TextOverlayConfig, ImageOverlayConfig } from './types';
 import { Section } from '../ui/Section';
 import { Button } from '../ui/Button';
 import { RadioSelector } from '../ui/RadioSelector';
@@ -17,6 +17,7 @@ interface VideoExportPanelProps {
   animationEnabled: boolean;
   logoConfig: LogoOverlayConfig;
   textOverlayConfig: TextOverlayConfig;
+  imageOverlayConfig: ImageOverlayConfig;
 }
 
 const HOLD_MIN = 0;
@@ -82,6 +83,7 @@ export function VideoExportPanel({
   animationEnabled,
   logoConfig,
   textOverlayConfig,
+  imageOverlayConfig,
 }: VideoExportPanelProps) {
   const [mode, setMode] = useState<'one-way' | 'loop'>('one-way');
   const [startHoldSeconds, setStartHoldSeconds] = useState(0.0);
@@ -109,6 +111,7 @@ export function VideoExportPanel({
       fps,
       logoConfig,
       textOverlayConfig,
+      imageOverlayConfig,
     });
   };
 

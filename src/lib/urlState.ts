@@ -6,6 +6,7 @@ import { DEFAULT_LOGO_OVERLAY_CONFIG, DEFAULT_LOGO_ENTRY } from '../app/componen
 import { LOGO_IDS, type LogoId } from '../lib/logoRegistry';
 import type { TextOverlayConfig } from '../implementation-files/textOverlay';
 import { DEFAULT_TEXT_OVERLAY_CONFIG, isValidFontWeight } from '../implementation-files/textOverlay';
+import type { ImageOverlayConfig } from '../implementation-files/imageOverlay';
 import {
   MIN_CANVAS_DIMENSION,
   MAX_CANVAS_DIMENSION,
@@ -78,6 +79,8 @@ export interface UrlSerializableState {
   fromTextPatternParams: GeneratorParamsUrl | null;
   toTextPatternEnabled: boolean;
   toTextPatternParams: GeneratorParamsUrl | null;
+  // Image overlay settings (data/dimensions stored in localStorage, not URL)
+  imageOverlaySettings?: Pick<ImageOverlayConfig, 'enabled' | 'fit' | 'size' | 'x' | 'y' | 'overlayLayerOrder'>;
 }
 
 // Short URL keys for each state field
@@ -158,6 +161,14 @@ const PARAM_KEYS = {
   fromTpFt: 'ftp_ft',
   fromTpIf: 'ftp_if',
   toTextPatternEnabled: 'ttpe',
+  // Image overlay settings
+  imageEnabled: 'ie',
+  imagePlacement: 'ip',
+  imageFit: 'ifit',
+  imageSize: 'isz',
+  imageX: 'ix',
+  imageY: 'iy',
+  imageLayerOrder: 'ilo',
   toTpThreshold: 'ttp_t',
   toTpGamma: 'ttp_g',
   toTpScale: 'ttp_sc',
@@ -394,6 +405,21 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     params.set(PARAM_KEYS.toTpFa, String(tp.fillAmount));
     params.set(PARAM_KEYS.toTpFt, tp.fillType);
     params.set(PARAM_KEYS.toTpIf, tp.invertFill ? '1' : '0');
+  }
+
+  // Image overlay settings (only when enabled; data lives in localStorage)
+  const img = state.imageOverlaySettings;
+  if (img?.enabled) {
+    params.set(PARAM_KEYS.imageEnabled, '1');
+    addIfChanged(PARAM_KEYS.imageFit, img.fit, 'contain');
+    addIfChanged(PARAM_KEYS.imageSize, String(img.size), '100');
+    addIfChanged(PARAM_KEYS.imageX, String(img.x), '50');
+    addIfChanged(PARAM_KEYS.imageY, String(img.y), '50');
+    const defaultOrder = 'c-i-t-l';
+    const encodedOrder = img.overlayLayerOrder
+      .map(l => l === 'cells' ? 'c' : l === 'image' ? 'i' : l === 'text' ? 't' : 'l')
+      .join('-');
+    addIfChanged(PARAM_KEYS.imageLayerOrder, encodedOrder, defaultOrder);
   }
 
   return params.toString();
@@ -745,6 +771,47 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   if (ttpe) {
     result.toTextPatternEnabled = true;
     result.toTextPatternParams = parsePatternOverlayParams('ttp');
+  }
+
+  // Image overlay settings
+  const ie = parseBool(sp.get(PARAM_KEYS.imageEnabled));
+  if (ie) {
+    const ifitRaw = sp.get(PARAM_KEYS.imageFit);
+    const fit: 'contain' | 'cover' = ifitRaw === 'cover' ? 'cover' : 'contain';
+    const size = clampNum(sp.get(PARAM_KEYS.imageSize), 5, 200) ?? 100;
+    const x = clampNum(sp.get(PARAM_KEYS.imageX), 0, 100) ?? 50;
+    const y = clampNum(sp.get(PARAM_KEYS.imageY), 0, 100) ?? 50;
+    const iloRaw = sp.get(PARAM_KEYS.imageLayerOrder);
+    type Layer = 'cells' | 'image' | 'text' | 'logo';
+    const layerMap: Record<string, Layer> = { c: 'cells', i: 'image', t: 'text', l: 'logo' };
+    const validLayers: Layer[] = ['cells', 'image', 'text', 'logo'];
+    let overlayLayerOrder: Layer[];
+    if (iloRaw) {
+      const parsed = iloRaw.split('-').map(c => layerMap[c]).filter((l): l is Layer => validLayers.includes(l));
+      // Backward compat: old format without 'cells' (e.g. 'i-t-l') — derive from old placement param
+      if (!parsed.includes('cells')) {
+        const ipRaw = sp.get(PARAM_KEYS.imagePlacement);
+        if (ipRaw === 'behind' || !ipRaw) {
+          // image behind cells
+          overlayLayerOrder = ['image', 'cells', ...parsed.filter(l => l !== 'image')];
+        } else {
+          // above-cells: cells first, then the parsed order
+          overlayLayerOrder = ['cells', ...parsed];
+        }
+      } else {
+        overlayLayerOrder = parsed;
+      }
+    } else {
+      // No layer order in URL — check old placement param for backward compat
+      const ipRaw = sp.get(PARAM_KEYS.imagePlacement);
+      if (ipRaw === 'behind') {
+        overlayLayerOrder = ['image', 'cells', 'text', 'logo'];
+      } else {
+        overlayLayerOrder = ['cells', 'image', 'text', 'logo'];
+      }
+    }
+    const safeOrder: Layer[] = overlayLayerOrder.length === 4 ? overlayLayerOrder : ['cells', 'image', 'text', 'logo'];
+    result.imageOverlaySettings = { enabled: true, fit, size, x, y, overlayLayerOrder: safeOrder };
   }
 
   return result;

@@ -2,6 +2,9 @@ import { useState, useRef, useCallback } from 'react';
 import JSZip from 'jszip';
 import { generateFragmentSvgDirect } from '@/lib/generateFragmentSvgGrid';
 import { generateLogoOverlaySvg, type LogoOverlayConfig } from '@/implementation-files/logoOverlay';
+import { generateImageOverlaySvg, isImageBehindCells, type ImageOverlayConfig } from '@/implementation-files/imageOverlay';
+import { generateTextOverlaySvg, type TextOverlayConfig } from '@/implementation-files/textOverlay';
+import { vectorizeAllEntries } from '@/lib/textVectorizer';
 import type { GeneratorParams, StateType } from '@/app/components/fragment/types';
 import type { CropDirection } from '@/implementation-files/generateFragmentSvg';
 
@@ -29,6 +32,8 @@ export interface BatchExportOptions {
   cropDirection: CropDirection;
   fromStateType: StateType;
   logoConfig: LogoOverlayConfig;
+  imageOverlayConfig?: ImageOverlayConfig;
+  textOverlayConfig?: TextOverlayConfig;
 }
 
 function injectLogo(svg: string, logoConfig: LogoOverlayConfig, width: number, height: number): string {
@@ -90,6 +95,45 @@ async function svgToPngBlob(
   }
 }
 
+/**
+ * Inject all overlays (image, text, logo) into an SVG string in the correct layer order.
+ */
+function injectAllOverlays(
+  svg: string,
+  canvasWidth: number,
+  canvasHeight: number,
+  logoConfig: LogoOverlayConfig,
+  imageOverlayConfig: ImageOverlayConfig | undefined,
+  textOverlayConfig: TextOverlayConfig | undefined,
+): string {
+  let result = svg;
+
+  const imageSvgMarkup = generateImageOverlaySvg(imageOverlayConfig, canvasWidth, canvasHeight);
+  const layerOrder = imageOverlayConfig?.overlayLayerOrder ?? ['cells', 'image', 'text', 'logo'];
+  const imageBehind = isImageBehindCells(layerOrder);
+
+  // "behind" content: image (if behind cells) + behind-text go right after background rect
+  const behindTextSvg = generateTextOverlaySvg(textOverlayConfig, canvasWidth, canvasHeight, 'behind');
+  const behindContent = (imageSvgMarkup && imageBehind ? imageSvgMarkup : '') + behindTextSvg;
+  if (behindContent) {
+    const bgRectEnd = result.indexOf('/>');
+    if (bgRectEnd !== -1) {
+      const insertPos = bgRectEnd + 2;
+      result = result.slice(0, insertPos) + behindContent + result.slice(insertPos);
+    }
+  }
+
+  // "above" content: iterate layer order for image, text, logo (skip 'cells')
+  const aboveTextSvg = generateTextOverlaySvg(textOverlayConfig, canvasWidth, canvasHeight, 'above');
+  for (const layer of layerOrder) {
+    if (layer === 'image' && !imageBehind && imageSvgMarkup) result = result.replace('</svg>', `${imageSvgMarkup}</svg>`);
+    else if (layer === 'text' && aboveTextSvg) result = result.replace('</svg>', `${aboveTextSvg}</svg>`);
+    else if (layer === 'logo') result = injectLogo(result, logoConfig, canvasWidth, canvasHeight);
+  }
+
+  return result;
+}
+
 export function useBatchExport() {
   const [state, setState] = useState<BatchExportState>({
     status: 'idle',
@@ -109,8 +153,60 @@ export function useBatchExport() {
       count, format, resolutionScale, params,
       foregroundColor, backgroundColor,
       cellSize, canvasWidth, canvasHeight,
-      allowCropping, cropDirection, logoConfig,
+      allowCropping, cropDirection, logoConfig, imageOverlayConfig,
     } = opts;
+
+    // Fast path for count=1: download the current frame directly (no zip, no random seed)
+    if (count === 1) {
+      cancelledRef.current = false;
+      setState({ status: 'generating', progress: 0, currentItem: 1, totalItems: 1, error: null });
+      try {
+        const singleConfig = {
+          threshold: params.threshold,
+          gamma: params.gamma,
+          frequency: params.frequency,
+          contrast: params.contrast,
+          seed: params.seed, // use current seed, not random
+          directionalNeighbors: params.directionalNeighbors,
+          directionDensity: params.directionDensity,
+          fillAmount: params.fillAmount,
+          fillType: params.fillType,
+          invertFill: params.invertFill,
+          foregroundColor,
+          backgroundColor,
+          cellSize,
+          canvasWidth,
+          canvasHeight,
+          allowCropping,
+          cropDirection,
+        };
+
+        const rawSvg = generateFragmentSvgDirect(singleConfig);
+        // Vectorize text overlay once (for SVG path rendering)
+        const vectorizedText = opts.textOverlayConfig
+          ? await vectorizeAllEntries(opts.textOverlayConfig, canvasWidth, canvasHeight)
+          : undefined;
+        const svg = injectAllOverlays(rawSvg, canvasWidth, canvasHeight, logoConfig, imageOverlayConfig, vectorizedText);
+
+        const link = document.createElement('a');
+        if (format === 'png') {
+          const pngBlob = await svgToPngBlob(svg, canvasWidth, canvasHeight, resolutionScale);
+          link.href = URL.createObjectURL(pngBlob);
+          link.download = 'fragment.png';
+        } else {
+          link.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+          link.download = 'fragment.svg';
+        }
+        link.click();
+        URL.revokeObjectURL(link.href);
+        setState({ status: 'idle', progress: 1, currentItem: 1, totalItems: 1, error: null });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Export failed.';
+        setState({ status: 'error', progress: 0, currentItem: 0, totalItems: 0, error: message });
+        setTimeout(() => setState(prev => prev.status === 'error' ? { status: 'idle', progress: 0, currentItem: 0, totalItems: 0, error: null } : prev), 4000);
+      }
+      return;
+    }
 
     cancelledRef.current = false;
     setState({
@@ -124,6 +220,11 @@ export function useBatchExport() {
     try {
       const zip = new JSZip();
       const padWidth = String(count).length;
+
+      // Vectorize text overlay once before the loop
+      const vectorizedText = opts.textOverlayConfig
+        ? await vectorizeAllEntries(opts.textOverlayConfig, canvasWidth, canvasHeight)
+        : undefined;
 
       for (let i = 0; i < count; i++) {
         if (cancelledRef.current) {
@@ -158,8 +259,8 @@ export function useBatchExport() {
           cropDirection,
         };
 
-        let svg = generateFragmentSvgDirect(config);
-        svg = injectLogo(svg, logoConfig, canvasWidth, canvasHeight);
+        const rawSvg = generateFragmentSvgDirect(config);
+        const svg = injectAllOverlays(rawSvg, canvasWidth, canvasHeight, logoConfig, imageOverlayConfig, vectorizedText);
 
         const paddedIndex = String(i + 1).padStart(padWidth, '0');
 

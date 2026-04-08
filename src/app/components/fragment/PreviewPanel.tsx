@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, type CSSProperties } from "react";
+import { type RefObject, useEffect, useMemo, type CSSProperties } from "react";
 import { Square, LayoutGrid, Type } from "lucide-react";
 import { CharPreviewPanel } from "./CharPreviewPanel";
 import { isTransparent } from "@/lib/colorUtils";
@@ -7,7 +7,8 @@ import type { FragmentGeneration } from "@/hooks/useFragmentGeneration";
 import { GridSkeleton, GridItem } from "./GridItem";
 import { getLogoSvgById } from "@/lib/logoRegistry";
 import { resolveLogoEntryColor } from "@/lib/resolveLogoColor";
-import type { LogoOverlayConfig, TextOverlayConfig, TextOverlayZOrder } from "./types";
+import type { LogoOverlayConfig, TextOverlayConfig, TextOverlayZOrder, ImageOverlayConfig } from "./types";
+import { computeImageLayout, generateImageOverlaySvg, isImageBehindCells } from "@/implementation-files/imageOverlay";
 
 function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { logoConfig: LogoOverlayConfig; foregroundColor: string; colorMode: string; multiColors: string[] }) {
   if (!logoConfig.enabled || logoConfig.entries.length === 0) return null;
@@ -82,6 +83,34 @@ function TextOverlayPreview({
   );
 }
 
+function ImageOverlayPreview({
+  config,
+  canvasWidth,
+  canvasHeight,
+  scale,
+}: {
+  config: ImageOverlayConfig;
+  canvasWidth: number;
+  canvasHeight: number;
+  scale: number;
+}) {
+  if (!config.enabled || !config.data || !config.originalWidth || !config.originalHeight) return null;
+
+  const layout = computeImageLayout(config, canvasWidth, canvasHeight);
+
+  const style: CSSProperties = {
+    position: 'absolute',
+    left: layout.x * scale,
+    top: layout.y * scale,
+    width: layout.width * scale,
+    height: layout.height * scale,
+    maxWidth: 'none', // prevent Tailwind preflight max-width: 100% from constraining the image
+    pointerEvents: 'none',
+  };
+
+  return <img src={config.data} alt="" style={style} />;
+}
+
 interface PreviewPanelProps {
   state: FragmentState;
   generation: FragmentGeneration;
@@ -122,6 +151,33 @@ export function PreviewPanel({
     diffSvg, deferredGridSvgs, gridVariations,
     isGridStale, hasGeneratedGrid, highlightedGridIndex,
   } = generation;
+
+  // Inject image overlay into SVG when image is behind cells.
+  // When above cells, the HTML ImageOverlayPreview overlay handles it.
+  const imageConfig = state.imageOverlayConfig;
+  const imageBehind = isImageBehindCells(imageConfig.overlayLayerOrder);
+  const diffSvgWithImage = useMemo(() => {
+    if (!diffSvg || !imageConfig.enabled || !imageConfig.data || !imageBehind) return diffSvg;
+    const imageSvgMarkup = generateImageOverlaySvg(imageConfig, canvasWidth, canvasHeight);
+    if (!imageSvgMarkup) return diffSvg;
+
+    const bgRectEnd = diffSvg.indexOf('/>');
+    if (bgRectEnd === -1) return diffSvg;
+    const insertPos = bgRectEnd + 2;
+    return diffSvg.slice(0, insertPos) + imageSvgMarkup + diffSvg.slice(insertPos);
+  }, [diffSvg, imageConfig, imageBehind, canvasWidth, canvasHeight]);
+
+  const toStateSvgWithImage = useMemo(() => {
+    const toSvg = generation.toStateSvg;
+    if (!toSvg || !imageConfig.enabled || !imageConfig.data || !imageBehind) return toSvg;
+    const imageSvgMarkup = generateImageOverlaySvg(imageConfig, canvasWidth, canvasHeight);
+    if (!imageSvgMarkup) return toSvg;
+
+    const bgRectEnd = toSvg.indexOf('/>');
+    if (bgRectEnd === -1) return toSvg;
+    const insertPos = bgRectEnd + 2;
+    return toSvg.slice(0, insertPos) + imageSvgMarkup + toSvg.slice(insertPos);
+  }, [generation.toStateSvg, imageConfig, imageBehind, canvasWidth, canvasHeight]);
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -185,56 +241,83 @@ export function PreviewPanel({
               {state.showEndState && (
                 <span className="text-xs text-white/40 uppercase tracking-wider">From (hover to animate)</span>
               )}
-              <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative' }}>
+              <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative', overflow: 'hidden' }} className="border border-white/10 shadow-2xl">
                 <TextOverlayPreview config={state.textOverlayConfig} position="behind" canvasHeight={canvasHeight} scale={params.scale} />
                 <div
                   ref={animationContainerRef}
                   onMouseEnter={animationMouseEnter}
                   onMouseLeave={animationMouseLeave}
-                  className="border border-white/10 shadow-2xl"
                   style={{
                     transform: `scale(${params.scale})`,
                     transformOrigin: 'top left',
                     width: canvasWidth,
                     height: canvasHeight,
                   }}
-                  dangerouslySetInnerHTML={{ __html: diffSvg }}
+                  dangerouslySetInnerHTML={{ __html: diffSvgWithImage }}
                 />
-                <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-                <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />
+                {state.imageOverlayConfig.overlayLayerOrder.filter(l => l !== 'cells').map(layer => {
+                  if (layer === 'image' && state.imageOverlayConfig.enabled && !imageBehind) {
+                    return <ImageOverlayPreview key="image" config={state.imageOverlayConfig} canvasWidth={canvasWidth} canvasHeight={canvasHeight} scale={params.scale} />;
+                  }
+                  if (layer === 'text') {
+                    return <TextOverlayPreview key="text" config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />;
+                  }
+                  if (layer === 'logo') {
+                    return <LogoOverlay key="logo" logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />;
+                  }
+                  return null;
+                })}
               </div>
             </div>
             {state.showEndState && generation.toStateSvg && (
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs text-white/40 uppercase tracking-wider">To</span>
-                <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative' }}>
+                <div style={{ width: canvasWidth * params.scale, height: canvasHeight * params.scale, position: 'relative', overflow: 'hidden' }} className="border border-white/10 shadow-2xl">
                   <TextOverlayPreview config={state.textOverlayConfig} position="behind" canvasHeight={canvasHeight} scale={params.scale} />
                   <div
-                    className="border border-white/10 shadow-2xl"
                     style={{
                       transform: `scale(${params.scale})`,
                       transformOrigin: 'top left',
                       width: canvasWidth,
                       height: canvasHeight,
                     }}
-                    dangerouslySetInnerHTML={{ __html: generation.toStateSvg }}
+                    dangerouslySetInnerHTML={{ __html: toStateSvgWithImage }}
                   />
-                  <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-                  <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />
+                  {state.imageOverlayConfig.overlayLayerOrder.filter(l => l !== 'cells').map(layer => {
+                    if (layer === 'image' && state.imageOverlayConfig.enabled && !imageBehind) {
+                      return <ImageOverlayPreview key="image" config={state.imageOverlayConfig} canvasWidth={canvasWidth} canvasHeight={canvasHeight} scale={params.scale} />;
+                    }
+                    if (layer === 'text') {
+                      return <TextOverlayPreview key="text" config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />;
+                    }
+                    if (layer === 'logo') {
+                      return <LogoOverlay key="logo" logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />;
+                    }
+                    return null;
+                  })}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div style={{ position: 'relative', display: 'inline-block' }}>
+          <div style={{ position: 'relative', display: 'inline-block', overflow: 'hidden' }} className="border border-white/10 shadow-2xl">
             <TextOverlayPreview config={state.textOverlayConfig} position="behind" canvasHeight={canvasHeight} scale={params.scale} />
             <canvas
               ref={canvasRef}
-              className="border border-white/10 shadow-2xl"
               style={{ imageRendering: 'pixelated' }}
             />
-            <TextOverlayPreview config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />
-            <LogoOverlay logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />
+            {state.imageOverlayConfig.overlayLayerOrder.filter(l => l !== 'cells').map(layer => {
+              if (layer === 'image' && state.imageOverlayConfig.enabled && !imageBehind) {
+                return <ImageOverlayPreview key="image" config={state.imageOverlayConfig} canvasWidth={canvasWidth} canvasHeight={canvasHeight} scale={params.scale} />;
+              }
+              if (layer === 'text') {
+                return <TextOverlayPreview key="text" config={state.textOverlayConfig} position="above" canvasHeight={canvasHeight} scale={params.scale} />;
+              }
+              if (layer === 'logo') {
+                return <LogoOverlay key="logo" logoConfig={state.logoConfig} foregroundColor={state.displayForeground} colorMode={state.colorMode} multiColors={state.multiColors} />;
+              }
+              return null;
+            })}
           </div>
         )
       )}
