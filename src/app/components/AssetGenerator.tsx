@@ -268,6 +268,7 @@ export function AssetGenerator() {
                   canvasHeight={state.canvasHeight}
                   cropDirection={state.cropDirection}
                   fromStateType={state.fromStateType}
+                  projectName={state.projectName}
                 />
 
                 <ExportPngPanel
@@ -286,6 +287,7 @@ export function AssetGenerator() {
                   fromStateType={state.fromStateType}
                   logoConfig={effectiveLogoConfig}
                   imageOverlayConfig={state.imageOverlayConfig}
+                  projectName={state.projectName}
                 />
 
                 <VideoExportPanel
@@ -298,12 +300,14 @@ export function AssetGenerator() {
                   logoConfig={effectiveLogoConfig}
                   textOverlayConfig={state.textOverlayConfig}
                   imageOverlayConfig={state.imageOverlayConfig}
+                  projectName={state.projectName}
                 />
 
                 <ExportImagePanel
                   imageOverlayConfig={state.imageOverlayConfig}
                   canvasWidth={state.canvasWidth}
                   canvasHeight={state.canvasHeight}
+                  projectName={state.projectName}
                 />
 
                 <ConfigPanel

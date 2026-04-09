@@ -46,6 +46,7 @@ interface ExportSvgPanelProps {
   canvasHeight: number;
   cropDirection: CropDirection;
   fromStateType: StateType;
+  projectName?: string;
 }
 
 export function ExportSvgPanel({
@@ -54,6 +55,7 @@ export function ExportSvgPanel({
   animationEnabled, logoConfig, textOverlayConfig, imageOverlayConfig,
   params, foregroundColor, backgroundColor, cellSize,
   canvasWidth, canvasHeight, cropDirection, fromStateType,
+  projectName,
 }: ExportSvgPanelProps) {
   const [count, setCount] = useState(1);
   const [countInput, setCountInput] = useState('1');
@@ -90,7 +92,7 @@ export function ExportSvgPanel({
         count, format: 'svg', resolutionScale: 1,
         params, foregroundColor, backgroundColor, cellSize,
         canvasWidth, canvasHeight, allowCropping, cropDirection, fromStateType,
-        logoConfig, imageOverlayConfig,
+        logoConfig, imageOverlayConfig, projectName,
       };
       batchExport.startExport(opts);
     }
@@ -173,6 +175,7 @@ interface ExportPngPanelProps {
   fromStateType: StateType;
   logoConfig: LogoOverlayConfig;
   imageOverlayConfig: ImageOverlayConfig;
+  projectName?: string;
 }
 
 export function ExportPngPanel({
@@ -182,6 +185,7 @@ export function ExportPngPanel({
   params, foregroundColor, backgroundColor, cellSize,
   canvasWidth, canvasHeight, cropDirection, fromStateType,
   logoConfig, imageOverlayConfig,
+  projectName,
 }: ExportPngPanelProps) {
   const [count, setCount] = useState(1);
   const [countInput, setCountInput] = useState('1');
@@ -217,7 +221,7 @@ export function ExportPngPanel({
       count, format: 'png', resolutionScale,
       params, foregroundColor, backgroundColor, cellSize,
       canvasWidth, canvasHeight, allowCropping, cropDirection, fromStateType,
-      logoConfig, imageOverlayConfig, textOverlayConfig,
+      logoConfig, imageOverlayConfig, textOverlayConfig, projectName,
     };
     batchExport.startExport(opts);
   };
@@ -292,9 +296,10 @@ interface ExportImagePanelProps {
   imageOverlayConfig: ImageOverlayConfig;
   canvasWidth: number;
   canvasHeight: number;
+  projectName?: string;
 }
 
-export function ExportImagePanel({ imageOverlayConfig, canvasWidth, canvasHeight }: ExportImagePanelProps) {
+export function ExportImagePanel({ imageOverlayConfig, canvasWidth, canvasHeight, projectName }: ExportImagePanelProps) {
   const [format, setFormat] = useState<ImageExportFormat>('png');
   const [quality, setQuality] = useState(85);
   const [exporting, setExporting] = useState(false);
@@ -315,7 +320,8 @@ export function ExportImagePanel({ imageOverlayConfig, canvasWidth, canvasHeight
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `fragment-image.${FILE_EXTENSIONS[format]}`;
+      const base = projectName ? `fragment-image-${projectName}` : 'fragment-image';
+      link.download = `${base}.${FILE_EXTENSIONS[format]}`;
       link.click();
       URL.revokeObjectURL(url);
     } finally {

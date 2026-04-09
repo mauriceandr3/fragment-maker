@@ -34,6 +34,7 @@ export interface BatchExportOptions {
   logoConfig: LogoOverlayConfig;
   imageOverlayConfig?: ImageOverlayConfig;
   textOverlayConfig?: TextOverlayConfig;
+  projectName?: string;
 }
 
 function injectLogo(svg: string, logoConfig: LogoOverlayConfig, width: number, height: number): string {
@@ -154,7 +155,12 @@ export function useBatchExport() {
       foregroundColor, backgroundColor,
       cellSize, canvasWidth, canvasHeight,
       allowCropping, cropDirection, logoConfig, imageOverlayConfig,
+      projectName,
     } = opts;
+
+    // Build filename with optional project name suffix
+    const suffix = (base: string, ext: string) =>
+      projectName ? `${base}-${projectName}.${ext}` : `${base}.${ext}`;
 
     // Fast path for count=1: download the current frame directly (no zip, no random seed)
     if (count === 1) {
@@ -192,10 +198,10 @@ export function useBatchExport() {
         if (format === 'png') {
           const pngBlob = await svgToPngBlob(svg, canvasWidth, canvasHeight, resolutionScale);
           link.href = URL.createObjectURL(pngBlob);
-          link.download = 'fragment.png';
+          link.download = suffix('fragment', 'png');
         } else {
           link.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-          link.download = 'fragment.svg';
+          link.download = suffix('fragment', 'svg');
         }
         link.click();
         URL.revokeObjectURL(link.href);
@@ -266,9 +272,9 @@ export function useBatchExport() {
 
         if (format === 'png') {
           const pngBlob = await svgToPngBlob(svg, canvasWidth, canvasHeight, resolutionScale);
-          zip.file(`fragment-${paddedIndex}.png`, pngBlob);
+          zip.file(`fragment-${paddedIndex}${projectName ? `-${projectName}` : ''}.png`, pngBlob);
         } else {
-          zip.file(`fragment-${paddedIndex}.svg`, svg);
+          zip.file(`fragment-${paddedIndex}${projectName ? `-${projectName}` : ''}.svg`, svg);
         }
 
         // Yield to main thread periodically
@@ -289,7 +295,7 @@ export function useBatchExport() {
       const url = URL.createObjectURL(zipBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `fragments-${count}.zip`;
+      link.download = `fragments-${count}${projectName ? `-${projectName}` : ''}.zip`;
       link.click();
       URL.revokeObjectURL(url);
 

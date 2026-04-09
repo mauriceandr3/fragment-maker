@@ -108,6 +108,9 @@ export function useFragmentState() {
     invertFill: initialUrlState.invertFill ?? false,
   });
 
+  // Project name (used as suffix in export file names)
+  const [projectName, setProjectName] = useState(initialUrlState.projectName ?? '');
+
   // UI state
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'grid' | 'chars'>('single');
@@ -421,6 +424,7 @@ export function useFragmentState() {
         y: debouncedImageOverlayConfig.y,
         overlayLayerOrder: debouncedImageOverlayConfig.overlayLayerOrder,
       } : undefined,
+      projectName,
     };
     updateUrlFromState(state);
   }, [
@@ -455,6 +459,7 @@ export function useFragmentState() {
     debouncedToTextPatternEnabled,
     debouncedToTextPatternParams,
     debouncedImageOverlayConfig,
+    projectName,
   ]);
 
   // --- localStorage sync for image data ---
@@ -560,6 +565,7 @@ export function useFragmentState() {
     textOverlayConfig, setTextOverlayConfig,
     imageOverlayConfig, setImageOverlayConfig,
     presetOrCustomMode, setPresetOrCustomMode,
+    projectName, setProjectName,
     // Debounced values
     debounced: {
       params: debouncedParams,

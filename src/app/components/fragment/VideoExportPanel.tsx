@@ -18,6 +18,7 @@ interface VideoExportPanelProps {
   logoConfig: LogoOverlayConfig;
   textOverlayConfig: TextOverlayConfig;
   imageOverlayConfig: ImageOverlayConfig;
+  projectName?: string;
 }
 
 const HOLD_MIN = 0;
@@ -84,6 +85,7 @@ export function VideoExportPanel({
   logoConfig,
   textOverlayConfig,
   imageOverlayConfig,
+  projectName,
 }: VideoExportPanelProps) {
   const [mode, setMode] = useState<'one-way' | 'loop'>('one-way');
   const [startHoldSeconds, setStartHoldSeconds] = useState(0.0);
@@ -112,6 +114,7 @@ export function VideoExportPanel({
       logoConfig,
       textOverlayConfig,
       imageOverlayConfig,
+      projectName,
     });
   };
 

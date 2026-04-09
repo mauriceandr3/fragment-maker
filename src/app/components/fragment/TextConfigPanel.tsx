@@ -85,7 +85,8 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows,
 
       {/* Character Height Slider */}
       <Slider
-        label={`Character Height: ${config.charHeight} cells`}
+        label="Character Height"
+        unit=" cells"
         value={config.charHeight}
         min={fontHeight}
         max={maxCharHeight}

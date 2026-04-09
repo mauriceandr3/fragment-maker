@@ -25,6 +25,7 @@ interface GridItemProps {
   paramValue: number | string;
   aspectRatio: number;
   hasTransparency: boolean;
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export const GridItem = memo(function GridItem({
@@ -34,6 +35,7 @@ export const GridItem = memo(function GridItem({
   paramValue,
   aspectRatio,
   hasTransparency,
+  onClick,
 }: GridItemProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,12 +90,15 @@ export const GridItem = memo(function GridItem({
 
   return (
     <div
-      className={`relative bg-black/40 rounded-lg overflow-hidden cursor-default transition-all duration-150 hover:scale-[1.02] ${
+      className={`relative bg-black/40 rounded-lg overflow-hidden transition-all duration-150 hover:scale-[1.02] ${
+        onClick ? 'cursor-pointer' : 'cursor-default'
+      } ${
         isHighlighted
           ? 'ring-2 ring-white/60 border-2 border-white/50'
           : 'border border-white/20 hover:border-white/40'
       }`}
       style={{ aspectRatio: aspectRatio }}
+      onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}

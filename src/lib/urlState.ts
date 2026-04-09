@@ -81,6 +81,8 @@ export interface UrlSerializableState {
   toTextPatternParams: GeneratorParamsUrl | null;
   // Image overlay settings (data/dimensions stored in localStorage, not URL)
   imageOverlaySettings?: Pick<ImageOverlayConfig, 'enabled' | 'fit' | 'size' | 'x' | 'y' | 'overlayLayerOrder'>;
+  // Project name (used as suffix in export file names)
+  projectName: string;
 }
 
 // Short URL keys for each state field
@@ -180,6 +182,7 @@ const PARAM_KEYS = {
   toTpFa: 'ttp_fa',
   toTpFt: 'ttp_ft',
   toTpIf: 'ttp_if',
+  projectName: 'pn',
 } as const;
 
 // Default text configuration
@@ -233,6 +236,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   fromTextPatternParams: null,
   toTextPatternEnabled: false,
   toTextPatternParams: null,
+  projectName: '',
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -421,6 +425,9 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
       .join('-');
     addIfChanged(PARAM_KEYS.imageLayerOrder, encodedOrder, defaultOrder);
   }
+
+  // Project name
+  addIfChanged(PARAM_KEYS.projectName, state.projectName ?? '', DEFAULTS.projectName);
 
   return params.toString();
 }
@@ -813,6 +820,10 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     const safeOrder: Layer[] = overlayLayerOrder.length === 4 ? overlayLayerOrder : ['cells', 'image', 'text', 'logo'];
     result.imageOverlaySettings = { enabled: true, fit, size, x, y, overlayLayerOrder: safeOrder };
   }
+
+  // Project name
+  const pnRaw = sp.get(PARAM_KEYS.projectName);
+  if (pnRaw && pnRaw !== 'undefined') result.projectName = pnRaw;
 
   return result;
 }

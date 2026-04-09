@@ -83,7 +83,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
     <Section title={title} rightElement={rightElements}>
       {isVisible('threshold') && (
         <Slider
-          label={`Density: ${params.threshold.toFixed(2)}`}
+          label="Density"
           value={params.threshold} min={0} max={1} step={0.01}
           onChange={(v) => setParams({ ...params, threshold: v })}
         />
@@ -91,9 +91,10 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
 
       {isVisible('fillAmount') && (
         <Slider
-          label={`Fill Amount: ${params.fillAmount}%`}
+          label="Fill Amount"
           value={params.fillAmount} min={0} max={100}
           onChange={(v) => setParams({ ...params, fillAmount: Math.round(v) })}
+          unit="%"
         />
       )}
 
@@ -132,7 +133,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
 
       {isVisible('gamma') && (
         <Slider
-          label={`Gamma: ${params.gamma.toFixed(2)}`}
+          label="Gamma"
           value={params.gamma} min={0.1} max={3} step={0.1}
           onChange={(v) => setParams({ ...params, gamma: v })}
         />
@@ -140,7 +141,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
 
       {isVisible('frequency') && (
         <Slider
-          label={`Frequency: ${params.frequency.toFixed(2)}`}
+          label="Frequency"
           value={params.frequency} min={0.01} max={0.5} step={0.01}
           onChange={(v) => setParams({ ...params, frequency: v })}
         />
@@ -148,7 +149,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
 
       {isVisible('contrast') && (
         <Slider
-          label={`Contrast: ${params.contrast.toFixed(2)}`}
+          label="Contrast"
           value={params.contrast} min={0.1} max={3} step={0.1}
           onChange={(v) => setParams({ ...params, contrast: v })}
         />
@@ -156,7 +157,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
 
       {isVisible('directionalNeighbors') && (
         <Slider
-          label={`Directional Neighbors: ${params.directionalNeighbors}`}
+          label="Directional Neighbors"
           value={params.directionalNeighbors} min={0} max={999}
           onChange={(v) => setParams({ ...params, directionalNeighbors: Math.round(v) })}
         />
@@ -164,7 +165,7 @@ export function ParametersPanel({ params, setParams, title = "Parameters", onRan
 
       {isVisible('directionDensity') && (
         <Slider
-          label={`Direction Density: ${params.directionDensity}`}
+          label="Direction Density"
           value={params.directionDensity} min={0} max={999}
           onChange={(v) => setParams({ ...params, directionDensity: Math.round(v) })}
         />

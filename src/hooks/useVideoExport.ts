@@ -32,6 +32,7 @@ interface ExportOptions {
   logoConfig?: LogoOverlayConfig;
   textOverlayConfig?: TextOverlayConfig;
   imageOverlayConfig?: ImageOverlayConfig;
+  projectName?: string;
 }
 
 export const isVideoExportSupported = typeof VideoEncoder !== 'undefined';
@@ -467,7 +468,7 @@ export function useVideoExport() {
       const url = URL.createObjectURL(mp4Blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'fragment-animation.mp4';
+      link.download = opts.projectName ? `fragment-animation-${opts.projectName}.mp4` : 'fragment-animation.mp4';
       link.click();
       URL.revokeObjectURL(url);
 

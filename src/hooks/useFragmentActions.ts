@@ -43,9 +43,14 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     elongateAxis, elongateAmount,
     colorMode, multiColors, colorProportions, textColor,
     params,
+    projectName,
   } = state;
 
   const { generateSVG } = generation;
+
+  // Build filename with optional project name suffix: "base-suffix.ext"
+  const withProjectSuffix = (base: string, ext: string) =>
+    projectName ? `${base}-${projectName}.${ext}` : `${base}.${ext}`;
 
   const generateRandomParams = () => ({
     threshold: Math.round(Math.random() * 100) / 100,
@@ -146,7 +151,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'asset.svg';
+    link.download = withProjectSuffix('asset', 'svg');
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -357,7 +362,7 @@ export function useFragmentActions(state: FragmentState, generation: FragmentGen
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'fragment-settings.json';
+    link.download = withProjectSuffix('fragment-settings', 'json');
     link.click();
     URL.revokeObjectURL(url);
   };

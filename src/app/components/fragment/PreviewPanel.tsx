@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useMemo, type CSSProperties } from "react";
+import { type RefObject, useEffect, useMemo, useState, useCallback, type CSSProperties } from "react";
 import { Square, LayoutGrid, Type } from "lucide-react";
 import { CharPreviewPanel } from "./CharPreviewPanel";
 import { isTransparent } from "@/lib/colorUtils";
@@ -9,6 +9,8 @@ import { getLogoSvgById } from "@/lib/logoRegistry";
 import { resolveLogoEntryColor } from "@/lib/resolveLogoColor";
 import type { LogoOverlayConfig, TextOverlayConfig, TextOverlayZOrder, ImageOverlayConfig } from "./types";
 import { computeImageLayout, generateImageOverlaySvg, isImageBehindCells } from "@/implementation-files/imageOverlay";
+import { generateLogoOverlaySvg } from "@/implementation-files/logoOverlay";
+import { generateTextOverlaySvg } from "@/implementation-files/textOverlay";
 
 function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { logoConfig: LogoOverlayConfig; foregroundColor: string; colorMode: string; multiColors: string[] }) {
   if (!logoConfig.enabled || logoConfig.entries.length === 0) return null;
@@ -135,6 +137,7 @@ export function PreviewPanel({
     params, canvasWidth, canvasHeight,
     debounced,
     fromStateType, toStateType,
+    projectName, setProjectName,
   } = state;
 
   // Grid view is disabled when any state type is 'text'
@@ -179,10 +182,117 @@ export function PreviewPanel({
     return toSvg.slice(0, insertPos) + imageSvgMarkup + toSvg.slice(insertPos);
   }, [generation.toStateSvg, imageConfig, imageBehind, canvasWidth, canvasHeight]);
 
+  // --- Grid overlay injection ---
+  // Build SVG overlay markup to inject into each grid item SVG
+  const gridOverlayMarkup = useMemo(() => {
+    const cw = debounced.canvasWidth;
+    const ch = debounced.canvasHeight;
+
+    // Resolve logo entry colors
+    const resolvedLogoConfig = state.logoConfig.enabled && state.logoConfig.entries.length > 0
+      ? {
+          enabled: true as const,
+          entries: state.logoConfig.entries.map(entry => ({
+            logoId: entry.logoId,
+            x: entry.x,
+            y: entry.y,
+            size: entry.size,
+            color: resolveLogoEntryColor(entry, state.colorMode, state.multiColors, state.displayForeground) ?? entry.color,
+          })),
+        }
+      : { enabled: false as const, entries: [] as { logoId: typeof state.logoConfig.entries[0]['logoId']; x: number; y: number; size: number; color: string }[] };
+
+    const logoSvg = generateLogoOverlaySvg(resolvedLogoConfig, cw, ch);
+    const textAboveSvg = generateTextOverlaySvg(state.textOverlayConfig, cw, ch, 'above');
+    const textBehindSvg = generateTextOverlaySvg(state.textOverlayConfig, cw, ch, 'behind');
+    const imgSvg = generateImageOverlaySvg(state.imageOverlayConfig, cw, ch);
+    const imgBehind = isImageBehindCells(state.imageOverlayConfig.overlayLayerOrder);
+
+    // Build after-cells markup respecting layer order
+    const afterCells = state.imageOverlayConfig.overlayLayerOrder
+      .filter(l => l !== 'cells')
+      .map(layer => {
+        if (layer === 'image' && !imgBehind) return imgSvg;
+        if (layer === 'text') return textAboveSvg;
+        if (layer === 'logo') return logoSvg;
+        return '';
+      })
+      .join('');
+
+    const beforeCells = textBehindSvg + (imgBehind ? imgSvg : '');
+    const hasAny = !!(logoSvg || textAboveSvg || textBehindSvg || imgSvg);
+
+    return { beforeCells, afterCells, hasAny };
+  }, [state.logoConfig, state.textOverlayConfig, state.imageOverlayConfig,
+      state.colorMode, state.multiColors, state.displayForeground,
+      debounced.canvasWidth, debounced.canvasHeight]);
+
+  // Grid SVGs with overlays injected
+  const gridSvgsWithOverlays = useMemo(() => {
+    const { beforeCells, afterCells, hasAny } = gridOverlayMarkup;
+    if (!hasAny) return deferredGridSvgs;
+
+    return deferredGridSvgs.map(svg => {
+      let result = svg;
+
+      if (beforeCells) {
+        // Insert after background rect (first self-closing tag)
+        const bgRectEnd = result.indexOf('/>');
+        if (bgRectEnd !== -1) {
+          const insertPos = bgRectEnd + 2;
+          result = result.slice(0, insertPos) + beforeCells + result.slice(insertPos);
+        }
+      }
+
+      if (afterCells) {
+        const closingTag = '</svg>';
+        const idx = result.lastIndexOf(closingTag);
+        if (idx !== -1) {
+          result = result.slice(0, idx) + afterCells + result.slice(idx);
+        }
+      }
+
+      return result;
+    });
+  }, [deferredGridSvgs, gridOverlayMarkup]);
+
+  // --- Grid item click / frequency popup ---
+  const [frequencyPopup, setFrequencyPopup] = useState<{
+    frequency: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const handleGridItemClick = useCallback((frequency: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (!state.animationEnabled) {
+      state.setParams(prev => ({ ...prev, frequency }));
+      return;
+    }
+    // Animation mode: show popup
+    const rect = e.currentTarget.getBoundingClientRect();
+    setFrequencyPopup({
+      frequency,
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+    });
+  }, [state.animationEnabled, state.setParams]);
+
+  const handleSetFrequencyFrom = useCallback(() => {
+    if (!frequencyPopup) return;
+    state.setParams(prev => ({ ...prev, frequency: frequencyPopup.frequency }));
+    setFrequencyPopup(null);
+  }, [frequencyPopup, state.setParams]);
+
+  const handleSetFrequencyTo = useCallback(() => {
+    if (!frequencyPopup) return;
+    state.setToParams(prev => prev ? { ...prev, frequency: frequencyPopup.frequency } : prev);
+    setFrequencyPopup(null);
+  }, [frequencyPopup, state.setToParams]);
+
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-      {/* View Mode Toggle */}
-      <div className="p-4 pl-8">
+      {/* Header: View Mode Toggle + Project Name */}
+      <div className="p-4 pl-8 flex items-center gap-4">
         <div className="inline-flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/20 rounded-lg p-1">
           <button
             onClick={() => setViewMode('single')}
@@ -222,6 +332,13 @@ export function PreviewPanel({
             <span className="text-sm">Chars</span>
           </button>
         </div>
+        <input
+          type="text"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+          placeholder="Project title"
+          className="bg-transparent border-b border-white/20 text-white/80 text-sm px-1 py-1 outline-none focus:border-white/50 placeholder:text-white/30 max-w-48"
+        />
       </div>
 
       {/* Canvas Area */}
@@ -347,7 +464,7 @@ export function PreviewPanel({
                   <GridSkeleton key={index} aspectRatio={debounced.canvasWidth / debounced.canvasHeight} />
                 ))
               ) : (
-                deferredGridSvgs.map((svg, index) => {
+                gridSvgsWithOverlays.map((svg, index) => {
                   const config = gridVariations[index];
 
                   return (
@@ -360,6 +477,7 @@ export function PreviewPanel({
                       paramValue={config.frequency}
                       aspectRatio={debounced.canvasWidth / debounced.canvasHeight}
                       hasTransparency={isTransparent(debounced.foreground) || isTransparent(debounced.background)}
+                      onClick={(e) => handleGridItemClick(config.frequency, e)}
                     />
                   );
                 })
@@ -369,6 +487,35 @@ export function PreviewPanel({
         )
       )}
       </div>
+
+      {/* Frequency popup for grid item clicks in animation mode */}
+      {frequencyPopup && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setFrequencyPopup(null)} />
+          <div
+            className="fixed z-50 bg-black/90 backdrop-blur-md border border-white/20 rounded-lg p-3 shadow-xl -translate-x-1/2 -translate-y-full"
+            style={{ left: frequencyPopup.x, top: frequencyPopup.y - 8 }}
+          >
+            <p className="text-white/60 text-xs mb-2 whitespace-nowrap">
+              Set frequency <span className="text-white font-medium">{frequencyPopup.frequency.toFixed(2)}</span> as:
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSetFrequencyFrom}
+                className="flex-1 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-md border border-white/20 transition-colors"
+              >
+                From
+              </button>
+              <button
+                onClick={handleSetFrequencyTo}
+                className="flex-1 px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded-md border border-white/20 transition-colors"
+              >
+                To
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
