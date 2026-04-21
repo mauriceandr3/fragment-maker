@@ -4,7 +4,15 @@ import {
   generateFragmentSvgDirect,
   generateFragmentDiffFromConfigs,
 } from "@/lib/generateFragmentSvgGrid";
-import { generateGrid as generateGridCore, gridToSvg, assignCellColors, generateCombinedTextPatternGrid, buildCompositeDiffSvg, type FragmentConfig, type CompositeDiffSide } from "@/implementation-files/generateFragmentSvg";
+import {
+  generateGrid as generateGridCore,
+  gridToSvg,
+  assignCellColors,
+  generateCombinedTextPatternGrid,
+  buildCompositeDiffSvg,
+  type FragmentConfig,
+  type CompositeDiffSide,
+} from "@/implementation-files/generateFragmentSvg";
 import { generateTextGrid, type FontData } from "@/implementation-files/generateTextGrid";
 import { FONTS } from "@/lib/bitmapFonts";
 import type { FragmentState } from "./useFragmentState";
@@ -276,6 +284,40 @@ export function useFragmentGeneration(state: FragmentState) {
     return buildCompositeDiffSvg({ from: fromSide, to: toSide, ...compositeOpts });
   }, [debounced, displayForeground, displayBackground, gridDimensions]);
 
+  /** Pattern-only snapshot for video "Randomize" export (smooth frequency sweep). */
+  const patternRandomizeVideoConfig = useMemo((): Omit<FragmentConfig, "seedParam"> | null => {
+    if (!debounced.animationEnabled || !debounced.toParams) return null;
+    if (debounced.fromStateType !== "pattern" || debounced.toStateType !== "pattern") return null;
+    const { cols, rows } = gridDimensions;
+    if (cols <= 0 || rows <= 0) return null;
+
+    return {
+      threshold: debounced.params.threshold,
+      gamma: debounced.params.gamma,
+      frequency: debounced.params.frequency,
+      contrast: debounced.params.contrast,
+      seed: debounced.params.seed,
+      directionalNeighbors: debounced.params.directionalNeighbors,
+      directionDensity: debounced.params.directionDensity,
+      fillAmount: debounced.params.fillAmount,
+      fillType: debounced.params.fillType,
+      invertFill: debounced.params.invertFill,
+      foregroundColor: displayForeground,
+      backgroundColor: displayBackground,
+      cellSize: debounced.cellSize,
+      canvasWidth: debounced.canvasWidth,
+      canvasHeight: debounced.canvasHeight,
+      allowCropping: debounced.allowCropping,
+      cropDirection: debounced.cropDirection,
+      elongateAxis: debounced.elongateAxis,
+      elongateAmount: debounced.elongateAmount,
+      colorMode: debounced.colorMode,
+      colors: debounced.colorMode !== "mono" ? debounced.multiColors : undefined,
+      colorProportions: debounced.colorProportions,
+      textColor: debounced.colorMode !== "mono" ? debounced.textColor : undefined,
+    };
+  }, [debounced, displayForeground, displayBackground, gridDimensions]);
+
   // Generate static SVG for the "to" state (used by Show End State preview)
   const toStateSvg = useMemo(() => {
     if (!debounced.animationEnabled || !debounced.toParams || !debounced.showEndState) return '';
@@ -423,6 +465,7 @@ export function useFragmentGeneration(state: FragmentState) {
     grid,
     generateSVG,
     diffSvg,
+    patternRandomizeVideoConfig,
     toStateSvg,
     gridVariations,
     gridSvgs,

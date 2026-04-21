@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 5174",
     "build": "vite build",
-    "bundle": "node scripts/bundle.mjs"
+    "bundle": "node scripts/bundle.mjs",
+    "sync-blog-presets": "node scripts/generate-blog-marketing-presets.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

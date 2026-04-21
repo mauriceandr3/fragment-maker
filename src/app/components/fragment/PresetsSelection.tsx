@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { FragmentState } from '@/hooks/useFragmentState';
 import type { FragmentActions } from '@/hooks/useFragmentActions';
-import type { GeneratorParams, StateType, LogoOverlayConfig } from './types';
+import type { StateType } from './types';
+import { applyPresetToState } from './applyPresetToState';
 import type { TextConfig } from '@/implementation-files/generateTextGrid';
-import type { CropDirection, ElongateAxis, ColorMode } from '@/implementation-files/generateFragmentSvg';
+import type { PresetConfig } from './presetConfig';
+import { BLOG_MARKETING_PRESETS } from './blogMarketingPresets';
 import { Section } from '../ui/Section';
 import { RadioSelector } from '../ui/RadioSelector';
 import { CanvasSettingsPanel } from './CanvasSettingsPanel';
@@ -12,76 +14,9 @@ import { LogoPanel } from './LogoPanel';
 import { AnimationPanel } from './AnimationPanel';
 import { ParametersPanel, randomizeUnlockedParams, type LockableParamField } from './ParametersPanel';
 import { TextConfigPanel } from './TextConfigPanel';
+import { TextOverlayPanel } from './TextOverlayPanel';
+import { ImagePanel } from './ImagePanel';
 import { StateTypeSelector } from './StateTypeSelector';
-
-/**
- * Configuration for which parts of the UI the user can customize within a preset.
- * Omitted/false = locked (hidden). true = unlocked (visible).
- * For params, provide an array of field keys to lock; unlisted fields are editable.
- */
-interface PresetCustomization {
-    /** Show the full canvas settings panel */
-    canvas?: boolean;
-    /** Show the full colors panel */
-    colors?: boolean;
-    /** Show the full logo panel */
-    logo?: boolean;
-    /** When true (with logo: true), only show the logo color picker (no position, size, or custom color). */
-    logoColorOnly?: boolean;
-    /** Show the full animation panel */
-    animation?: boolean;
-    /** Show the from/to parameter panels. When true, all fields are unlocked. */
-    parameters?: boolean;
-    /**
-     * Lock specific parameter fields within the from/to panels.
-     * Only relevant when `parameters` is true.
-     * Listed fields are hidden; unlisted fields remain editable.
-     */
-    lockedParams?: LockableParamField[];
-    /**
-     * Lock specific color fields within the colors panel.
-     * Only relevant when `colors` is true.
-     * Listed fields are hidden; unlisted fields remain editable.
-     */
-    lockedColors?: LockableColorField[];
-    /** When true, the Pattern/Text state type toggle is locked (hidden). Default: true (locked). */
-    stateTypeLocked?: boolean;
-}
-
-interface PresetConfig {
-    label: string;
-    value: string;
-    /** What the user can customize. */
-    customization: PresetCustomization;
-    // Canvas
-    canvasWidth: number;
-    canvasHeight: number;
-    cellSize: number;
-    allowCropping: boolean;
-    cropDirection: CropDirection;
-    elongateAxis?: ElongateAxis;
-    elongateAmount?: number;
-    // Colors
-    foregroundColor: string;
-    backgroundColor: string;
-    invertColors: boolean;
-    colorMode?: ColorMode;
-    multiColors?: string[];
-    colorProportions?: number[];
-    // Animation
-    animationEnabled: boolean;
-    animationDuration: number;
-    // Logo
-    logoConfig: LogoOverlayConfig;
-    // From state
-    fromStateType: StateType;
-    params: GeneratorParams;
-    fromTextConfig: TextConfig;
-    // To state (for animation)
-    toStateType: StateType;
-    toParams: GeneratorParams | null;
-    toTextConfig: TextConfig;
-}
 
 const DEFAULT_TEXT_CONFIG: TextConfig = {
     text: '',
@@ -93,7 +28,7 @@ const DEFAULT_TEXT_CONFIG: TextConfig = {
     fontResolution: 'mid',
 };
 
-const PRESETS: PresetConfig[] = [
+const CORE_PRESETS: PresetConfig[] = [
     {
         label: 'Stark',
         value: 'stark',
@@ -405,71 +340,38 @@ const PRESETS: PresetConfig[] = [
     },
 ];
 
+export const BUILTIN_PRESET_LIST: PresetConfig[] = [...CORE_PRESETS, ...BLOG_MARKETING_PRESETS];
+
 interface PresetsSelectionProps {
     state: FragmentState;
     actions: FragmentActions;
     /** Ref that will be assigned a function to clear the active preset selection */
     clearPresetRef?: React.RefObject<(() => void) | null>;
+    userPresets: PresetConfig[];
+    activePreset: string | null;
+    onActivePresetChange: (value: string | null) => void;
 }
 
-export function PresetsSelection({ state, actions, clearPresetRef }: PresetsSelectionProps) {
-    const [activePreset, setActivePreset] = useState<string | null>(null);
+export function PresetsSelection({
+    state,
+    actions,
+    clearPresetRef,
+    userPresets,
+    activePreset,
+    onActivePresetChange,
+}: PresetsSelectionProps) {
+    const PRESETS = useMemo(() => [...BUILTIN_PRESET_LIST, ...userPresets], [userPresets]);
 
     // Expose the clear function to the parent via ref
     if (clearPresetRef) {
-        clearPresetRef.current = () => setActivePreset(null);
+        clearPresetRef.current = () => onActivePresetChange(null);
     }
 
     const activePresetConfig = PRESETS.find(p => p.value === activePreset) ?? null;
 
     const applyPreset = (preset: PresetConfig) => {
-        setActivePreset(preset.value);
-
-        // Canvas settings
-        state.setCanvasWidth(preset.canvasWidth);
-        state.setCanvasHeight(preset.canvasHeight);
-        state.setCellSize(preset.cellSize);
-        state.setAllowCropping(preset.allowCropping);
-        state.setCropDirection(preset.cropDirection);
-        state.setElongateAxis(preset.elongateAxis ?? 'none');
-        state.setElongateAmount(preset.elongateAmount ?? 1);
-
-        // Colors
-        state.setForegroundColor(preset.foregroundColor);
-        state.setBackgroundColor(preset.backgroundColor);
-        state.setCustomPreset({
-            foreground: preset.foregroundColor,
-            background: preset.backgroundColor,
-        });
-        state.setInvertColors(preset.invertColors);
-        state.setColorMode(preset.colorMode ?? 'mono');
-        if (preset.multiColors) state.setMultiColors([...preset.multiColors]);
-        if (preset.colorProportions) state.setColorProportions([...preset.colorProportions]);
-
-        // Animation
-        state.setAnimationEnabled(preset.animationEnabled);
-        state.setAnimationDuration(preset.animationDuration);
-        state.setShowEndState(preset.animationEnabled);
-
-        // Logo
-        state.setLogoConfig(preset.logoConfig);
-
-        // Set zoom based on screen width
-        const defaultScale = window.innerWidth < 1920 ? 0.5 : 1;
-
-        // From state
-        state.setFromStateType(preset.fromStateType);
-        state.setParams({ ...preset.params, scale: defaultScale });
-        state.setFromTextConfig(preset.fromTextConfig);
-
-        // To state
-        state.setToStateType(preset.toStateType);
-        if (preset.animationEnabled && preset.toParams === null) {
-            state.setToParams({ ...preset.params, scale: defaultScale });
-        } else {
-            state.setToParams(preset.toParams ? { ...preset.toParams, scale: defaultScale } : null);
-        }
-        state.setToTextConfig(preset.toTextConfig);
+        onActivePresetChange(preset.value);
+        applyPresetToState(state, preset);
     };
 
     // Memoize the locked fields sets so they're stable across renders
@@ -497,6 +399,12 @@ export function PresetsSelection({ state, actions, clearPresetRef }: PresetsSele
         }
         if (c.logo) {
             panels.push(<LogoPanel key="logo" state={state} colorOnly={c.logoColorOnly} />);
+        }
+        if (c.textOverlay) {
+            panels.push(<TextOverlayPanel key="text-overlay" state={state} />);
+        }
+        if (c.image) {
+            panels.push(<ImagePanel key="image-overlay" state={state} />);
         }
         if (c.animation) {
             panels.push(
