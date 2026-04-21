@@ -11,6 +11,8 @@ import type { LogoOverlayConfig, TextOverlayConfig, TextOverlayZOrder, ImageOver
 import { computeImageLayout, generateImageOverlaySvg, isImageBehindCells } from "@/implementation-files/imageOverlay";
 import { generateLogoOverlaySvg } from "@/implementation-files/logoOverlay";
 import { generateTextOverlaySvg } from "@/implementation-files/textOverlay";
+import type { PresetConfig } from "./presetConfig";
+import { PresetSaveDock } from "./PresetSaveDock";
 
 function LogoOverlay({ logoConfig, foregroundColor, colorMode, multiColors }: { logoConfig: LogoOverlayConfig; foregroundColor: string; colorMode: string; multiColors: string[] }) {
   if (!logoConfig.enabled || logoConfig.entries.length === 0) return null;
@@ -120,6 +122,10 @@ interface PreviewPanelProps {
   animationContainerRef: RefObject<HTMLDivElement | null>;
   animationMouseEnter: () => void;
   animationMouseLeave: () => void;
+  activePreset: string | null;
+  userPresets: PresetConfig[];
+  onUserPresetsChange: (next: PresetConfig[]) => void;
+  onActivePresetChange: (value: string | null) => void;
 }
 
 export function PreviewPanel({
@@ -129,6 +135,10 @@ export function PreviewPanel({
   animationContainerRef,
   animationMouseEnter,
   animationMouseLeave,
+  activePreset,
+  userPresets,
+  onUserPresetsChange,
+  onActivePresetChange,
 }: PreviewPanelProps) {
   const {
     viewMode, setViewMode,
@@ -341,8 +351,9 @@ export function PreviewPanel({
         />
       </div>
 
-      {/* Canvas Area */}
-      <div className="flex-1 bg-[rgba(255,255,255,0.08)] flex items-center justify-center overflow-auto">
+      {/* Canvas area + save preset (scroll only the preview) */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+      <div className="flex-1 min-h-0 bg-[rgba(255,255,255,0.08)] flex items-center justify-center overflow-auto">
       {!allowCropping && validCellSizes.length === 0 && (
         <div className="w-full h-full flex items-center justify-center">
           <div className="text-center p-8 bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl">
@@ -486,6 +497,14 @@ export function PreviewPanel({
           </div>
         )
       )}
+      </div>
+      <PresetSaveDock
+        state={state}
+        activePreset={activePreset}
+        userPresets={userPresets}
+        onUserPresetsChange={onUserPresetsChange}
+        onActivePresetChange={onActivePresetChange}
+      />
       </div>
 
       {/* Frequency popup for grid item clicks in animation mode */}

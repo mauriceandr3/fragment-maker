@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState, useCallback } from "react";
 import { ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { resolveLogoEntryColor } from "@/lib/resolveLogoColor";
 import { Button } from './ui/Button';
@@ -23,6 +23,8 @@ import { TextOverlayPanel } from "./fragment/TextOverlayPanel";
 import { ImagePanel } from "./fragment/ImagePanel";
 import { RadioSelector } from './ui/RadioSelector';
 import { PresetsSelection } from './fragment/PresetsSelection';
+import type { PresetConfig } from './fragment/presetConfig';
+import { loadUserPresetsFromStorage, persistUserPresets } from '@/lib/fragmentPresetSerialize';
 
 const sidebarStyle = {
   fontFamily: 'Inter Tight, sans-serif',
@@ -35,6 +37,14 @@ export function AssetGenerator() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const animationContainerRef = useRef<HTMLDivElement>(null);
   const clearPresetRef = useRef<(() => void) | null>(null);
+
+  const [userPresets, setUserPresets] = useState<PresetConfig[]>(() => loadUserPresetsFromStorage());
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  const handleUserPresetsChange = useCallback((next: PresetConfig[]) => {
+    setUserPresets(next);
+    persistUserPresets(next);
+  }, []);
 
   const state = useFragmentState();
   const generation = useFragmentGeneration(state);
@@ -96,6 +106,10 @@ export function AssetGenerator() {
           animationContainerRef={animationContainerRef}
           animationMouseEnter={animationMouseEnter}
           animationMouseLeave={animationMouseLeave}
+          activePreset={activePreset}
+          userPresets={userPresets}
+          onUserPresetsChange={handleUserPresetsChange}
+          onActivePresetChange={setActivePreset}
         />
 
         {/* Sidebars */}
@@ -140,7 +154,14 @@ export function AssetGenerator() {
 
                 <div className='pt-4'>
                     {state.presetOrCustomMode === 'presets' ? (
-                      <PresetsSelection state={state} actions={actions} clearPresetRef={clearPresetRef} />
+                      <PresetsSelection
+                        state={state}
+                        actions={actions}
+                        clearPresetRef={clearPresetRef}
+                        userPresets={userPresets}
+                        activePreset={activePreset}
+                        onActivePresetChange={setActivePreset}
+                      />
                     ) : (
                       <>
                         <CanvasSettingsPanel state={state} />
@@ -293,6 +314,7 @@ export function AssetGenerator() {
                 <VideoExportPanel
                   videoExport={videoExport}
                   diffSvg={generation.diffSvg}
+                  patternRandomizeVideoConfig={generation.patternRandomizeVideoConfig}
                   canvasWidth={state.canvasWidth}
                   canvasHeight={state.canvasHeight}
                   animationDuration={state.debounced.animationDuration}

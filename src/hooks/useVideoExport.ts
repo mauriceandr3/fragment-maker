@@ -9,6 +9,14 @@ import {
 import { getLogoSvgDataUrlById, LOGO_DEFINITIONS } from '@/lib/logoRegistry';
 import type { LogoOverlayConfig, TextOverlayConfig, ImageOverlayConfig } from '@/app/components/fragment/types';
 import { computeImageLayout, isImageBehindCells } from '@/implementation-files/imageOverlay';
+import {
+  generateFragmentSvgDirect,
+  generateFragmentDiffFromConfigs,
+  PARAM_RANGES,
+  type FragmentConfig,
+  type FillType,
+  type SeedableParam,
+} from '@/implementation-files/generateFragmentSvg';
 
 type ExportStatus = 'idle' | 'preparing' | 'recording' | 'finalizing' | 'error';
 
@@ -22,8 +30,9 @@ interface ExportOptions {
   diffSvg: string;
   canvasWidth: number;
   canvasHeight: number;
+  /** Hover animation duration (one-way / loop). */
   durationMs: number;
-  mode: 'one-way' | 'loop';
+  mode: 'one-way' | 'loop' | 'randomize';
   startHoldMs: number;
   middleHoldMs: number; // only used in loop mode
   endHoldMs: number;
@@ -33,6 +42,8 @@ interface ExportOptions {
   textOverlayConfig?: TextOverlayConfig;
   imageOverlayConfig?: ImageOverlayConfig;
   projectName?: string;
+  /** Current From pattern (pattern–pattern); Randomize chains hover-style diffs from here. */
+  randomizeFromConfig?: Omit<FragmentConfig, 'seedParam'>;
 }
 
 export const isVideoExportSupported = typeof VideoEncoder !== 'undefined';
@@ -84,6 +95,139 @@ function applyWaveOpacity(
   for (const cell of bCells) {
     cell.rectElement.style.opacity = cell.waveGroup <= bCurrentWave ? '1' : '0';
   }
+}
+
+const RANDOMIZE_CHAIN_TRANSITION_MS = 2000;
+const RANDOMIZE_CHAIN_PAUSE_MS = 1000;
+const RANDOMIZE_CHAIN_BRANCHES = 5;
+
+const RANDOMIZE_FILL_TYPES: FillType[] = [
+  'linear',
+  'linearHorizontal',
+  'radial',
+  'angular',
+  'diamond',
+  'square',
+  'box',
+];
+
+function randomInParamRange(param: SeedableParam): number {
+  const { min, max, step } = PARAM_RANGES[param];
+  if (max <= min) return min;
+  const raw = min + Math.random() * (max - min);
+  if (step >= 1) {
+    return Math.min(max, Math.max(min, Math.round(raw)));
+  }
+  const rounded = Math.round(raw / step) * step;
+  return Math.min(max, Math.max(min, rounded));
+}
+
+function randomPatternSnapshot(base: Omit<FragmentConfig, 'seedParam'>): Omit<FragmentConfig, 'seedParam'> {
+  return {
+    ...base,
+    threshold: randomInParamRange('threshold'),
+    gamma: randomInParamRange('gamma'),
+    frequency: randomInParamRange('frequency'),
+    contrast: randomInParamRange('contrast'),
+    seed: Math.round(Math.random() * 10000) / 10000,
+    directionalNeighbors: randomInParamRange('directionalNeighbors'),
+    directionDensity: randomInParamRange('directionDensity'),
+    fillAmount: base.fillAmount,
+    fillType: RANDOMIZE_FILL_TYPES[Math.floor(Math.random() * RANDOMIZE_FILL_TYPES.length)]!,
+    invertFill: Math.random() < 0.5,
+  };
+}
+
+function differsEnough(
+  a: Omit<FragmentConfig, 'seedParam'>,
+  b: Omit<FragmentConfig, 'seedParam'>,
+): boolean {
+  return (
+    a.threshold !== b.threshold ||
+    a.gamma !== b.gamma ||
+    a.frequency !== b.frequency ||
+    a.contrast !== b.contrast ||
+    a.seed !== b.seed ||
+    a.directionalNeighbors !== b.directionalNeighbors ||
+    a.directionDensity !== b.directionDensity ||
+    a.fillType !== b.fillType ||
+    a.invertFill !== b.invertFill
+  );
+}
+
+/** Random snapshot; retries so it is unlikely to match `prev` on every field (empty diff). */
+function randomPatternAfter(
+  base: Omit<FragmentConfig, 'seedParam'>,
+  prev: Omit<FragmentConfig, 'seedParam'>,
+): Omit<FragmentConfig, 'seedParam'> {
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const c = randomPatternSnapshot(base);
+    if (differsEnough(c, prev)) return c;
+  }
+  const bump = randomPatternSnapshot(base);
+  return { ...bump, seed: (prev.seed + 0.314159) % 1 };
+}
+
+type RandomizeVideoSegment =
+  | {
+      kind: 'transition';
+      fromConfig: Omit<FragmentConfig, 'seedParam'>;
+      toConfig: Omit<FragmentConfig, 'seedParam'>;
+      startFrame: number;
+      frameCount: number;
+    }
+  | {
+      kind: 'pause';
+      config: Omit<FragmentConfig, 'seedParam'>;
+      startFrame: number;
+      frameCount: number;
+    };
+
+function makeRandomizeVideoPlan(
+  base: Omit<FragmentConfig, 'seedParam'>,
+  fps: 30 | 60,
+): { segments: RandomizeVideoSegment[]; totalFrames: number } {
+  const transFrames = Math.max(1, Math.ceil(RANDOMIZE_CHAIN_TRANSITION_MS / (1000 / fps)));
+  const pauseFrames = Math.max(1, Math.ceil(RANDOMIZE_CHAIN_PAUSE_MS / (1000 / fps)));
+  const randomStates: Omit<FragmentConfig, 'seedParam'>[] = [];
+  let prevForRandom = base;
+  for (let i = 0; i < RANDOMIZE_CHAIN_BRANCHES; i++) {
+    const next = randomPatternAfter(base, prevForRandom);
+    randomStates.push(next);
+    prevForRandom = next;
+  }
+  const segments: RandomizeVideoSegment[] = [];
+  let startFrame = 0;
+  let prev = base;
+  for (let i = 0; i < randomStates.length; i++) {
+    const next = randomStates[i]!;
+    segments.push({
+      kind: 'transition',
+      fromConfig: prev,
+      toConfig: next,
+      startFrame,
+      frameCount: transFrames,
+    });
+    startFrame += transFrames;
+    segments.push({
+      kind: 'pause',
+      config: next,
+      startFrame,
+      frameCount: pauseFrames,
+    });
+    startFrame += pauseFrames;
+    prev = next;
+  }
+  return { segments, totalFrames: startFrame };
+}
+
+function segmentAtFrame(segments: RandomizeVideoSegment[], frame: number): RandomizeVideoSegment {
+  for (const seg of segments) {
+    if (frame >= seg.startFrame && frame < seg.startFrame + seg.frameCount) {
+      return seg;
+    }
+  }
+  return segments[segments.length - 1]!;
 }
 
 /** Compute BFS wave data for the given offscreen SVG, mirroring useFragmentReveal's ensureRects. */
@@ -233,20 +377,32 @@ export function useVideoExport() {
       resolutionScale, fps,
     } = opts;
 
+    const isRandomize = mode === 'randomize';
+
     if (!isVideoExportSupported) {
       setState({ status: 'error', progress: 0, error: 'VideoEncoder not supported in this browser.' });
+      return;
+    }
+
+    if (isRandomize && !opts.randomizeFromConfig) {
+      setState({ status: 'error', progress: 0, error: 'Randomize mode needs pattern settings.' });
       return;
     }
 
     cancelledRef.current = false;
     setState({ status: 'preparing', progress: 0, error: null });
 
+    let randomizedChainPlan: { segments: RandomizeVideoSegment[]; totalFrames: number } | null = null;
+    if (isRandomize) {
+      randomizedChainPlan = makeRandomizeVideoPlan(opts.randomizeFromConfig!, fps);
+    }
+
     // Offscreen container for SVG manipulation (must be in DOM for querySelectorAll)
     const svgContainer = document.createElement('div');
     svgContainer.style.position = 'fixed';
     svgContainer.style.left = '-99999px';
     svgContainer.style.top = '0';
-    svgContainer.innerHTML = diffSvg;
+    svgContainer.innerHTML = isRandomize ? '' : diffSvg;
     document.body.appendChild(svgContainer);
 
     // Scale canvas dimensions
@@ -266,17 +422,23 @@ export function useVideoExport() {
     document.body.appendChild(canvas);
 
     try {
-      const svg = svgContainer.querySelector('svg') as SVGSVGElement | null;
-      if (!svg) throw new Error('No SVG found in diff output.');
+      let svg: SVGSVGElement | null = svgContainer.querySelector('svg');
+      let aCellsOrdered: CellWithDistance[] = [];
+      let bCellsOrdered: CellWithDistance[] = [];
+      let aMaxWave = 0;
+      let bMaxWave = 0;
 
-      // Ensure SVG has explicit dimensions for Image rasterization
-      svg.setAttribute('width', String(encW));
-      svg.setAttribute('height', String(encH));
-
-      const waveData = computeWaveData(svg);
-      if (!waveData) throw new Error('No animation cells found in SVG.');
-
-      const { aCellsOrdered, bCellsOrdered, aMaxWave, bMaxWave } = waveData;
+      if (!isRandomize) {
+        if (!svg) throw new Error('No SVG found in diff output.');
+        svg.setAttribute('width', String(encW));
+        svg.setAttribute('height', String(encH));
+        const waveData = computeWaveData(svg);
+        if (!waveData) throw new Error('No animation cells found in SVG.');
+        aCellsOrdered = waveData.aCellsOrdered;
+        bCellsOrdered = waveData.bCellsOrdered;
+        aMaxWave = waveData.aMaxWave;
+        bMaxWave = waveData.bMaxWave;
+      }
 
       // Pre-load image overlay if enabled (must happen before needsManualBackground check)
       let imageOverlayImg: HTMLImageElement | null = null;
@@ -316,9 +478,10 @@ export function useVideoExport() {
         opts.textOverlayConfig.entries.some(e => e.zOrder === 'behind' && e.content.trim());
       const needsManualBackground = hasBehindText || imageBehind;
       let svgBgColor = '';
-      if (needsManualBackground) {
-        const firstRect = svg.querySelector('rect');
-        const viewBox = svg.getAttribute('viewBox')?.split(' ') || [];
+      const stripBackgroundRectIfNeeded = (el: SVGSVGElement) => {
+        if (!needsManualBackground) return;
+        const firstRect = el.querySelector('rect');
+        const viewBox = el.getAttribute('viewBox')?.split(' ') || [];
         const vbW = viewBox[2] || '';
         const vbH = viewBox[3] || '';
         const bgRect = firstRect &&
@@ -328,9 +491,13 @@ export function useVideoExport() {
           firstRect.getAttribute('height') === vbH
           ? firstRect : null;
         if (bgRect) {
-          svgBgColor = bgRect.getAttribute('fill') || '#000000';
+          if (!svgBgColor) svgBgColor = bgRect.getAttribute('fill') || '#000000';
           bgRect.remove();
         }
+      };
+
+      if (!isRandomize && svg) {
+        stripBackgroundRectIfNeeded(svg);
       }
 
       // Pre-load logo images if enabled
@@ -358,14 +525,23 @@ export function useVideoExport() {
 
       // Frame schedule
       const frameDuration = 1 / fps;
-      const animFrames = Math.ceil(durationMs / (1000 / fps));
-      const startHoldFrames = Math.ceil(startHoldMs / (1000 / fps));
-      const middleHoldFrames = Math.ceil(middleHoldMs / (1000 / fps));
-      const endHoldFrames = Math.ceil(endHoldMs / (1000 / fps));
+      let totalFrames: number;
+      let animFrames = 0;
+      let startHoldFrames = 0;
+      let middleHoldFrames = 0;
+      let endHoldFrames = 0;
 
-      const totalFrames = mode === 'loop'
-        ? startHoldFrames + animFrames + middleHoldFrames + animFrames + endHoldFrames
-        : startHoldFrames + animFrames + endHoldFrames;
+      if (isRandomize && randomizedChainPlan) {
+        totalFrames = Math.max(1, randomizedChainPlan.totalFrames);
+      } else {
+        animFrames = Math.ceil(durationMs / (1000 / fps));
+        startHoldFrames = Math.ceil(startHoldMs / (1000 / fps));
+        middleHoldFrames = Math.ceil(middleHoldMs / (1000 / fps));
+        endHoldFrames = Math.ceil(endHoldMs / (1000 / fps));
+        totalFrames = mode === 'loop'
+          ? startHoldFrames + animFrames + middleHoldFrames + animFrames + endHoldFrames
+          : startHoldFrames + animFrames + endHoldFrames;
+      }
 
       // Set up Mediabunny output
       const bufferTarget = new BufferTarget();
@@ -389,19 +565,84 @@ export function useVideoExport() {
 
       setState({ status: 'recording', progress: 0, error: null });
 
+      const playbackMode: 'one-way' | 'loop' = mode === 'loop' ? 'loop' : 'one-way';
+
+      let randomizeSegmentKey: string | null = null;
+      let randomizeWave: {
+        aCellsOrdered: CellWithDistance[];
+        bCellsOrdered: CellWithDistance[];
+        aMaxWave: number;
+        bMaxWave: number;
+      } | null = null;
+
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelledRef.current) break;
 
-        // Calculate progress for this frame
-        const effectiveProgress = calculateProgressForFrame(
-          frame, animFrames, startHoldFrames, middleHoldFrames, mode,
-        );
+        let svgToSerialize: SVGSVGElement;
 
-        // Apply wave opacity to offscreen SVG
-        applyWaveOpacity(aCellsOrdered, bCellsOrdered, effectiveProgress, aMaxWave, bMaxWave);
+        if (isRandomize && randomizedChainPlan) {
+          const seg = segmentAtFrame(randomizedChainPlan.segments, frame);
+          const segKey = `${seg.kind}-${seg.startFrame}`;
+          if (segKey !== randomizeSegmentKey) {
+            randomizeSegmentKey = segKey;
+            if (seg.kind === 'transition') {
+              svgContainer.innerHTML = generateFragmentDiffFromConfigs({
+                fromConfig: seg.fromConfig,
+                toConfig: seg.toConfig,
+              });
+              svg = svgContainer.querySelector('svg') as SVGSVGElement | null;
+              if (!svg) throw new Error('No SVG in randomize transition.');
+              svg.setAttribute('width', String(encW));
+              svg.setAttribute('height', String(encH));
+              const wd = computeWaveData(svg);
+              if (!wd) {
+                throw new Error(
+                  'Randomize: this transition has no diff cells (patterns may be identical). Try again.',
+                );
+              }
+              randomizeWave = {
+                aCellsOrdered: wd.aCellsOrdered,
+                bCellsOrdered: wd.bCellsOrdered,
+                aMaxWave: wd.aMaxWave,
+                bMaxWave: wd.bMaxWave,
+              };
+              stripBackgroundRectIfNeeded(svg);
+            } else {
+              svgContainer.innerHTML = generateFragmentSvgDirect(seg.config);
+              svg = svgContainer.querySelector('svg') as SVGSVGElement | null;
+              if (!svg) throw new Error('No SVG in randomize pause.');
+              svg.setAttribute('width', String(encW));
+              svg.setAttribute('height', String(encH));
+              randomizeWave = null;
+              stripBackgroundRectIfNeeded(svg);
+            }
+          }
+
+          if (seg.kind === 'transition' && randomizeWave) {
+            const localFrame = frame - seg.startFrame;
+            const progress =
+              seg.frameCount <= 1 ? 1 : Math.min(1, localFrame / (seg.frameCount - 1));
+            applyWaveOpacity(
+              randomizeWave.aCellsOrdered,
+              randomizeWave.bCellsOrdered,
+              progress,
+              randomizeWave.aMaxWave,
+              randomizeWave.bMaxWave,
+            );
+            svgToSerialize = svg!;
+          } else {
+            svgToSerialize = svg!;
+          }
+        } else {
+          const effectiveProgress = calculateProgressForFrame(
+            frame, animFrames, startHoldFrames, middleHoldFrames, playbackMode,
+          );
+          applyWaveOpacity(aCellsOrdered, bCellsOrdered, effectiveProgress, aMaxWave, bMaxWave);
+          svgToSerialize = svg!;
+        }
 
         // Serialize SVG → Blob URL → Image → Canvas
-        const svgString = serializer.serializeToString(svg);
+        const svgString = serializer.serializeToString(svgToSerialize);
         const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
         const blobUrl = URL.createObjectURL(blob);
 

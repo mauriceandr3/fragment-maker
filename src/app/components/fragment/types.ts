@@ -110,7 +110,7 @@ export type OverlayLayer = 'cells' | 'image' | 'text' | 'logo';
 /** Image overlay configuration. */
 export interface ImageOverlayConfig {
   enabled: boolean;
-  /** Base64-encoded PNG data URL */
+  /** Image URL: data URL (e.g. PNG from upload) or same-origin path (e.g. `/blog-presets/photo.webp`). */
   data: string;
   /** Original image dimensions (before compression) */
   originalWidth: number;

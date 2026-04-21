@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Film, X } from 'lucide-react';
 import type { useVideoExport } from '@/hooks/useVideoExport';
 import type { LogoOverlayConfig, TextOverlayConfig, ImageOverlayConfig } from './types';
+import type { FragmentConfig } from '@/implementation-files/generateFragmentSvg';
 import { Section } from '../ui/Section';
 import { Button } from '../ui/Button';
 import { RadioSelector } from '../ui/RadioSelector';
@@ -11,6 +12,8 @@ type VideoExport = ReturnType<typeof useVideoExport>;
 interface VideoExportPanelProps {
   videoExport: VideoExport;
   diffSvg?: string;
+  /** Pattern-only config for Randomize video export; null when From/To are not both pattern. */
+  patternRandomizeVideoConfig: Omit<FragmentConfig, 'seedParam'> | null;
   canvasWidth: number;
   canvasHeight: number;
   animationDuration: number;
@@ -78,6 +81,7 @@ function HoldInput({
 export function VideoExportPanel({
   videoExport,
   diffSvg,
+  patternRandomizeVideoConfig,
   canvasWidth,
   canvasHeight,
   animationDuration,
@@ -87,34 +91,45 @@ export function VideoExportPanel({
   imageOverlayConfig,
   projectName,
 }: VideoExportPanelProps) {
-  const [mode, setMode] = useState<'one-way' | 'loop'>('one-way');
+  const [mode, setMode] = useState<'one-way' | 'loop' | 'randomize'>('one-way');
   const [startHoldSeconds, setStartHoldSeconds] = useState(0.0);
   const [middleHoldSeconds, setMiddleHoldSeconds] = useState(0.5);
   const [endHoldSeconds, setEndHoldSeconds] = useState(0.5);
   const [resolutionScale, setResolutionScale] = useState<1 | 2 | 3 | 4>(1);
   const [fps, setFps] = useState<30 | 60>(60);
 
+  useEffect(() => {
+    if (mode === 'randomize' && !patternRandomizeVideoConfig) {
+      setMode('one-way');
+    }
+  }, [mode, patternRandomizeVideoConfig]);
+
   const videoStatus = videoExport.state.status;
   const isExporting = videoStatus !== 'idle' && videoStatus !== 'error';
-  const isInteractive = animationEnabled && !!diffSvg && videoExport.isSupported;
+  const canExportStandard = animationEnabled && !!diffSvg && videoExport.isSupported;
+  const canExportRandomize = animationEnabled && !!patternRandomizeVideoConfig && videoExport.isSupported;
+  const isInteractive = mode === 'randomize' ? canExportRandomize : canExportStandard;
 
   const handleExportVideo = () => {
     if (!isInteractive) return;
     videoExport.startExport({
-      diffSvg: diffSvg!,
+      diffSvg: diffSvg ?? '',
       canvasWidth,
       canvasHeight,
       durationMs: animationDuration,
       mode,
-      startHoldMs: Math.round(startHoldSeconds * 1000),
-      middleHoldMs: Math.round(middleHoldSeconds * 1000),
-      endHoldMs: Math.round(endHoldSeconds * 1000),
+      startHoldMs: mode === 'randomize' ? 0 : Math.round(startHoldSeconds * 1000),
+      middleHoldMs: mode === 'randomize' ? 0 : Math.round(middleHoldSeconds * 1000),
+      endHoldMs: mode === 'randomize' ? 0 : Math.round(endHoldSeconds * 1000),
       resolutionScale,
       fps,
       logoConfig,
       textOverlayConfig,
       imageOverlayConfig,
       projectName,
+      randomizeFromConfig: mode === 'randomize' && patternRandomizeVideoConfig
+        ? patternRandomizeVideoConfig
+        : undefined,
     });
   };
 
@@ -139,18 +154,32 @@ export function VideoExportPanel({
             options={[
               { label: 'One-way', value: 'one-way' },
               { label: 'Loop', value: 'loop' },
+              {
+                label: 'Randomize',
+                value: 'randomize',
+                locked: !patternRandomizeVideoConfig,
+              },
             ]}
             value={mode}
-            onChange={setMode}
+            onChange={(v) => {
+              setMode(v as 'one-way' | 'loop' | 'randomize');
+            }}
           />
           <p className="text-xs text-white/40 mt-1">
-            {mode === 'one-way'
-              ? 'Animates to end state and stops'
-              : 'Animates forward then reverses (pingpong)'}
+            {mode === 'one-way' && 'Animates to end state and stops'}
+            {mode === 'loop' && 'Animates forward then reverses (pingpong)'}
+            {mode === 'randomize' &&
+              'Five random pattern snapshots (fill amount fixed). Hover-style wave between each: 2 s transition, 1 s hold — about 15 s total.'}
+            {mode === 'randomize' && !patternRandomizeVideoConfig && (
+              <span className="block text-amber-400/90 mt-1">
+                Randomize needs both From and To set to Pattern.
+              </span>
+            )}
           </p>
         </div>
 
         {/* Hold settings */}
+        {mode !== 'randomize' && (
         <div className="space-y-3 mb-4">
           <HoldInput
             label="Start Hold (s)"
@@ -172,6 +201,7 @@ export function VideoExportPanel({
             onChange={setEndHoldSeconds}
           />
         </div>
+        )}
 
         {/* Resolution */}
         <div className="mb-4">
