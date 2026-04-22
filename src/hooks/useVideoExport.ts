@@ -14,7 +14,6 @@ import {
   generateFragmentDiffFromConfigs,
   PARAM_RANGES,
   type FragmentConfig,
-  type FillType,
   type SeedableParam,
 } from '@/implementation-files/generateFragmentSvg';
 
@@ -100,16 +99,22 @@ function applyWaveOpacity(
 const RANDOMIZE_CHAIN_TRANSITION_MS = 2000;
 const RANDOMIZE_CHAIN_PAUSE_MS = 1000;
 const RANDOMIZE_CHAIN_BRANCHES = 5;
+const RANDOMIZE_FILL_AMOUNT_MIN = 15;
+const RANDOMIZE_FILL_AMOUNT_MAX = 50;
 
-const RANDOMIZE_FILL_TYPES: FillType[] = [
-  'linear',
-  'linearHorizontal',
-  'radial',
-  'angular',
-  'diamond',
-  'square',
-  'box',
-];
+function randomFillAmountForRandomize(): number {
+  return (
+    RANDOMIZE_FILL_AMOUNT_MIN +
+    Math.floor(Math.random() * (RANDOMIZE_FILL_AMOUNT_MAX - RANDOMIZE_FILL_AMOUNT_MIN + 1))
+  );
+}
+
+function clampFillAmountForRandomize(n: number): number {
+  return Math.min(
+    RANDOMIZE_FILL_AMOUNT_MAX,
+    Math.max(RANDOMIZE_FILL_AMOUNT_MIN, Math.round(n)),
+  );
+}
 
 function randomInParamRange(param: SeedableParam): number {
   const { min, max, step } = PARAM_RANGES[param];
@@ -122,50 +127,43 @@ function randomInParamRange(param: SeedableParam): number {
   return Math.min(max, Math.max(min, rounded));
 }
 
+/**
+ * Varies only the controls labeled "Density" (threshold) and "Fill amount" in the UI;
+ * all other pattern fields stay the same as `base`.
+ */
 function randomPatternSnapshot(base: Omit<FragmentConfig, 'seedParam'>): Omit<FragmentConfig, 'seedParam'> {
   return {
     ...base,
     threshold: randomInParamRange('threshold'),
-    gamma: randomInParamRange('gamma'),
-    frequency: randomInParamRange('frequency'),
-    contrast: randomInParamRange('contrast'),
-    seed: Math.round(Math.random() * 10000) / 10000,
-    directionalNeighbors: randomInParamRange('directionalNeighbors'),
-    directionDensity: randomInParamRange('directionDensity'),
-    fillAmount: base.fillAmount,
-    fillType: RANDOMIZE_FILL_TYPES[Math.floor(Math.random() * RANDOMIZE_FILL_TYPES.length)]!,
-    invertFill: Math.random() < 0.5,
+    fillAmount: randomFillAmountForRandomize(),
   };
 }
 
-function differsEnough(
+function differsInDensityOrFill(
   a: Omit<FragmentConfig, 'seedParam'>,
   b: Omit<FragmentConfig, 'seedParam'>,
 ): boolean {
-  return (
-    a.threshold !== b.threshold ||
-    a.gamma !== b.gamma ||
-    a.frequency !== b.frequency ||
-    a.contrast !== b.contrast ||
-    a.seed !== b.seed ||
-    a.directionalNeighbors !== b.directionalNeighbors ||
-    a.directionDensity !== b.directionDensity ||
-    a.fillType !== b.fillType ||
-    a.invertFill !== b.invertFill
-  );
+  return a.threshold !== b.threshold || a.fillAmount !== b.fillAmount;
 }
 
-/** Random snapshot; retries so it is unlikely to match `prev` on every field (empty diff). */
+/** Retries so consecutive configs differ in density or fill (avoids empty diff SVGs). */
 function randomPatternAfter(
   base: Omit<FragmentConfig, 'seedParam'>,
   prev: Omit<FragmentConfig, 'seedParam'>,
 ): Omit<FragmentConfig, 'seedParam'> {
-  for (let attempt = 0; attempt < 16; attempt++) {
+  for (let attempt = 0; attempt < 24; attempt++) {
     const c = randomPatternSnapshot(base);
-    if (differsEnough(c, prev)) return c;
+    if (differsInDensityOrFill(c, prev)) return c;
   }
-  const bump = randomPatternSnapshot(base);
-  return { ...bump, seed: (prev.seed + 0.314159) % 1 };
+  const nudgeT = (prev.threshold + 0.13) % 1.0001;
+  const nudgedFill = clampFillAmountForRandomize(
+    prev.fillAmount + (prev.fillAmount < 33 ? 7 : -7),
+  );
+  return {
+    ...base,
+    threshold: nudgeT === prev.threshold ? Math.min(1, prev.threshold + 0.05) : nudgeT,
+    fillAmount: nudgedFill === prev.fillAmount ? RANDOMIZE_FILL_AMOUNT_MAX : nudgedFill,
+  };
 }
 
 type RandomizeVideoSegment =
@@ -218,6 +216,22 @@ function makeRandomizeVideoPlan(
     startFrame += pauseFrames;
     prev = next;
   }
+  // Back to the starting config so the last frame matches the first (loopable).
+  segments.push({
+    kind: 'transition',
+    fromConfig: prev,
+    toConfig: base,
+    startFrame,
+    frameCount: transFrames,
+  });
+  startFrame += transFrames;
+  segments.push({
+    kind: 'pause',
+    config: base,
+    startFrame,
+    frameCount: pauseFrames,
+  });
+  startFrame += pauseFrames;
   return { segments, totalFrames: startFrame };
 }
 

@@ -387,6 +387,11 @@ export function PresetsSelection({
 
     const hasCustomization = activePresetConfig && Object.values(activePresetConfig.customization).some(Boolean);
 
+    const defaultTextColor = useMemo(
+        () => (state.colorMode === 'mono' ? state.displayForeground : state.textColor),
+        [state.colorMode, state.displayForeground, state.textColor]
+    );
+
     const renderUnlockedPanels = (preset: PresetConfig) => {
         const { customization: c } = preset;
         const panels: React.ReactNode[] = [];
@@ -450,6 +455,7 @@ export function PresetsSelection({
                             onPatternParamsChange={state.setFromTextPatternParams}
                             onRandomizePattern={actions.randomizeFromTextPatternParams}
                             headerExtra={stateTypeSelector(state.fromStateType, state.setFromStateType)}
+                            defaultTextColor={defaultTextColor}
                         />
                     );
                 }
@@ -480,6 +486,7 @@ export function PresetsSelection({
                             onPatternParamsChange={state.setToTextPatternParams}
                             onRandomizePattern={actions.randomizeToTextPatternParams}
                             headerExtra={stateTypeSelector(state.toStateType, state.setToStateType)}
+                            defaultTextColor={defaultTextColor}
                         />
                     );
                 }
@@ -511,6 +518,7 @@ export function PresetsSelection({
                             onPatternParamsChange={state.setFromTextPatternParams}
                             onRandomizePattern={actions.randomizeFromTextPatternParams}
                             headerExtra={stateTypeSelector(state.fromStateType, state.setFromStateType)}
+                            defaultTextColor={defaultTextColor}
                         />
                     );
                 }

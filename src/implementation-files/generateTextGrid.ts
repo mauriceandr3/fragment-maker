@@ -98,6 +98,8 @@ export interface TextConfig {
   invert: boolean;
   /** Font resolution: locks which bitmap font variant (low=3×5, mid=5×7, high=7×9) */
   fontResolution: FontResolution;
+  /** If set, bitmap text for this From/To slot uses this; otherwise global Colors (text/foreground) apply. */
+  textColor?: string;
 }
 
 export interface TextGridResult {

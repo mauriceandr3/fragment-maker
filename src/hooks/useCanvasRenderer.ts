@@ -23,6 +23,8 @@ export function useCanvasRenderer(options: {
   seed: number;
   frequency: number;
   imageOverlayConfig?: ImageOverlayConfig;
+  /** When set (mono + text grid), bitmap text uses this instead of Foreground. */
+  textSlotMonoColor?: string;
 }) {
   const {
     canvasRef, grid, gridDimensions,
@@ -31,6 +33,7 @@ export function useCanvasRenderer(options: {
     allowCropping, cropDirection, viewMode, animationEnabled,
     colorMode, multiColors, colorProportions, seed, frequency,
     imageOverlayConfig,
+    textSlotMonoColor,
   } = options;
 
   // Pre-load the image overlay as an HTMLImageElement
@@ -130,7 +133,9 @@ export function useCanvasRenderer(options: {
 
         // Resolve cell color
         let cellColor = displayForeground;
-        if (colorAssignments && multiColors.length > 0) {
+        if (isBaseLevel && textSlotMonoColor && colorMode === 'mono') {
+          cellColor = textSlotMonoColor;
+        } else if (colorAssignments && multiColors.length > 0) {
           const idx = colorAssignments[y]?.[x] ?? 0;
           cellColor = multiColors[idx] ?? displayForeground;
         }
@@ -144,5 +149,5 @@ export function useCanvasRenderer(options: {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed, frequency, imageOverlayConfig, imageLoaded]);
+  }, [canvasRef, grid, displayForeground, displayBackground, scale, cellSize, gridDimensions, canvasWidth, canvasHeight, allowCropping, cropDirection, viewMode, animationEnabled, colorMode, multiColors, colorProportions, seed, frequency, imageOverlayConfig, imageLoaded, textSlotMonoColor]);
 }

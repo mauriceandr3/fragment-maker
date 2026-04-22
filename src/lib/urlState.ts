@@ -143,6 +143,8 @@ const PARAM_KEYS = {
   toInvert: 'tin',
   fromFontResolution: 'ffr',
   toFontResolution: 'tfr',
+  fromTextColor: 'ftxc',
+  toTextColor: 'ttxc',
   showEndState: 'se',
   // Logo overlay (multi-entry)
   logoEnabled: 'le',
@@ -329,6 +331,9 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.fromWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
     addIfChanged(PARAM_KEYS.fromInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
     addIfChanged(PARAM_KEYS.fromFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
+    if (tc.textColor) {
+      params.set(PARAM_KEYS.fromTextColor, tc.textColor.replace(/^#/, ''));
+    }
   }
 
   // From text pattern overlay (only when fromStateType is 'text' and overlay enabled)
@@ -392,6 +397,9 @@ export function serializeStateToUrl(state: UrlSerializableState): string {
     addIfChanged(PARAM_KEYS.toWordWrap, tc.wordWrap ? '1' : '0', DEFAULT_TEXT_CONFIG.wordWrap ? '1' : '0');
     addIfChanged(PARAM_KEYS.toInvert, tc.invert ? '1' : '0', DEFAULT_TEXT_CONFIG.invert ? '1' : '0');
     addIfChanged(PARAM_KEYS.toFontResolution, tc.fontResolution, DEFAULT_TEXT_CONFIG.fontResolution);
+    if (tc.textColor) {
+      params.set(PARAM_KEYS.toTextColor, tc.textColor.replace(/^#/, ''));
+    }
   }
 
   // To text pattern overlay (only when toStateType is 'text' and overlay enabled)
@@ -605,6 +613,8 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     const fromResolution = (ffr === 'low' || ffr === 'mid' || ffr === 'high') ? ffr : DEFAULT_TEXT_CONFIG.fontResolution;
     const fromFontHeight = RESOLUTION_MIN_HEIGHT[fromResolution];
     const fromScale = Math.max(1, Math.round((fch ?? DEFAULT_TEXT_CONFIG.charHeight) / fromFontHeight));
+    const ftxc = sp.get(PARAM_KEYS.fromTextColor);
+    const fromTextColor = ftxc && /^[0-9A-Fa-f]{6}$/.test(ftxc) ? `#${ftxc}` : undefined;
     result.fromTextConfig = {
       text: ftxt ? ftxt.slice(0, 500) : '',
       charHeight: fromFontHeight * fromScale,
@@ -613,6 +623,7 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       wordWrap: fww ?? DEFAULT_TEXT_CONFIG.wordWrap,
       invert: fin ?? DEFAULT_TEXT_CONFIG.invert,
       fontResolution: fromResolution,
+      textColor: fromTextColor,
     };
   }
 
@@ -631,6 +642,8 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
     const toResolution = (tfr === 'low' || tfr === 'mid' || tfr === 'high') ? tfr : DEFAULT_TEXT_CONFIG.fontResolution;
     const toFontHeight = RESOLUTION_MIN_HEIGHT[toResolution];
     const toScale = Math.max(1, Math.round((tch ?? DEFAULT_TEXT_CONFIG.charHeight) / toFontHeight));
+    const ttxc = sp.get(PARAM_KEYS.toTextColor);
+    const toTextColor = ttxc && /^[0-9A-Fa-f]{6}$/.test(ttxc) ? `#${ttxc}` : undefined;
     result.toTextConfig = {
       text: ttxt ? ttxt.slice(0, 500) : '',
       charHeight: toFontHeight * toScale,
@@ -639,6 +652,7 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
       wordWrap: tww ?? DEFAULT_TEXT_CONFIG.wordWrap,
       invert: tin ?? DEFAULT_TEXT_CONFIG.invert,
       fontResolution: toResolution,
+      textColor: toTextColor,
     };
   }
 

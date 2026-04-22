@@ -8,6 +8,9 @@ import { ButtonGroup } from "../ui/ButtonGroup";
 import { Checkbox } from "../ui/Checkbox";
 import { Section } from '../ui/Section';
 import { ParametersPanel } from "./ParametersPanel";
+import { ColorInput } from '../ui/ColorInput';
+import { Button } from '../ui/Button';
+import { getColorRgb } from '@/lib/colorUtils';
 
 const fonts: FontData = FONTS;
 
@@ -23,11 +26,13 @@ interface TextConfigPanelProps {
   onPatternParamsChange?: (params: GeneratorParams) => void;
   onRandomizePattern?: () => void;
   headerExtra?: React.ReactNode;
+  /** Global text color: mono → foreground, multi → Text in Colors. Used when this slot has no override. */
+  defaultTextColor: string;
 }
 
 const MAX_TEXT_LENGTH = 500;
 
-export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows, patternEnabled, onPatternEnabledChange, patternParams, onPatternParamsChange, onRandomizePattern, headerExtra }: TextConfigPanelProps) {
+export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows, patternEnabled, onPatternEnabledChange, patternParams, onPatternParamsChange, onRandomizePattern, headerExtra, defaultTextColor }: TextConfigPanelProps) {
   const handleTextChange = (text: string) => {
     const limitedText = text.slice(0, MAX_TEXT_LENGTH);
     setConfig({ ...config, text: limitedText });
@@ -35,6 +40,17 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows,
 
   const fontHeight = RESOLUTION_MIN_HEIGHT[config.fontResolution];
   const maxCharHeight = fontHeight * Math.max(1, Math.floor(rows / fontHeight));
+
+  const resolvedSlotColor = config.textColor ?? defaultTextColor;
+  const setTextColorOverride = (raw: string) => {
+    const c = getColorRgb(raw);
+    const d = getColorRgb(defaultTextColor);
+    if (raw.length >= 7 && c.toUpperCase() === d.toUpperCase()) {
+      setConfig({ ...config, textColor: undefined });
+      return;
+    }
+    setConfig({ ...config, textColor: raw });
+  };
 
   const validation = useMemo(() => {
     const result = generateTextGrid(config, cols, rows, fonts);
@@ -135,6 +151,31 @@ export function TextConfigPanel({ config, setConfig, title = "Text", cols, rows,
         checked={config.invert}
         onChange={(checked) => setConfig({ ...config, invert: checked })}
       />
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm text-white/60">Text color</label>
+          {config.textColor !== undefined && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfig({ ...config, textColor: undefined })}
+            >
+              Use default
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-white/40 mb-2">
+          Override the Colors value for this {title} state (bitmap text). Leave as default to follow Foreground or Text in Colors.
+        </p>
+        <ColorInput
+          value={getColorRgb(resolvedSlotColor)}
+          displayValue={resolvedSlotColor}
+          onColorChange={setTextColorOverride}
+          onTextChange={setTextColorOverride}
+        />
+      </div>
 
       {/* Pattern Overlay */}
       {onPatternEnabledChange && (

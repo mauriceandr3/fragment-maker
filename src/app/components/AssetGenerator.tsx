@@ -47,6 +47,16 @@ export function AssetGenerator() {
   }, []);
 
   const state = useFragmentState();
+  const defaultTextColor = useMemo(
+    () => (state.colorMode === 'mono' ? state.displayForeground : state.textColor),
+    [state.colorMode, state.displayForeground, state.textColor]
+  );
+  const textSlotMonoColor = useMemo(() => {
+    if (state.fromStateType !== 'text' || state.colorMode !== 'mono' || !state.fromTextConfig.textColor) {
+      return undefined;
+    }
+    return state.fromTextConfig.textColor;
+  }, [state.fromStateType, state.colorMode, state.fromTextConfig.textColor]);
   const generation = useFragmentGeneration(state);
   const actions = useFragmentActions(state, generation);
   const videoExport = useVideoExport();
@@ -73,6 +83,7 @@ export function AssetGenerator() {
     seed: state.params.seed,
     frequency: state.params.frequency,
     imageOverlayConfig: state.imageOverlayConfig,
+    textSlotMonoColor,
   });
 
   const { onMouseEnter: animationMouseEnter, onMouseLeave: animationMouseLeave } =
@@ -195,6 +206,7 @@ export function AssetGenerator() {
                                 onPatternParamsChange={state.setFromTextPatternParams}
                                 onRandomizePattern={actions.randomizeFromTextPatternParams}
                                 headerExtra={<StateTypeSelector value={state.fromStateType} onChange={state.setFromStateType} />}
+                                defaultTextColor={defaultTextColor}
                               />
                             )}
                             {state.toStateType === 'pattern' ? (
@@ -218,6 +230,7 @@ export function AssetGenerator() {
                                 onPatternParamsChange={state.setToTextPatternParams}
                                 onRandomizePattern={actions.randomizeToTextPatternParams}
                                 headerExtra={<StateTypeSelector value={state.toStateType} onChange={state.setToStateType} />}
+                                defaultTextColor={defaultTextColor}
                               />
                             )}
                           </div>
@@ -243,6 +256,7 @@ export function AssetGenerator() {
                               onPatternParamsChange={state.setFromTextPatternParams}
                               onRandomizePattern={actions.randomizeFromTextPatternParams}
                               headerExtra={<StateTypeSelector value={state.fromStateType} onChange={state.setFromStateType} />}
+                              defaultTextColor={defaultTextColor}
                             />
                           )
                         )}

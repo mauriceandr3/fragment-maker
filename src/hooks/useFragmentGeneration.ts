@@ -72,7 +72,10 @@ export function useFragmentGeneration(state: FragmentState) {
       if (!baseCols || !baseRows || baseCols <= 0 || baseRows <= 0) return;
       const textGrid = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts).grid;
       if (fromTextPatternEnabled) {
-        const patternConfig = buildPatternConfig(fromTextPatternParams);
+        const patternConfig: FragmentConfig = {
+          ...buildPatternConfig(fromTextPatternParams),
+          textColor: fromTextConfig.textColor ?? (colorMode !== 'mono' ? textColor : undefined),
+        };
         newGrid = generateCombinedTextPatternGrid(textGrid, patternConfig, baseCols, baseRows).grid;
       } else {
         newGrid = textGrid;
@@ -114,7 +117,10 @@ export function useFragmentGeneration(state: FragmentState) {
       const textGrid = generateTextGrid(fromTextConfig, baseCols, baseRows, fonts).grid;
 
       if (fromTextPatternEnabled) {
-        const patternConfig = buildPatternConfig(fromTextPatternParams);
+        const patternConfig: FragmentConfig = {
+          ...buildPatternConfig(fromTextPatternParams),
+          textColor: fromTextConfig.textColor ?? (colorMode !== 'mono' ? textColor : undefined),
+        };
         const { grid: combinedGrid, colorAssignments, effectiveColors } =
           generateCombinedTextPatternGrid(textGrid, patternConfig, baseCols, baseRows);
         return gridToSvg(
@@ -124,7 +130,8 @@ export function useFragmentGeneration(state: FragmentState) {
         );
       }
 
-      const effectiveTextColor = colorMode !== 'mono' ? textColor : displayForeground;
+      const effectiveTextColor =
+        fromTextConfig.textColor ?? (colorMode !== 'mono' ? textColor : displayForeground);
       return gridToSvg(
         textGrid, baseCols, baseRows, cellSize, canvasWidth,
         effectiveTextColor, displayBackground, canvasHeight,
@@ -243,7 +250,7 @@ export function useFragmentGeneration(state: FragmentState) {
       const textGrid = generateTextGrid(textConfig, baseCols, baseRows, fonts).grid;
       const side: CompositeDiffSide = {
         textGrid,
-        textColor: dTextColor ?? displayForeground,
+        textColor: textConfig.textColor ?? dTextColor ?? displayForeground,
       };
       if (patternEnabled) {
         const entityGrid = generatePatternEntityGrid(patternParams);
@@ -348,7 +355,8 @@ export function useFragmentGeneration(state: FragmentState) {
           colorMode: debounced.colorMode,
           colors: debounced.colorMode !== 'mono' ? debounced.multiColors : undefined,
           colorProportions: debounced.colorProportions,
-          textColor: debounced.colorMode !== 'mono' ? debounced.textColor : undefined,
+          textColor: debounced.toTextConfig.textColor
+            ?? (debounced.colorMode !== 'mono' ? debounced.textColor : undefined),
         };
         const { grid, colorAssignments, effectiveColors } = generateCombinedTextPatternGrid(textGrid, patternConfig, baseCols, baseRows);
         return gridToSvg(
@@ -358,7 +366,8 @@ export function useFragmentGeneration(state: FragmentState) {
         );
       }
 
-      const effectiveTextColor = debounced.colorMode !== 'mono' ? debounced.textColor : displayForeground;
+      const effectiveTextColor = debounced.toTextConfig.textColor
+        ?? (debounced.colorMode !== 'mono' ? debounced.textColor : displayForeground);
       return gridToSvg(
         textGrid, baseCols, baseRows, debounced.cellSize, debounced.canvasWidth,
         effectiveTextColor, displayBackground, debounced.canvasHeight,

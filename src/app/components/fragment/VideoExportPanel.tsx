@@ -169,7 +169,7 @@ export function VideoExportPanel({
             {mode === 'one-way' && 'Animates to end state and stops'}
             {mode === 'loop' && 'Animates forward then reverses (pingpong)'}
             {mode === 'randomize' &&
-              'Five random pattern snapshots (fill amount fixed). Hover-style wave between each: 2 s transition, 1 s hold — about 15 s total.'}
+              'Five random waypoints: only Density and Fill amount change (fill 15–50%); ends back on the From pattern (loopable). 2 s hover-style transition, 1 s hold — about 18 s total.'}
             {mode === 'randomize' && !patternRandomizeVideoConfig && (
               <span className="block text-amber-400/90 mt-1">
                 Randomize needs both From and To set to Pattern.
