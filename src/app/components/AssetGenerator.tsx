@@ -28,12 +28,14 @@ import {
   loadUserPresetsFromStorage,
   persistUserPresets,
   clearUserPresetsFromStorage,
+  isUserPresetValue,
 } from '@/lib/fragmentPresetSerialize';
 import {
   fetchCommunityPresets,
   postCommunityPresets,
   mergeUniqueByPresetValue,
 } from '@/lib/communityPresetsApi';
+import type { PresetOrCustomMode } from '@/lib/urlState';
 
 const sidebarStyle = {
   fontFamily: 'Inter Tight, sans-serif',
@@ -221,6 +223,32 @@ export function AssetGenerator() {
     };
   }, [state.logoConfig, state.colorMode, state.multiColors, state.displayForeground]);
 
+  const handleDeleteCommunityPreset = useCallback(
+    (value: string) => {
+      const next = communityPresetsRef.current.filter((p) => p.value !== value);
+      void handleCommunityPresetsChange(next);
+    },
+    [handleCommunityPresetsChange],
+  );
+
+  const handlePresetOrCustomModeChange = useCallback(
+    (mode: PresetOrCustomMode) => {
+      state.setPresetOrCustomMode(mode);
+      if (mode === 'custom') {
+        setActivePreset(null);
+        return;
+      }
+      if (mode === 'presets' && activePreset !== null && isUserPresetValue(activePreset)) {
+        setActivePreset(null);
+        return;
+      }
+      if (mode === 'community' && activePreset !== null && !isUserPresetValue(activePreset)) {
+        setActivePreset(null);
+      }
+    },
+    [state, activePreset],
+  );
+
   return (
     <div className="max-w-full mx-auto h-screen flex flex-col bg-black">
       <div className="flex-1 flex overflow-hidden">
@@ -275,13 +303,18 @@ export function AssetGenerator() {
                 className="flex-1 overflow-y-auto space-y-6 p-6 pb-12"
                 style={sidebarStyle}
               >
-                <RadioSelector options={[
-                    { label: "Presets", value: "presets"},
-                    { label: "Custom", value: "custom" },
-                ]} value={state.presetOrCustomMode} onChange={state.setPresetOrCustomMode} />
+                <RadioSelector
+                  options={[
+                    { label: 'Presets', value: 'presets' },
+                    { label: 'Community Presets', value: 'community' },
+                    { label: 'Custom', value: 'custom' },
+                  ]}
+                  value={state.presetOrCustomMode}
+                  onChange={handlePresetOrCustomModeChange}
+                />
 
                 <div className='pt-4'>
-                    {state.presetOrCustomMode === 'presets' ? (
+                    {state.presetOrCustomMode === 'presets' && (
                       <PresetsSelection
                         state={state}
                         actions={actions}
@@ -290,8 +323,23 @@ export function AssetGenerator() {
                         activePreset={activePreset}
                         onActivePresetChange={setActivePreset}
                         communitySync={communitySync}
+                        listSource="builtin"
                       />
-                    ) : (
+                    )}
+                    {state.presetOrCustomMode === 'community' && (
+                      <PresetsSelection
+                        state={state}
+                        actions={actions}
+                        clearPresetRef={clearPresetRef}
+                        communityPresets={communityPresets}
+                        activePreset={activePreset}
+                        onActivePresetChange={setActivePreset}
+                        communitySync={communitySync}
+                        listSource="community"
+                        onDeleteCommunityPreset={handleDeleteCommunityPreset}
+                      />
+                    )}
+                    {state.presetOrCustomMode === 'custom' && (
                       <>
                         <CanvasSettingsPanel state={state} />
                         <ColorsPanel state={state} />

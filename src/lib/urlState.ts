@@ -18,6 +18,8 @@ import {
 
 export type StateType = 'pattern' | 'text';
 
+export type PresetOrCustomMode = 'presets' | 'community' | 'custom';
+
 export interface GeneratorParamsUrl {
   threshold: number;
   gamma: number;
@@ -51,7 +53,8 @@ export interface UrlSerializableState {
   cropDirection: 'width' | 'height';
   elongateAxis: ElongateAxis;
   elongateAmount: number;
-  presetOrCustomMode?: 'presets' | 'custom';
+  /** Presets = built-in only; community = shared user presets; custom = full editor */
+  presetOrCustomMode?: PresetOrCustomMode;
   foregroundColor: string;
   backgroundColor: string;
   invertColors: boolean;
@@ -148,6 +151,7 @@ const PARAM_KEYS = {
   showEndState: 'se',
   // Logo overlay (multi-entry)
   logoEnabled: 'le',
+  /** `pcm`: presets | community | custom */
   presetOrCustomMode: 'pcm',
   // Text overlay
   textOverlayEnabled: 'txoe',
@@ -239,6 +243,7 @@ const DEFAULTS: Omit<UrlSerializableState, 'seed'> = {
   toTextPatternEnabled: false,
   toTextPatternParams: null,
   projectName: '',
+  presetOrCustomMode: 'presets',
 };
 
 export function serializeStateToUrl(state: UrlSerializableState): string {
@@ -516,7 +521,11 @@ export function parseUrlToState(): Partial<UrlSerializableState> {
   if (em !== undefined) result.elongateAmount = Math.round(em);
 
   const presetOrCustomMode = sp.get('pcm');
-  if (presetOrCustomMode === 'presets' || presetOrCustomMode === 'custom') {
+  if (
+    presetOrCustomMode === 'presets' ||
+    presetOrCustomMode === 'community' ||
+    presetOrCustomMode === 'custom'
+  ) {
     result.presetOrCustomMode = presetOrCustomMode;
   }
 

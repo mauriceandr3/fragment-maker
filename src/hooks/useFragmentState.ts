@@ -6,7 +6,7 @@ import {
   getValidCellSizesForButtons,
   findNearestValidCellSize,
 } from "@/lib/dimensionUtils";
-import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState } from "@/lib/urlState";
+import { parseUrlToState, updateUrlFromState, clearUrlParams, type UrlSerializableState, type PresetOrCustomMode } from "@/lib/urlState";
 import { type GeneratorParams, type StateType, type LogoOverlayConfig, DEFAULT_LOGO_OVERLAY_CONFIG, DEBOUNCE_DELAY, type TextOverlayConfig, DEFAULT_TEXT_OVERLAY_CONFIG, type ImageOverlayConfig, DEFAULT_IMAGE_OVERLAY_CONFIG } from "@/app/components/fragment/types";
 import type { TextConfig } from "@/implementation-files/generateTextGrid";
 import type { CropDirection, ElongateAxis, ColorMode } from "@/implementation-files/generateFragmentSvg";
@@ -220,7 +220,7 @@ export function useFragmentState() {
   const [debouncedToTextConfig, setDebouncedToTextConfig] = useState<TextConfig>(toTextConfig);
   const [debouncedShowEndState, setDebouncedShowEndState] = useState(showEndState);
   const [debouncedLogoConfig, setDebouncedLogoConfig] = useState<LogoOverlayConfig>(logoConfig);
-  const [debouncedPresetOrCustomMode, setDebouncedPresetOrCustomMode] = useState<'presets' | 'custom'>(presetOrCustomMode);
+  const [debouncedPresetOrCustomMode, setDebouncedPresetOrCustomMode] = useState<PresetOrCustomMode>(presetOrCustomMode);
   const [debouncedTextOverlayConfig, setDebouncedTextOverlayConfig] = useState<TextOverlayConfig>(textOverlayConfig);
   const [debouncedColorMode, setDebouncedColorMode] = useState<ColorMode>(colorMode);
   const [debouncedMultiColors, setDebouncedMultiColors] = useState<string[]>(multiColors);

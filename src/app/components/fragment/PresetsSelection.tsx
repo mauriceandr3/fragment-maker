@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { FragmentState } from '@/hooks/useFragmentState';
 import type { FragmentActions } from '@/hooks/useFragmentActions';
 import type { StateType } from './types';
@@ -342,6 +343,8 @@ const CORE_PRESETS: PresetConfig[] = [
 
 export const BUILTIN_PRESET_LIST: PresetConfig[] = [...CORE_PRESETS, ...BLOG_MARKETING_PRESETS];
 
+export type PresetsListSource = 'builtin' | 'community';
+
 interface PresetsSelectionProps {
     state: FragmentState;
     actions: FragmentActions;
@@ -351,6 +354,10 @@ interface PresetsSelectionProps {
     activePreset: string | null;
     onActivePresetChange: (value: string | null) => void;
     communitySync: 'loading' | 'cloud' | 'local';
+    /** Built-in only vs community-only list */
+    listSource: PresetsListSource;
+    /** Remove a community preset (shared). Only used when `listSource === 'community'`. */
+    onDeleteCommunityPreset?: (value: string) => void;
 }
 
 export function PresetsSelection({
@@ -361,11 +368,13 @@ export function PresetsSelection({
     activePreset,
     onActivePresetChange,
     communitySync,
+    listSource,
+    onDeleteCommunityPreset,
 }: PresetsSelectionProps) {
-    const PRESETS = useMemo(
-        () => [...BUILTIN_PRESET_LIST, ...communityPresets],
-        [communityPresets],
-    );
+    const PRESETS = useMemo((): PresetConfig[] => {
+        if (listSource === 'builtin') return BUILTIN_PRESET_LIST;
+        return communityPresets;
+    }, [listSource, communityPresets]);
 
     // Expose the clear function to the parent via ref
     if (clearPresetRef) {
@@ -533,29 +542,74 @@ export function PresetsSelection({
         return panels.length > 0 ? <div className="space-y-6">{panels}</div> : null;
     };
 
+    const sectionTitle = listSource === 'builtin' ? 'Presets' : 'Community presets';
+    const showDelete = listSource === 'community' && onDeleteCommunityPreset;
+
     return (
         <>
-            <Section title="Presets" borderless>
+            <Section title={sectionTitle} borderless>
                 <div className="text-sm text-white/60">
-                    Select a preset to quickly apply a combination of settings.
-                    {communitySync === 'cloud' && ' Community presets are shared with everyone using this app.'}
-                    {communitySync === 'local' && ' Community sync is unavailable; only built-in presets are shared here.'}
-                    {hasCustomization && ' You can customize the options below.'}
+                    {listSource === 'builtin' && (
+                        <>
+                            Select a built-in preset.{' '}
+                            {hasCustomization && 'You can customize the options below.'}
+                        </>
+                    )}
+                    {listSource === 'community' && (
+                        <>
+                            Presets saved for everyone.{' '}
+                            {communitySync === 'cloud' && ' They sync to the server.'}
+                            {communitySync === 'local' && ' Sync is off; only you see this list in this browser.'}
+                            {hasCustomization && ' You can customize the options below.'}
+                        </>
+                    )}
                 </div>
+
+                {listSource === 'community' && PRESETS.length === 0 && (
+                    <p className="text-sm text-white/45 py-2">
+                        No community presets yet. When you <strong>Save as new</strong> from the preview below, it appears
+                        here.
+                    </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                     {PRESETS.map((preset) => (
-                        <button
-                            key={preset.value}
-                            onClick={() => applyPreset(preset)}
-                            className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-                                activePreset === preset.value
-                                    ? 'bg-white/15 border-2 border-white/40 text-white'
-                                    : 'text-white/60 border border-white/20 hover:border-white/30 hover:text-white'
-                            }`}
-                        >
-                            {preset.label}
-                        </button>
+                        <div key={preset.value} className="flex gap-1.5 min-w-0">
+                            <button
+                                type="button"
+                                onClick={() => applyPreset(preset)}
+                                className={`min-w-0 flex-1 py-2.5 px-2 rounded-lg text-sm font-medium transition-all text-left ${
+                                    activePreset === preset.value
+                                        ? 'bg-white/15 border-2 border-white/40 text-white'
+                                        : 'text-white/60 border border-white/20 hover:border-white/30 hover:text-white'
+                                }`}
+                            >
+                                <span className="line-clamp-2 break-words">{preset.label}</span>
+                            </button>
+                            {showDelete && onDeleteCommunityPreset && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (
+                                            !window.confirm(
+                                                `Remove “${preset.label}” for everyone? This cannot be undone.`,
+                                            )
+                                        ) {
+                                            return;
+                                        }
+                                        if (activePreset === preset.value) {
+                                            onActivePresetChange(null);
+                                        }
+                                        onDeleteCommunityPreset(preset.value);
+                                    }}
+                                    className="shrink-0 w-9 flex items-center justify-center rounded-lg border border-white/20 text-white/50 hover:text-rose-300 hover:border-rose-400/40"
+                                    title="Delete for everyone"
+                                    aria-label={`Delete preset ${preset.label}`}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     ))}
                 </div>
                 {/* Zoom controls inside presets panel */}
