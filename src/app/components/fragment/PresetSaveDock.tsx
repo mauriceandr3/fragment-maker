@@ -13,17 +13,21 @@ import { applyPresetToState } from './applyPresetToState';
 interface PresetSaveDockProps {
     state: FragmentState;
     activePreset: string | null;
-    userPresets: PresetConfig[];
-    onUserPresetsChange: (next: PresetConfig[]) => void;
+    communityPresets: PresetConfig[];
+    onCommunityPresetsChange: (next: PresetConfig[]) => void | Promise<void>;
     onActivePresetChange: (value: string | null) => void;
+    communitySync: 'loading' | 'cloud' | 'local';
+    communitySavePending: boolean;
 }
 
 export function PresetSaveDock({
     state,
     activePreset,
-    userPresets,
-    onUserPresetsChange,
+    communityPresets,
+    onCommunityPresetsChange,
     onActivePresetChange,
+    communitySync,
+    communitySavePending,
 }: PresetSaveDockProps) {
     const [saveAsNewOpen, setSaveAsNewOpen] = useState(false);
     const [newPresetName, setNewPresetName] = useState('');
@@ -32,18 +36,22 @@ export function PresetSaveDock({
 
     const handleUpdateExisting = useCallback(() => {
         if (!canUpdateUserPreset || !activePreset) return;
-        const existing = userPresets.find((p) => p.value === activePreset);
+        const existing = communityPresets.find((p) => p.value === activePreset);
         if (!existing) return;
         const ok = window.confirm(
-            `Replace saved preset "${existing.label}" with the current settings? This cannot be undone.`,
+            `Replace shared preset "${existing.label}" with the current settings? Everyone will see this version.`,
         );
         if (!ok) return;
         const nextConfig = serializeFragmentToPreset(state, {
             label: existing.label,
             value: existing.value,
         });
-        onUserPresetsChange(userPresets.map((p) => (p.value === activePreset ? nextConfig : p)));
-    }, [canUpdateUserPreset, activePreset, userPresets, state, onUserPresetsChange]);
+        void Promise.resolve(
+            onCommunityPresetsChange(communityPresets.map((p) => (p.value === activePreset ? nextConfig : p))),
+        ).catch(() => {
+            /* error handled in parent */
+        });
+    }, [canUpdateUserPreset, activePreset, communityPresets, state, onCommunityPresetsChange]);
 
     const handleOpenSaveNew = useCallback(() => {
         setSaveAsNewOpen(true);
@@ -58,36 +66,60 @@ export function PresetSaveDock({
     const handleConfirmSaveNew = useCallback(() => {
         const name = newPresetName.trim();
         if (!name) return;
-        const value = uniqueUserPresetValue(name, userPresets);
+        const value = uniqueUserPresetValue(name, communityPresets);
         const preset = serializeFragmentToPreset(state, { label: name, value });
-        const next = [...userPresets, preset];
-        onUserPresetsChange(next);
-        onActivePresetChange(preset.value);
-        applyPresetToState(state, preset);
-        state.setPresetOrCustomMode('presets');
-        setSaveAsNewOpen(false);
-        setNewPresetName('');
-    }, [newPresetName, userPresets, state, onUserPresetsChange, onActivePresetChange]);
+        const next = [...communityPresets, preset];
+        void (async () => {
+            try {
+                await onCommunityPresetsChange(next);
+                onActivePresetChange(preset.value);
+                applyPresetToState(state, preset);
+                state.setPresetOrCustomMode('presets');
+                setSaveAsNewOpen(false);
+                setNewPresetName('');
+            } catch {
+                /* parent reverts and alerts */
+            }
+        })();
+    }, [newPresetName, communityPresets, state, onCommunityPresetsChange, onActivePresetChange]);
+
+    const saveDisabled =
+        communitySync === 'loading' || communitySavePending;
 
     return (
         <div className="border-t border-white/10 bg-black/55 backdrop-blur-md px-4 py-3 shrink-0 flex flex-col gap-3">
+            {communitySync === 'local' && (
+                <p className="text-[11px] text-amber-200/80">
+                    Community sync is off. Presets stay in this browser only. For shared presets, set
+                    Upstash env on Vercel:{' '}
+                    <code className="text-amber-100/90">UPSTASH_REDIS_REST_URL</code> and{' '}
+                    <code className="text-amber-100/90">UPSTASH_REDIS_REST_TOKEN</code> (or Vercel Redis{' '}
+                    <code className="text-amber-100/90">KV_*</code>).
+                </p>
+            )}
             <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-white/45 uppercase tracking-widest mr-1">Save preset</span>
                 <Button
                     type="button"
                     variant="secondary"
                     size="sm"
-                    disabled={!canUpdateUserPreset}
+                    disabled={!canUpdateUserPreset || saveDisabled}
                     title={
                         canUpdateUserPreset
-                            ? 'Overwrite the selected user preset'
-                            : 'Select one of your saved presets (from “Save as new”) to update it'
+                            ? 'Overwrite this shared preset for everyone'
+                            : 'Select a community preset you added (Save as new) to update it'
                     }
                     onClick={handleUpdateExisting}
                 >
                     Update existing
                 </Button>
-                <Button type="button" variant="secondary" size="sm" onClick={handleOpenSaveNew}>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={saveDisabled}
+                    onClick={handleOpenSaveNew}
+                >
                     Save as new
                 </Button>
             </div>

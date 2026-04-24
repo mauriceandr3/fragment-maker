@@ -27,6 +27,14 @@ export function persistUserPresets(presets: PresetConfig[]): void {
     }
 }
 
+export function clearUserPresetsFromStorage(): void {
+    try {
+        localStorage.removeItem(USER_PRESETS_STORAGE_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
 function slugifyName(name: string): string {
     const s = name
         .trim()

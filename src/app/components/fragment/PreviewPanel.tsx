@@ -123,9 +123,11 @@ interface PreviewPanelProps {
   animationMouseEnter: () => void;
   animationMouseLeave: () => void;
   activePreset: string | null;
-  userPresets: PresetConfig[];
-  onUserPresetsChange: (next: PresetConfig[]) => void;
+  communityPresets: PresetConfig[];
+  onCommunityPresetsChange: (next: PresetConfig[]) => void | Promise<void>;
   onActivePresetChange: (value: string | null) => void;
+  communitySync: 'loading' | 'cloud' | 'local';
+  communitySavePending: boolean;
 }
 
 export function PreviewPanel({
@@ -136,9 +138,11 @@ export function PreviewPanel({
   animationMouseEnter,
   animationMouseLeave,
   activePreset,
-  userPresets,
-  onUserPresetsChange,
+  communityPresets,
+  onCommunityPresetsChange,
   onActivePresetChange,
+  communitySync,
+  communitySavePending,
 }: PreviewPanelProps) {
   const {
     viewMode, setViewMode,
@@ -501,9 +505,11 @@ export function PreviewPanel({
       <PresetSaveDock
         state={state}
         activePreset={activePreset}
-        userPresets={userPresets}
-        onUserPresetsChange={onUserPresetsChange}
+        communityPresets={communityPresets}
+        onCommunityPresetsChange={onCommunityPresetsChange}
         onActivePresetChange={onActivePresetChange}
+        communitySync={communitySync}
+        communitySavePending={communitySavePending}
       />
       </div>
 

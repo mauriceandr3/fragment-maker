@@ -9,10 +9,10 @@ import { BLOG_MARKETING_PRESETS } from './blogMarketingPresets';
 import { Section } from '../ui/Section';
 import { RadioSelector } from '../ui/RadioSelector';
 import { CanvasSettingsPanel } from './CanvasSettingsPanel';
-import { ColorsPanel, type LockableColorField } from './ColorsPanel';
+import { ColorsPanel } from './ColorsPanel';
 import { LogoPanel } from './LogoPanel';
 import { AnimationPanel } from './AnimationPanel';
-import { ParametersPanel, randomizeUnlockedParams, type LockableParamField } from './ParametersPanel';
+import { ParametersPanel, randomizeUnlockedParams } from './ParametersPanel';
 import { TextConfigPanel } from './TextConfigPanel';
 import { TextOverlayPanel } from './TextOverlayPanel';
 import { ImagePanel } from './ImagePanel';
@@ -347,20 +347,25 @@ interface PresetsSelectionProps {
     actions: FragmentActions;
     /** Ref that will be assigned a function to clear the active preset selection */
     clearPresetRef?: React.RefObject<(() => void) | null>;
-    userPresets: PresetConfig[];
+    communityPresets: PresetConfig[];
     activePreset: string | null;
     onActivePresetChange: (value: string | null) => void;
+    communitySync: 'loading' | 'cloud' | 'local';
 }
 
 export function PresetsSelection({
     state,
     actions,
     clearPresetRef,
-    userPresets,
+    communityPresets,
     activePreset,
     onActivePresetChange,
+    communitySync,
 }: PresetsSelectionProps) {
-    const PRESETS = useMemo(() => [...BUILTIN_PRESET_LIST, ...userPresets], [userPresets]);
+    const PRESETS = useMemo(
+        () => [...BUILTIN_PRESET_LIST, ...communityPresets],
+        [communityPresets],
+    );
 
     // Expose the clear function to the parent via ref
     if (clearPresetRef) {
@@ -533,6 +538,8 @@ export function PresetsSelection({
             <Section title="Presets" borderless>
                 <div className="text-sm text-white/60">
                     Select a preset to quickly apply a combination of settings.
+                    {communitySync === 'cloud' && ' Community presets are shared with everyone using this app.'}
+                    {communitySync === 'local' && ' Community sync is unavailable; only built-in presets are shared here.'}
                     {hasCustomization && ' You can customize the options below.'}
                 </div>
 

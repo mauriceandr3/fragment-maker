@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback } from "react";
+import { useRef, useMemo, useState, useCallback, useEffect } from "react";
 import { ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { resolveLogoEntryColor } from "@/lib/resolveLogoColor";
 import { Button } from './ui/Button';
@@ -24,7 +24,16 @@ import { ImagePanel } from "./fragment/ImagePanel";
 import { RadioSelector } from './ui/RadioSelector';
 import { PresetsSelection } from './fragment/PresetsSelection';
 import type { PresetConfig } from './fragment/presetConfig';
-import { loadUserPresetsFromStorage, persistUserPresets } from '@/lib/fragmentPresetSerialize';
+import {
+  loadUserPresetsFromStorage,
+  persistUserPresets,
+  clearUserPresetsFromStorage,
+} from '@/lib/fragmentPresetSerialize';
+import {
+  fetchCommunityPresets,
+  postCommunityPresets,
+  mergeUniqueByPresetValue,
+} from '@/lib/communityPresetsApi';
 
 const sidebarStyle = {
   fontFamily: 'Inter Tight, sans-serif',
@@ -38,13 +47,119 @@ export function AssetGenerator() {
   const animationContainerRef = useRef<HTMLDivElement>(null);
   const clearPresetRef = useRef<(() => void) | null>(null);
 
-  const [userPresets, setUserPresets] = useState<PresetConfig[]>(() => loadUserPresetsFromStorage());
+  const [communityPresets, setCommunityPresets] = useState<PresetConfig[]>([]);
+  const [communitySync, setCommunitySync] = useState<'loading' | 'cloud' | 'local'>('loading');
+  const [communitySavePending, setCommunitySavePending] = useState(false);
+  const communityPresetsRef = useRef<PresetConfig[]>([]);
+  const savePendingRef = useRef(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
-  const handleUserPresetsChange = useCallback((next: PresetConfig[]) => {
-    setUserPresets(next);
-    persistUserPresets(next);
+  useEffect(() => {
+    communityPresetsRef.current = communityPresets;
+  }, [communityPresets]);
+
+  useEffect(() => {
+    savePendingRef.current = communitySavePending;
+  }, [communitySavePending]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { presets, configured } = await fetchCommunityPresets();
+        if (cancelled) return;
+        if (configured) {
+          const local = loadUserPresetsFromStorage();
+          const merged = mergeUniqueByPresetValue(presets, local);
+          if (local.length > 0) {
+            if (merged.length > presets.length) {
+              try {
+                await postCommunityPresets(merged);
+              } catch {
+                /* list still shown; user can try saving again */
+              }
+            }
+            clearUserPresetsFromStorage();
+          }
+          setCommunityPresets(merged);
+          setCommunitySync('cloud');
+        } else {
+          setCommunityPresets(loadUserPresetsFromStorage());
+          setCommunitySync('local');
+        }
+      } catch {
+        if (cancelled) return;
+        setCommunityPresets(loadUserPresetsFromStorage());
+        setCommunitySync('local');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    if (communitySync !== 'cloud') return;
+    const id = window.setInterval(() => {
+      (async () => {
+        if (savePendingRef.current) return;
+        try {
+          const { presets, configured } = await fetchCommunityPresets();
+          if (!configured) return;
+          setCommunityPresets(presets);
+        } catch {
+          /* keep current list */
+        }
+      })();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [communitySync]);
+
+  useEffect(() => {
+    if (communitySync !== 'cloud') return;
+    const onVis = () => {
+      if (document.visibilityState !== 'visible' || savePendingRef.current) return;
+      (async () => {
+        try {
+          const { presets, configured } = await fetchCommunityPresets();
+          if (configured) setCommunityPresets(presets);
+        } catch {
+          /* ignore */
+        }
+      })();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [communitySync]);
+
+  const handleCommunityPresetsChange = useCallback(
+    async (next: PresetConfig[]) => {
+      if (communitySync === 'loading') {
+        return;
+      }
+      const prev = communityPresetsRef.current;
+      setCommunityPresets(next);
+      if (communitySync === 'local') {
+        persistUserPresets(next);
+        return;
+      }
+      if (communitySync === 'cloud') {
+        setCommunitySavePending(true);
+        try {
+          await postCommunityPresets(next);
+        } catch {
+          setCommunityPresets(prev);
+          window.alert(
+            'Could not save presets for everyone. In Vercel → Project → Settings → Environment Variables, add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (Production), redeploy, and check the Network tab for POST /api/community-presets.',
+          );
+          throw new Error('community_save_failed');
+        } finally {
+          setCommunitySavePending(false);
+        }
+      }
+    },
+    [communitySync],
+  );
 
   const state = useFragmentState();
   const defaultTextColor = useMemo(
@@ -118,8 +233,10 @@ export function AssetGenerator() {
           animationMouseEnter={animationMouseEnter}
           animationMouseLeave={animationMouseLeave}
           activePreset={activePreset}
-          userPresets={userPresets}
-          onUserPresetsChange={handleUserPresetsChange}
+          communityPresets={communityPresets}
+          onCommunityPresetsChange={handleCommunityPresetsChange}
+          communitySync={communitySync}
+          communitySavePending={communitySavePending}
           onActivePresetChange={setActivePreset}
         />
 
@@ -169,9 +286,10 @@ export function AssetGenerator() {
                         state={state}
                         actions={actions}
                         clearPresetRef={clearPresetRef}
-                        userPresets={userPresets}
+                        communityPresets={communityPresets}
                         activePreset={activePreset}
                         onActivePresetChange={setActivePreset}
+                        communitySync={communitySync}
                       />
                     ) : (
                       <>
